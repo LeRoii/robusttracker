@@ -1,6 +1,9 @@
 #include <iostream>
 #include "serial.h"
+#include "common.h"
+#include<arpa/inet.h>
 
+extern ST_SYS_STATUS stSysStatus;
 
 ST_A1_CONFIG stA1Cfg = {0};
 ST_A2_CONFIG stA2Cfg = {0};
@@ -16,12 +19,75 @@ ST_A2C2E2_CONFIG stA2C2E2Cfg = {0};
 ST_A1C1E1S1_CONFIG stA1C1E1S1Cfg = {0};
 ST_A2C2E2S2_CONFIG stA2C2E2S2Cfg = {0};
 
-static uint8_t viewlink_protocal_checksum(uint8_t* buf)
+
+
+
+
+bool CheckFrameHeader(uint8_t *send_buf, int Len)
 {
-    uint8_t len = buf[3];
-    uint8_t checksum = len;
+    if(Len < 3)
+        return false;
+    if(send_buf[0] == 0x55 && send_buf[1] == 0xaa && send_buf[2] == 0xdc)
+	{
+        return true;
+    }
+    else
+        return false;
+}
+
+EN_DATA_FRAME_TYPE GetFrameType(uint8_t *send_buf, int Len)
+{
+    if(Len < 5)
+        return TypeUnkonwn;
+
+    if(Len == 7)
+    {
+        if(send_buf[4] == 0x00)
+            return HandShake;
+        else if(send_buf[4] == 0x15)
+            return HeartBeat15;
+    }
+
+    if(Len > 10)
+    {
+        if(send_buf[4] == 0x40)
+            return Status40;
+        else if(send_buf[4] == 0x41)
+            return Status41;
+        else if(send_buf[4] == 0x26)
+            return FrameS2;
+
+    }
+
+    return TypeUnkonwn;
+}
+
+static void SetTrackerGateSize()
+{
+	switch(stE1Cfg.enBaseOpMode)
+	{
+		case 0x20:
+			stSysStatus.trackerGateSize = 16;
+			break;
+		case 0x22:
+			stSysStatus.trackerGateSize = 64;
+			break;
+		case 0x23:
+			stSysStatus.trackerGateSize = 128;
+			break;
+		default:
+			stSysStatus.trackerGateSize = 32;
+			break;
+	}
+}
+
+uint8_t viewlink_protocal_checksum(uint8_t* buf)
+{
+    uint8_t len = GetMsgLen(buf[3]);
+    uint8_t checksum = buf[3];
     for(uint8_t i=0;i<len-2;i++)
     {
+        // printf("checksum:%#x\n", checksum);
         checksum = checksum ^ buf[4+i];
     }
     return(checksum);
@@ -50,12 +116,23 @@ static void VL_ParseSerialData_C1(uint8_t* buf)
 //to do
 static void VL_ParseSerialData_E1(uint8_t* buf)
 {
+    printf("buf[0]:%#x,buf[1]:%#x,buf[2]:%#x,\n", buf[0], buf[1], buf[2]);
+
     ST_E1_CONFIG *e1Cfg = (ST_E1_CONFIG*)buf;
 
     stE1Cfg.enTrackSourceMode = e1Cfg->enTrackSourceMode;
     stE1Cfg.u8Para1 = e1Cfg->u8Para1;
     stE1Cfg.enBaseOpMode = e1Cfg->enBaseOpMode;
     stE1Cfg.u8Para2 = e1Cfg->u8Para2;
+
+    //stop tracking
+	if(stE1Cfg.enBaseOpMode == Stop)
+	{
+		stSysStatus.trackOn = false;
+		stSysStatus.trackerInited = false;
+	}
+
+    SetTrackerGateSize();
 }
 
 static void VL_ParseSerialData_S1(uint8_t* buf)
@@ -109,6 +186,7 @@ static void VL_ParseSerialData_U(uint8_t* buf)
 
 static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
 {
+    // printf("buf[0]:%#x,buf[1]:%#x,buf[2]:%#x,\n", buf[0], buf[1], buf[2]);
     ST_A1_CONFIG *a1Cfg = (ST_A1_CONFIG*)buf;
     stA1C1E1Cfg.a1Config.enServoCtrlMode = a1Cfg->enServoCtrlMode;
     memcpy(stA1C1E1Cfg.a1Config.para1, a1Cfg->para1, 2);
@@ -116,8 +194,15 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
     memcpy(stA1C1E1Cfg.a1Config.para3, a1Cfg->para3, 2);
     memcpy(stA1C1E1Cfg.a1Config.para4, a1Cfg->para4, 2);
 
+    // printf("%#x\n", a1Cfg->enServoCtrlMode);
+
     uint8_t *tempData = buf + 9; // 9个字节
-    ST_C1_CONFIG *c1Cfg = (ST_C1_CONFIG*)tempData;
+    uint16_t tempData1 = *(uint16_t*)tempData;
+    uint16_t tempData2 = ntohs(tempData1);
+    ST_C1_CONFIG *c1Cfg = (ST_C1_CONFIG*)&tempData2;
+
+    printf("C1[0]:%#x,C1[1]:%#x\n", tempData[0], tempData[1]);
+
     stA1C1E1Cfg.c1Config.enDispMode =  c1Cfg->enDispMode;
     stA1C1E1Cfg.c1Config.enOpCmd1 = c1Cfg->enOpCmd1;
     stA1C1E1Cfg.c1Config.enOpCmd1Para = c1Cfg->enOpCmd1Para;
@@ -125,10 +210,61 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
 
     tempData = tempData + 2; // 2个字节
     ST_E1_CONFIG *e1Cfg = (ST_E1_CONFIG*)tempData;
+
+    printf("E1[0]:%#x,E1[1]:%#x,E1[2]:%#x,\n", tempData[0], tempData[1], tempData[2]);
+
     stA1C1E1Cfg.e1Config.enTrackSourceMode = e1Cfg->enTrackSourceMode;
     stA1C1E1Cfg.e1Config.u8Para1 = e1Cfg->u8Para1;
     stA1C1E1Cfg.e1Config.enBaseOpMode = e1Cfg->enBaseOpMode;
     stA1C1E1Cfg.e1Config.u8Para2 = e1Cfg->u8Para2;
+
+    if(stA1C1E1Cfg.e1Config.enBaseOpMode == AiIdentifySwitch)
+	{
+		if(stA1C1E1Cfg.e1Config.u8Para2 == 1)
+		{
+			stSysStatus.detOn = true;
+		}
+		else
+		{
+			stSysStatus.detOn = false;
+		}
+	}
+    //start tracking
+	if(stA1C1E1Cfg.e1Config.enBaseOpMode == OnTrack)
+	{
+		stSysStatus.trackOn = true;
+	}
+
+    if(stA1C1E1Cfg.e1Config.enBaseOpMode > TrackingSpeedAdjustment &&
+        stA1C1E1Cfg.e1Config.enBaseOpMode < BaseOpButt)
+    {
+        switch(stA1C1E1Cfg.e1Config.enBaseOpMode)
+        {
+            case SixteenSquareExtraSmallTemplates:
+                stSysStatus.trackerGateSize = 16;
+                break;
+            case ThirtyTwoSquareSmallTemplates:
+                stSysStatus.trackerGateSize = 32;
+                break;
+            case SixtyFourSquareMidTemplates:
+                stSysStatus.trackerGateSize = 64;
+                break;
+            case OneHundredAndTwentyEightSquareBigTemplates:
+                stSysStatus.trackerGateSize = 128;
+                break;
+            default:
+                stSysStatus.trackerGateSize = 32;
+                break;
+        }
+    }
+    // printf("laserCmd:%d, enOpCmd1Para:%d, enOpCmd1:%d, enDispMode%d, \n", 
+    // stA1C1E1Cfg.c1Config.laserCmd, stA1C1E1Cfg.c1Config.enOpCmd1Para, stA1C1E1Cfg.c1Config.enOpCmd1,\
+    // stA1C1E1Cfg.c1Config.enDispMode);
+    if(stA1C1E1Cfg.c1Config.enDispMode != 0)
+        stSysStatus.enDispMode = (EN_DISP_MODE)stA1C1E1Cfg.c1Config.enDispMode;
+
+    printf("c1Config.enOpCmd1:%#x\n", stA1C1E1Cfg.c1Config.enOpCmd1);
+    printf("c1Config.enBaseOpMode:%#x\n", stA1C1E1Cfg.e1Config.enBaseOpMode);
 }
 
 static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
@@ -149,6 +285,8 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
     stA2C2E2Cfg.e2Config.enExtendCmd1 = e2Cfg->enExtendCmd1;
     memcpy(stA2C2E2Cfg.e2Config.para1, e2Cfg->para1, 2);
     memcpy(stA2C2E2Cfg.e2Config.para2, e2Cfg->para2, 2);
+
+
 }
 
 static void VL_ParseSerialData_A1C1E1S1(uint8_t* buf)
@@ -208,13 +346,13 @@ static void VL_ParseSerialData_A2C2E2S2(uint8_t* buf)
     memcpy(stA2C2E2S2Cfg.s2Config.para, s2Cfg->para, 4);
 }
 
-static void VL_ParseSerialData(uint8_t* buf)
+void VL_ParseSerialData(uint8_t* buf)
 {
     uint8_t frameID = buf[4];
     switch(frameID)
     {
         case 0x30:
-            VL_ParseSerialData_A1C1E1(buf);
+            VL_ParseSerialData_A1C1E1(buf+5);
             break;
         case 0x32:
             VL_ParseSerialData_A1C1E1S1(buf);
@@ -224,10 +362,10 @@ static void VL_ParseSerialData(uint8_t* buf)
             break;
         case 0x1C:
             // uint8_t *data = buf + 5;
-            VL_ParseSerialData_C1(buf);
+            VL_ParseSerialData_C1(buf+5);
             break;
         case 0x1E:
-            VL_ParseSerialData_E1(buf);
+            VL_ParseSerialData_E1(buf+5);
             break;
         case 0x16:
             VL_ParseSerialData_S1(buf);
@@ -272,6 +410,7 @@ Serial::~Serial()
 
 int Serial::openPort(int fd, int comport)
 {
+    portId = comport;
     /*if (comport == 1)  
     {  
         fd = open("/dev/ttyTHS1", O_RDWR | O_NOCTTY | O_NDELAY);  
@@ -324,10 +463,10 @@ int Serial::openPort(int fd, int comport)
     else if(comport == 2)
     {
         // devFile = "/dev/ttyTHS2";
-        fd = open("/dev/ttyTHS2", O_RDWR | O_NOCTTY | O_NDELAY);  
+        fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);  
     }
 
-    fd = open(devFile, O_RDWR | O_NOCTTY | O_NDELAY);  
+    // fd = open(devFile, O_RDWR | O_NOCTTY | O_NDELAY);  
     if (-1 == fd)  
     {  
         perror("Can't Open Serial Port");  
@@ -354,7 +493,7 @@ int Serial::openPort(int fd, int comport)
     {  
         printf("is a tty success!\n");  
     }  
-    printf("fd-open=%d\n", fd);  
+    printf("fd-open=%d, portId:%d\n", fd, portId);  
     return fd;
 }
 
@@ -446,6 +585,7 @@ int Serial::setOpt(int fd, int nSpeed, int nBits, char nEvent, int nStop)
 
 int Serial::readDataTty(int fd, uint8_t *rcv_buf, int TimeOut, int Len)  
 {  
+
     int retval;  
     fd_set rfds;  
     struct timeval tv;  
@@ -458,6 +598,7 @@ int Serial::readDataTty(int fd, uint8_t *rcv_buf, int TimeOut, int Len)
     {  
         FD_ZERO(&rfds);  
         FD_SET(fd, &rfds);  
+        // retval = select(fd + 1, &rfds, NULL, NULL, NULL);  
         retval = select(fd + 1, &rfds, NULL, NULL, &tv);  
         if (retval == -1)  
         {  
@@ -509,7 +650,7 @@ int Serial::set_serial(int port)
         return -1;  
     }
 
-    if ((iSetOpt = setOpt(fdSerial, 230400, 8, 'N', 1))<0)  
+    if ((iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1))<0)  
     {  
         perror("set_opt error");  
         return -1;  
@@ -548,7 +689,7 @@ int Serial::serial_send(uint8_t* buffSenData, unsigned int sendDataNum)
 int Serial::serial_recieve(uint8_t* buffRcvData)
 { 
     //读取1024字节数据到bufferRcvData，超时时间设置为2ms
-    return readDataTty(fdSerial, buffRcvData, 2, 1024);
+    return readDataTty(fdSerial, buffRcvData, 100, 70);
     // std::cout <<  int(buffRcvData[0]) << " " <<  int(buffRcvData[1]) << " "  <<  int(buffRcvData[2]) << " " <<  int(buffRcvData[3]) << " " 
     //         <<  int(buffRcvData[4]) << " " <<  int(buffRcvData[5]) << " " <<  int(buffRcvData[6]) << std::endl; 
 }
@@ -565,29 +706,46 @@ void Serial::OnReceive()
         if(retLen > 0)
         {
             std::cout<<"serial received "<<std::dec<<retLen<<"bytes"<<std::endl;
-            for(int i=0; i< retLen ;i++)
-            {
-                printf("[%02X]", buffRcvData_servo[i]);
-            }
-            std::cout<<std::endl<<std::endl;
+            
 
-            //check frame header
-            if(!(buffRcvData_servo[0] == 0x55 && buffRcvData_servo[1] == 0xaa && buffRcvData_servo[2] == 0xdc))
+            if(portId == 1) //serial up
             {
-                printf("frame header error, drop data\n");
-                memset(buffRcvData_servo,0,1024);
-                continue;
-            }
-            //checksum
-            uint8_t checksum = viewlink_protocal_checksum(buffRcvData_servo);
-            if(checksum != buffRcvData_servo[retLen - 1])
-            {
-                printf("frame checksum error, drop data\n");
-                memset(buffRcvData_servo,0,1024);
-                continue;
+                printf("serial[%d] received serial up data\n", portId);
+                for(int i=0; i< retLen ;i++)
+                {
+                    printf("[%02X]", buffRcvData_servo[i]);
+                }
+                std::cout<<std::endl<<std::endl;
             }
 
-            VL_ParseSerialData(buffRcvData_servo);
+            else if(portId == 2) //serial down
+            {
+                printf("serial[%d] received serial down data\n", portId);
+                for(int i=0; i< retLen ;i++)
+                {
+                    printf("[%02X]", buffRcvData_servo[i]);
+                }
+                std::cout<<std::endl<<std::endl;
+                //check frame header
+                if(!(buffRcvData_servo[0] == 0x55 && buffRcvData_servo[1] == 0xaa && buffRcvData_servo[2] == 0xdc))
+                {
+                    printf("frame header error, drop data\n");
+                    memset(buffRcvData_servo,0,1024);
+                    continue;
+                }
+                //checksum
+                uint8_t checksum = viewlink_protocal_checksum(buffRcvData_servo);
+                if(checksum != buffRcvData_servo[retLen - 1])
+                {
+                    printf("frame checksum error, drop data\n");
+                    memset(buffRcvData_servo,0,1024);
+                    continue;
+                }
+
+                VL_ParseSerialData(buffRcvData_servo);
+            }
+
+            
 
             //process data
 
@@ -636,6 +794,194 @@ int Serial::closePort(int fd)
     close(fd);
 
     return 0;
+}
+
+int Serial::ProcessSerialData(uint8_t *inputBUf, int inputLen, uint8_t *OutputBuf, int &outputLen)
+{
+    int loopCnt = inputLen;
+    int dataLen;
+
+    int remainBytes = loopCnt;
+
+    // printf("ProcessSerialData start loopCnt:%d\n", loopCnt);
+    // for(int i=0; i< inputLen ;i++)
+    // {
+    //     printf("[%02X]", inputBUf[i]);
+    // }
+    // printf("\n");
+
+    if(st == 4)
+    {
+        uint8_t tmp[1000] = {0};
+        memcpy(tmp, inputBUf, inputLen);
+        memcpy(inputBUf, buf, bufLen);
+        memcpy(inputBUf+bufLen, tmp, inputLen);
+        loopCnt = inputLen + bufLen;
+        st = 0;
+
+        // printf("in if after memcpy\n");
+        // for(int i=0; i< loopCnt ;i++)
+        // {
+        //     printf("[%02X]", inputBUf[i]);
+        // }
+        // printf("\n");
+    }
+
+
+    for(int i=0;i<loopCnt;i++)
+    {
+        remainBytes = loopCnt - i;
+        // printf("i=%d, st:%d\n", i, st);
+        switch(st)
+        {
+            case 0:
+                if(inputBUf[i] == 0x55)
+                {
+                    st = 1;
+                }
+                // --remainBytes;
+                break;
+            case 1:
+                if(inputBUf[i] == 0xAA)
+                {
+                    st = 2;
+                }
+                else
+                {
+                    st = 0;
+                }
+                // --remainBytes;
+                break;
+            case 2:
+                if(inputBUf[i] == 0xDC)
+                {
+                    st = 3;
+                }
+                else
+                {
+                    st = 0;
+                }
+                // --remainBytes;
+                break;
+            case 3:
+                dataLen = GetMsgLen(inputBUf[i]);
+                // printf("dataLen:%d, remainBytes:%d\n", dataLen, remainBytes);
+                if(dataLen == 4)
+                {
+                    st = 0;
+                    if(remainBytes == 4)
+                    {
+                        memcpy(OutputBuf, inputBUf+i-3, dataLen + 3);
+                        outputLen = dataLen + 3;
+                        // printf("return heart beat\n");
+                        return RET_OK;
+                    }
+
+                    
+                    i += 3;
+                    remainBytes -= 4;
+                    break;
+                }
+                
+                if(dataLen == remainBytes)  
+                {
+                    printf("*****complete frame*****\n");
+                    memcpy(OutputBuf, inputBUf+i-3, remainBytes + 3);
+                    outputLen = remainBytes + 3;
+
+                    // for(int i=0; i< outputLen;i++)
+                    // {
+                    //     printf("[%02X]", OutputBuf[i]);
+                    // }
+                    // printf("\n");
+                    st = 6;
+                    break;
+                }
+                else if(dataLen < remainBytes)
+                {
+                    // printf("dataLen < remainBytes\n");
+                    bufLen = remainBytes - dataLen;
+                    memcpy(buf, inputBUf +i + dataLen, bufLen);
+                    memset(inputBUf + dataLen + i, 0, bufLen);
+
+                    memcpy(OutputBuf, inputBUf+i-3, dataLen + 3);
+                    outputLen = dataLen + 3;
+                    st = 4;
+
+                    // for(int i=0; i< outputLen;i++)
+                    // {
+                    //     printf("[%02X]", OutputBuf[i]);
+                    // }
+                    // printf("\n");
+
+
+                    // printf("OutputBuf[dataLen + 2]:%#x\n", OutputBuf[dataLen + 2]);
+                    // printf("1111checksum:%#x\n", viewlink_protocal_checksum(OutputBuf));
+                    if(OutputBuf[outputLen-1] == viewlink_protocal_checksum(OutputBuf))// complete frame
+                    {
+                        return RET_OK;
+                    }
+                    else
+                    {
+                        printf("frame checksum error, drop data\n\n");
+                        memset(OutputBuf,0,1024);
+
+                        for(int i=0; i< outputLen;i++)
+                        {
+                            printf("[%02X]", OutputBuf[i]);
+                        }
+                        printf("\n");
+                        return RET_ERR;
+                    }
+
+                    break;
+                }
+                else //dataLen + 3 > remainBytes
+                {
+                    // printf("dataLen > remainBytes\n");
+                    memcpy(buf, inputBUf + i-3, remainBytes);
+                    bufLen = remainBytes+3;
+                    st = 4;
+
+                    // for(int i=0; i< bufLen;i++)
+                    // {
+                    //     printf("[%02X]", buf[i]);
+                    // }
+                    // printf("\n");
+                    
+
+                    return RET_ERR;
+                }
+                break;
+            case 6:
+                if(OutputBuf[outputLen-1] == viewlink_protocal_checksum(OutputBuf))// complete frame
+                {
+                    st = 0;
+                    // memcpy(OutputBuf, inputBUf+i-1, dataLen + 3);
+                    return RET_OK;
+                }
+                else
+                {
+                    st = 0;
+                    printf("frame checksum error, drop data\n\n");
+                    memset(inputBUf,0,1024);
+
+                    for(int i=0; i< outputLen;i++)
+                    {
+                        printf("[%02X]", OutputBuf[i]);
+                    }
+                    printf("\n");
+                    return RET_ERR;
+                }
+                break;
+            default:
+                st = 0;
+
+        }
+    }
+
+    printf("return \n");
+    return RET_ERR;
 }
 
 
