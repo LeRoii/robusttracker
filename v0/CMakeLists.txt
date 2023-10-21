@@ -28,6 +28,8 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 find_package(MTTracking REQUIRED)
 
+find_package(yaml-cpp REQUIRED)
+
 add_executable(demo ${PROJECT_SOURCE_DIR}/demo.cpp )
 target_link_libraries(demo  -L${PROJECT_SOURCE_DIR} -lidetector -L${PROJECT_SOURCE_DIR} -ltracker ${OpenCV_LIBS})
-target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection)
+target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection yaml-cpp)

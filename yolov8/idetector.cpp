@@ -90,7 +90,7 @@ idetector::idetector(const std::string& enginepath)
     decode_ptr_device=nullptr;
 
     engine_name = enginepath;
-    cuda_post_process = "c";
+    cuda_post_process = "g";
 }
 
 idetector::~idetector()

@@ -1,6 +1,7 @@
 #include "idetector.h"
 #include "kcftracker.hpp"
 #include "multitracker.h"
+#include <yaml-cpp/yaml.h>
 
 cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
@@ -52,7 +53,11 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
 
 int main()
 {
-    idetector *detector = new idetector("/space/model/visdrone-8s-10c.engine");
+	YAML::Node config = YAML::LoadFile("../config.yaml");
+	int detOn = config["detection"].as<int>();
+	int trackOn = config["track"].as<int>();
+
+    idetector *detector = new idetector("/space/code/tensorrtx/yolov8/build/visdrone-8s-2c-1011.engine");
     detector->init();
     cv::VideoCapture cap("/space/data/pl/IMG_3567.MOV");
     // cv::VideoCapture cap("/space/data/tracking-test.mp4");
@@ -106,7 +111,7 @@ int main()
     // Tracker results
 	cv::Rect result;
 
-	cv::Mat dispFrame, trackFrame, detFrame;
+	cv::Mat dispFrame, trackFrame, detFrame, detret;
 
     while(1)
     {
@@ -122,74 +127,80 @@ int main()
 
 		printf("=====nframe:%d======\n", nFrames);
 
-        if (nFrames == 0) {
-			while(1)
-			{
-				printf("1111111111\n");
-				auto tmpmat = frame.clone();
-				cv::rectangle( tmpmat, cv::Point(box.x,box.y), cv::Point(box.x+box.width,box.y+box.height), cv::Scalar( 48,48,255 ), 2, 8 );
-				cv::imshow("show", tmpmat);
-				if(box_complete == true)
+		if(trackOn)
+		{
+			if (nFrames == 0) {
+				while(1)
 				{
-					xMin = box.x;
-					yMin = box.y;
-					width = box.width;
-					height = box.height;
-					break;
+					printf("1111111111\n");
+					auto tmpmat = frame.clone();
+					cv::rectangle( tmpmat, cv::Point(box.x,box.y), cv::Point(box.x+box.width,box.y+box.height), cv::Scalar( 48,48,255 ), 2, 8 );
+					cv::imshow("show", tmpmat);
+					if(box_complete == true)
+					{
+						xMin = box.x;
+						yMin = box.y;
+						width = box.width;
+						height = box.height;
+						break;
+					}
+					cv::waitKey(30);
 				}
-				cv::waitKey(30);
+				printf("WWWWWWW\n");
+				tracker.init( cv::Rect(xMin, yMin, width, height), frame );
+				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
+				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
 			}
-			printf("WWWWWWW\n");
-			tracker.init( cv::Rect(xMin, yMin, width, height), frame );
-			// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
-			// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
+			// Update
+			else{
+				result = tracker.update(frame);
+				// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
+				rectangle( dispFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
+				// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
+			}
 		}
-        // Update
-		else{
-			result = tracker.update(frame);
-			// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
-			rectangle( dispFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
-			// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
-		}
-
 		nFrames++;
 
-		frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
-        detector->process(detFrame, boxs);
-
-		auto detret = detFrame.clone();
-
-        frameInfo.CleanRegions();
-
-        printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-		for(auto& box:boxs)
+		if(detOn)
 		{
-			printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
+			frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
+			detector->process(detFrame, boxs);
+
+			detret = detFrame.clone();
+
+			frameInfo.CleanRegions();
+
+			printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
+			for(auto& box:boxs)
+			{
+				printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
+			}
+			regions.clear();
+			for(auto &box:boxs)
+			{
+				regions.emplace_back(cv::Rect(cvRound(1.0*box.x), cvRound(1.0*box.y), cvRound(1.0*box.w), cvRound(1.0*box.h)), (box.obj_id), box.prob);
+			}
+
+			printf("frameInfo.m_regions[0] size%d, regions:%d\n", frameInfo.m_regions[0].size(), regions.size());
+			frameInfo.m_regions[0] = regions;
+			mtracker->Update(frameInfo.m_regions[0], frameInfo.m_frames[0].GetUMatGray(), m_fps);
+			printf("track size:%d\n", frameInfo.m_tracks[0].size());
+			mtracker->GetTracks(frameInfo.m_tracks[0]);
+
+			DrawData(frameInfo.m_frames[0].GetMatBGR(), frameInfo.m_tracks[0], frameInfo.m_frameInds[0], 0);
+			// frame = frameInfo.m_frames[0].GetMatBGR().clone();
+			dispFrame = frameInfo.m_frames[0].GetMatBGR();
+
+			// printf("size:%d, id:%d\n", frameInfo.m_tracks[0].size(), frameInfo.m_tracks[0][0].m_ID);
+
+			// Tracks2Boxs(frameInfo.m_tracks[0], boxs);
+			cv::imshow("det", detret);
 		}
-        regions.clear();
-        for(auto &box:boxs)
-        {
-            regions.emplace_back(cv::Rect(cvRound(1.0*box.x), cvRound(1.0*box.y), cvRound(1.0*box.w), cvRound(1.0*box.h)), (box.obj_id), box.prob);
-        }
-
-        printf("frameInfo.m_regions[0] size%d, regions:%d\n", frameInfo.m_regions[0].size(), regions.size());
-        frameInfo.m_regions[0] = regions;
-        mtracker->Update(frameInfo.m_regions[0], frameInfo.m_frames[0].GetUMatGray(), m_fps);
-        printf("track size:%d\n", frameInfo.m_tracks[0].size());
-        mtracker->GetTracks(frameInfo.m_tracks[0]);
-
-        DrawData(frameInfo.m_frames[0].GetMatBGR(), frameInfo.m_tracks[0], frameInfo.m_frameInds[0], 0);
-        // frame = frameInfo.m_frames[0].GetMatBGR().clone();
-        dispFrame = frameInfo.m_frames[0].GetMatBGR();
-
-        // printf("size:%d, id:%d\n", frameInfo.m_tracks[0].size(), frameInfo.m_tracks[0][0].m_ID);
-
-        // Tracks2Boxs(frameInfo.m_tracks[0], boxs);
 
 
-		cv::resize(dispFrame, dispFrame, cv::Size(960,540));
+		cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
         cv::imshow("show", dispFrame);
-        cv::imshow("det", detret);
+        
         cv::waitKey(0);
 
     }
