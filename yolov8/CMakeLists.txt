@@ -59,6 +59,9 @@ add_custom_command(TARGET idetector POST_BUILD
                   COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ../../v0
                   
                   COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ../../v0/build
+                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ${PROJECT_SOURCE_DIR}/../v0
+                  
+                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ${PROJECT_SOURCE_DIR}/../v0/build
 )
 # install(TARGETS idetector LIBRARY DESTINATION /space/code/pltest/v0)
 # add_executable(demo ${PROJECT_SOURCE_DIR}/idetector/demo.cpp )

@@ -6,7 +6,7 @@
 #include "postprocess.h"
 #include "cuda_utils.h"
 #include "logging.h"
-
+#include <fstream>
 const int kOutputSize = kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 Logger gLogger;
 
@@ -90,7 +90,7 @@ idetector::idetector(const std::string& enginepath)
     decode_ptr_device=nullptr;
 
     engine_name = enginepath;
-    cuda_post_process = "g";
+    cuda_post_process = "g"; //must use g, c is bad
 }
 
 idetector::~idetector()

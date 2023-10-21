@@ -3,12 +3,12 @@
 int main()
 {
     // idetector *detector = new idetector("/space/model/yolov8n.engine");
-    idetector *detector = new idetector("/space/model/visdrone-8s-2c.engine");
+    idetector *detector = new idetector("/home/nx/model/vis-8s-2c.engine");
     detector->init();
 
-    cv::Mat img = cv::imread("/space/data/0211/2-755.png");
+    cv::Mat img;// = cv::imread("/space/data/0211/2-755.png");
 
-    cv::VideoCapture cap("/space/data/pl/IMG_3567.MOV");
+    cv::VideoCapture cap("/home/nx/1016/IMG_3065.MOV");
     if(!cap.isOpened())
     {
         printf("open failed\n");

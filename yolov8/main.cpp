@@ -133,24 +133,24 @@ bool parse_args(int argc, char **argv, std::string &wts, std::string &engine, st
 int main(int argc, char **argv) {
     cudaSetDevice(kGpuId);
     std::string wts_name = "";
-    std::string engine_name = "/space/code/tensorrtx/yolov8/build/yolov8n.engine";
+    std::string engine_name = "";
     std::string img_dir;
     std::string sub_type = "";
     std::string cuda_post_process="";
     int model_bboxes;
 
-    // if (!parse_args(argc, argv, wts_name, engine_name, img_dir, sub_type, cuda_post_process)) {
-    //     std::cerr << "Arguments not right!" << std::endl;
-    //     std::cerr << "./yolov8 -s [.wts] [.engine] [n/s/m/l/x]  // serialize model to plan file" << std::endl;
-    //     std::cerr << "./yolov8 -d [.engine] ../samples  [c/g]// deserialize plan file and run inference" << std::endl;
-    //     return -1;
-    // }
+    if (!parse_args(argc, argv, wts_name, engine_name, img_dir, sub_type, cuda_post_process)) {
+        std::cerr << "Arguments not right!" << std::endl;
+        std::cerr << "./yolov8 -s [.wts] [.engine] [n/s/m/l/x]  // serialize model to plan file" << std::endl;
+        std::cerr << "./yolov8 -d [.engine] ../samples  [c/g]// deserialize plan file and run inference" << std::endl;
+        return -1;
+    }
 
     // Create a model using the API directly and serialize it to a file
-    // if (!wts_name.empty()) {
-    //     serialize_engine(wts_name, engine_name, sub_type);
-    //     return 0;
-    // }
+    if (!wts_name.empty()) {
+        serialize_engine(wts_name, engine_name, sub_type);
+        return 0;
+    }
 
     // Deserialize the engine from file
     IRuntime *runtime = nullptr;
@@ -169,27 +169,24 @@ int main(int argc, char **argv) {
     float *decode_ptr_device=nullptr;
 
     // Read images from directory
-    // std::vector<std::string> file_names;
-    // if (read_files_in_dir(img_dir.c_str(), file_names) < 0) {
-    //     std::cerr << "read_files_in_dir failed." << std::endl;
-    //     return -1;
-    // }
+    std::vector<std::string> file_names;
+    if (read_files_in_dir(img_dir.c_str(), file_names) < 0) {
+        std::cerr << "read_files_in_dir failed." << std::endl;
+        return -1;
+    }
 
     prepare_buffer(engine, &device_buffers[0], &device_buffers[1], &output_buffer_host, &decode_ptr_host, &decode_ptr_device, cuda_post_process);
 
     // batch predict
-    // for (size_t i = 0; i < file_names.size(); i += kBatchSize) {
+    for (size_t i = 0; i < file_names.size(); i += kBatchSize) {
         // Get a batch of images
         std::vector<cv::Mat> img_batch;
         std::vector<std::string> img_name_batch;
-
-        cv::Mat img = cv::imread("/space/data/coco/images/val2017/000000001000.jpg");
-        img_batch.push_back(img);
-        // for (size_t j = i; j < i + kBatchSize && j < file_names.size(); j++) {
-        //     cv::Mat img = cv::imread(img_dir + "/" + file_names[j]);
-        //     img_batch.push_back(img);
-        //     img_name_batch.push_back(file_names[j]);
-        // }
+        for (size_t j = i; j < i + kBatchSize && j < file_names.size(); j++) {
+            cv::Mat img = cv::imread(img_dir + "/" + file_names[j]);
+            img_batch.push_back(img);
+            img_name_batch.push_back(file_names[j]);
+        }
         // Preprocess
         cuda_batch_preprocess(img_batch, device_buffers[0], kInputW, kInputH, stream);
         // Run inference
@@ -206,9 +203,9 @@ int main(int argc, char **argv) {
         draw_bbox(img_batch, res_batch);
         // Save images
         for (size_t j = 0; j < img_batch.size(); j++) {
-            cv::imwrite("_" + std::to_string(j)+".png", img_batch[j]);
+            cv::imwrite("_" + img_name_batch[j], img_batch[j]);
         }
-    // }
+    }
 
     // Release stream and buffers
     cudaStreamDestroy(stream);
