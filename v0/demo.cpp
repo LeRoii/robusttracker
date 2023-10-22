@@ -547,11 +547,86 @@ int main()
 
     frame = cv::imread("/home/nx/data/1.png");
 
+	// cv::VideoCapture IRCamera1("rtspsrc location=rtsp://192.168.2.119:554/live1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false", cv::CAP_GSTREAMER);
+	// cv::VideoCapture IrCam("rtsp://192.168.2.119:554/live2");
+	// cv::VideoCapture ViCam("rtsp://192.168.2.119:554/live1");
+	cv::VideoCapture IrCam("rtsp://192.168.168.119:554/stream1");
+	cv::VideoCapture ViCam("rtsp://192.168.168.119:554/stream0");
+
+	cv::Mat oriIrImg, viImg, irImg;
+
+    irImg = cv::Mat(720, 1280, CV_8UC3);
+    irImg.setTo(0);
+
+	stSysStatus.enDispMode = Vision;
+
+    int pipPosX, pipPosY;
+
+    IrCam >> oriIrImg;
+    ViCam >> viImg;
+
+    if(oriIrImg.empty() || viImg.empty())
+    {
+        printf("input img empty, quit\n");
+        return 0;
+    }
+
+    pipPosX = (viImg.cols - oriIrImg.cols)/2;
+    pipPosY = (viImg.rows - oriIrImg.rows)/2;
+
+
     while(!quit)
     {
-        // cap >> frame;
-        // if(frame.empty())
-        //     break;
+		printf("while\n");
+        IrCam >> oriIrImg;
+        ViCam >> viImg;
+
+        if(oriIrImg.empty() || viImg.empty())
+        {
+            printf("input img empty, quit\n");
+        }
+
+        printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
+        printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
+
+        
+        
+        irImg.setTo(0);
+        oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
+
+        printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
+        printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
+
+		switch(stSysStatus.enDispMode)
+		{
+			case Vision:
+				frame = viImg;
+				break;
+			case Ir:
+				frame = irImg;
+				break;
+			case VisIrPip:
+				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
+				oriIrImg.copyTo(viImg(cv::Rect(1280-480, 0, 480, 360)));
+				frame = viImg;
+				break;
+			case IrVisPip:
+				cv::resize(viImg, viImg, cv::Size(480, 360));
+				viImg.copyTo(irImg(cv::Rect(1280-480, 0, 480, 360)));
+				frame = irImg;
+				break;
+			default:
+				frame = viImg;
+				break;
+		}
+
+        
+
+        if(frame.empty())
+		{
+			printf("empty frame\n");
+            break;
+		}
 
         // Sdireader_GetFrame(frame0, frame1); 
         // frame = frame0;
@@ -592,41 +667,9 @@ int main()
         // 	}
         // }
 
-        // if (nFrames == 0) {
-        // 	while(1)
-        // 	{
-        // 		printf("1111111111\n");
-        // 		auto tmpmat = frame.clone();
-        // 		cv::rectangle( tmpmat, cv::Point(box.x,box.y), cv::Point(box.x+box.width,box.y+box.height), cv::Scalar( 48,48,255 ), 2, 8 );
-        // 		cv::imshow("show", tmpmat);
-        // 		if(box_complete == true)
-        // 		{
-        // 			xMin = box.x;
-        // 			yMin = box.y;
-        // 			width = box.width;
-        // 			height = box.height;
-        // 			break;
-        // 		}
-        // 		cv::waitKey(30);
-        // 	}
-        // 	printf("WWWWWWW\n");
-        // 	tracker.init( cv::Rect(xMin, yMin, width, height), frame );
-        // 	// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
-        // 	// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
-        // }
-        // // Update
-        // else{
-        // 	result = tracker.update(frame);
-        // 	// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
-        // 	rectangle( dispFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 0,0,255 ), 2, 8 );
-        // 	// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
-        // }
-
         // nFrames++;
 
-        // // frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
-        // detector->process(dispFrame, boxs);
-        // detector->process(detFrame, boxs);
+        // frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
 
         // auto detret = dispFrame = detFrame.clone();
 
@@ -664,11 +707,12 @@ int main()
         //To do, draw OSD
 
         // cv::resize(dispFrame, dispFrame, cv::Size(960,540));
-        // cv::imshow("show", dispFrame);
+        cv::imshow("show", dispFrame);
         encoder->process(dispFrame);
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
-        cv::waitKey(10);
+        cv::waitKey(30);
+        // usleep(30000);
 
     }
     // cv::Mat img = cv::imread("/space/data/0211/2-755.png");
