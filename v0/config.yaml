@@ -1,2 +1,8 @@
 detection: 1
 track: 0
+
+inputVideoType: "eth"
+# irStreamAdd: "rtsp://192.168.168.119:554/stream1"
+# visStreamAdd: "rtsp://192.168.168.119:554/stream0"
+irStreamAdd: "rtspsrc location=rtsp://192.168.168.119:554/stream1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+visStreamAdd: "rtspsrc location=rtsp://192.168.168.119:554/stream0 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"

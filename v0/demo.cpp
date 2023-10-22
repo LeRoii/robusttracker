@@ -1,7 +1,7 @@
 #include "idetector.h"
 #include "kcftracker.hpp"
 #include "multitracker.h"
-#include "sdireader.h"
+
 #include <unistd.h>
 #include <signal.h>
 #include "jetsonEncoder.h"
@@ -9,6 +9,9 @@
 #include "common.h"
 #include <sstream>
 #include <cmath>
+#include "camera.h"
+
+const int DEBUG_SERIAL = 0;
 
 extern ST_A1_CONFIG stA1Cfg;
 extern ST_A2_CONFIG stA2Cfg;
@@ -25,26 +28,6 @@ extern ST_A1C1E1S1_CONFIG stA1C1E1S1Cfg;
 extern ST_A2C2E2S2_CONFIG stA2C2E2S2Cfg;
 
 ST_SYS_STATUS stSysStatus;
-
-static void ParseE1Msg()
-{
-
-    // if(stE1Cfg.enBaseOpMode == AiIdentifySwitch)
-    // {
-    // 	if(stE1Cfg.u8Para2 == 1)
-    // 	{
-    // 		DetOn = true;
-    // 	}
-    // 	else
-    // 	{
-    // 		DetOn = false;
-    // 	}
-    // }
-
-
-
-
-}
 
 cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
@@ -115,12 +98,13 @@ void SerialTransUp2Down()
         if(retLen > 0)
         {
             std::cout<<"=======>serialUp received "<<std::dec<<retLen<<"bytes"<<std::endl;
-            
-            // for(int i=0; i< retLen ;i++)
-            // {
-            // 	printf("[%02X]", buffRcvData_servo[i]);
-            // }
-            // printf("\n");
+#if DEBUG_SERIAL
+            for(int i=0; i< retLen ;i++)
+            {
+            	printf("[%02X]", buffRcvData_servo[i]);
+            }
+            printf("\n");
+#endif
 
             retLen = serialDown.serial_send(buffRcvData_servo, retLen);
             printf("up send to down:%d\n", retLen);
@@ -169,6 +153,11 @@ void SerialTransUp2Down()
                 printf("TGCC Ctrl S2 from up serial\n\n");
                 continue;
             }
+            else if(frameType == HeartBeat14)
+            {
+                printf("heart beat 14 from up serial\n\n");
+                continue;
+            }
 
             for(int i=0; i< outLen ;i++)
             {
@@ -211,6 +200,14 @@ void SerialTransDown2Up()
         if(retLen > 0)
         {
             std::cout<<"<===========serial down received "<<std::dec<<retLen<<"bytes"<<std::endl;
+#if DEBUG_SERIAL
+            for(int i=0; i< retLen ;i++)
+            {
+            	printf("[%02X]", buffRcvData_servo[i]);
+            }
+            printf("\n");
+#endif
+
             retLen = serialUp.serial_send(buffRcvData_servo, retLen);
             printf("down send to up:%d\n", retLen);
 
@@ -465,17 +462,31 @@ static void PaintCrossPattern(cv::Mat &frame0, float currRollAngle, float  currP
 
 int main()
 {
+//*******************************read config *************************
+
+    // YAML::Node config = YAML::LoadFile("../config.yaml");
+	// int detOn = config["detection"].as<int>();
+	// int trackOn = config["track"].as<int>();
+
+    // std::string inputVideoType = config["inputVideoType"].as<string>();;
+    // std::string irStreamAdd = config["irStreamAdd"].as<string>();
+    // std::string visStreamAdd = config["visStreamAdd"].as<string>();
+    
+
+//*******************************read config end *************************
+
+
 //*******************************serial init*************************
     
-    serialUp.set_serial(1);	//"/dev/ttyTHS1"
-    // serialUp.OnStart();
-    serialDown.set_serial(2);	//"/dev/ttyUSB0"
-    // serialDown.OnStart();
+    // serialUp.set_serial(1);	//"/dev/ttyTHS1"
+    // // serialUp.OnStart();
+    // serialDown.set_serial(2);	//"/dev/ttyUSB0"
+    // // serialDown.OnStart();
 
-    std::thread serialThUp2Down = std::thread(SerialTransUp2Down);
-    serialThUp2Down.detach();
-    std::thread serialThDown2Up = std::thread(SerialTransDown2Up);
-    serialThDown2Up.detach();
+    // std::thread serialThUp2Down = std::thread(SerialTransUp2Down);
+    // serialThUp2Down.detach();
+    // std::thread serialThDown2Up = std::thread(SerialTransDown2Up);
+    // serialThDown2Up.detach();
 //*******************************serial end*************************
 
     jetsonEncoder *encoder = new jetsonEncoder(8554);
@@ -545,13 +556,12 @@ int main()
     // Sdireader_Init("/etc/jetsoncfg/NXConfig.ini");
     // sleep(2);
 
-    frame = cv::imread("/home/nx/data/1.png");
 
 	// cv::VideoCapture IRCamera1("rtspsrc location=rtsp://192.168.2.119:554/live1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false", cv::CAP_GSTREAMER);
 	// cv::VideoCapture IrCam("rtsp://192.168.2.119:554/live2");
 	// cv::VideoCapture ViCam("rtsp://192.168.2.119:554/live1");
-	cv::VideoCapture IrCam("rtsp://192.168.168.119:554/stream1");
-	cv::VideoCapture ViCam("rtsp://192.168.168.119:554/stream0");
+	// cv::VideoCapture IrCam("rtsp://192.168.168.119:554/stream1");
+	// cv::VideoCapture ViCam("rtsp://192.168.168.119:554/stream0");
 
 	cv::Mat oriIrImg, viImg, irImg;
 
@@ -562,9 +572,19 @@ int main()
 
     int pipPosX, pipPosY;
 
-    IrCam >> oriIrImg;
-    ViCam >> viImg;
+    Camera *cam = CreateCamera("../config.yaml");
 
+    if(cam != nullptr)
+    {
+        cam->Init();
+    }
+    else
+    {
+        printf("camera inti failed\n");
+        return 0;
+    }
+
+    cam->GetFrame(viImg, oriIrImg);
     if(oriIrImg.empty() || viImg.empty())
     {
         printf("input img empty, quit\n");
@@ -577,25 +597,29 @@ int main()
 
     while(!quit)
     {
-		printf("while\n");
-        IrCam >> oriIrImg;
-        ViCam >> viImg;
+
+        // usleep(1000000);
+        // continue;
+		// printf("while\n");
+        cam->GetFrame(viImg, oriIrImg);
+        // IrCam >> oriIrImg;
+        // ViCam >> viImg;
 
         if(oriIrImg.empty() || viImg.empty())
         {
             printf("input img empty, quit\n");
         }
 
-        printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
-        printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
+        // printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
+        // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
         
         
         irImg.setTo(0);
         oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
 
-        printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
-        printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
+        // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
+        // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
 		switch(stSysStatus.enDispMode)
 		{
@@ -619,8 +643,6 @@ int main()
 				frame = viImg;
 				break;
 		}
-
-        
 
         if(frame.empty())
 		{

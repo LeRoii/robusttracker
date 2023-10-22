@@ -46,6 +46,8 @@ EN_DATA_FRAME_TYPE GetFrameType(uint8_t *send_buf, int Len)
             return HandShake;
         else if(send_buf[4] == 0x15)
             return HeartBeat15;
+        else if(send_buf[4] == 0x14)
+            return HeartBeat14;
     }
 
     if(Len > 10)

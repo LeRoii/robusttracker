@@ -383,6 +383,7 @@ enum EN_DATA_FRAME_TYPE
     Status40 = 4,
     Status41 = 5,
     FrameS2 = 6,
+    HeartBeat14 = 7,
 };
 
 struct ST_SYS_STATUS
