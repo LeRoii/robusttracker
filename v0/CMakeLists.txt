@@ -54,9 +54,11 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 find_package(MTTracking REQUIRED)
 
+find_package(yaml-cpp REQUIRED)
+
 add_executable(demo ${PROJECT_SOURCE_DIR}/demo.cpp ${PROJECT_SOURCE_DIR}/serial.cpp ${PROJECT_SOURCE_DIR}/jetsonEncoder.cpp  ${COMMONCLSFILES} ${NET_SRC} ${XOP_SRC})
 target_link_libraries(demo sdireader -L${PROJECT_SOURCE_DIR} -lidetector -L${PROJECT_SOURCE_DIR} -ltracker ${OpenCV_LIBS})
-target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection)
+target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection yaml-cpp)
 target_link_libraries(demo -pthread
 -L/usr/lib/aarch64-linux-gnu/tegra/ -lnvbuf_utils  
 -L/usr/lib/aarch64-linux-gnu/ -lv4l2 -lEGL -lGLESv2 -lX11 
