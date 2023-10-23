@@ -460,6 +460,20 @@ static void PaintCrossPattern(cv::Mat &frame0, float currRollAngle, float  currP
     cv::line(frame0, cv::Point(x, y + lineLen), cv::Point(x, y + lineLen / 4), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
 }
 
+
+static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
+{
+    cv::cvtColor(img, img, cv::COLOR_RGB2GRAY);
+    if(mode == EN_IRIMG_MODE::BLACKHOT)
+    {
+        img = 255 - img;
+    }
+    else if(mode == EN_IRIMG_MODE::PSEUDOCOLOR)
+    {
+        cv::applyColorMap(img, img, cv::COLORMAP_HOT);
+    }
+}
+
 int main()
 {
 //*******************************read config *************************
@@ -605,16 +619,18 @@ int main()
         // IrCam >> oriIrImg;
         // ViCam >> viImg;
 
+        
+
         if(oriIrImg.empty() || viImg.empty())
         {
             printf("input img empty, quit\n");
         }
 
+        cvtIrImg(oriIrImg, stSysStatus.enIrImgMode);
+
         // printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-        
-        
         irImg.setTo(0);
         oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
 
@@ -623,18 +639,18 @@ int main()
 
 		switch(stSysStatus.enDispMode)
 		{
-			case Vision:
+			case Vision:    //0x01
 				frame = viImg;
 				break;
-			case Ir:
+			case Ir:        //0x02
 				frame = irImg;
 				break;
-			case VisIrPip:
+			case VisIrPip:  //0x03
 				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
 				oriIrImg.copyTo(viImg(cv::Rect(1280-480, 0, 480, 360)));
 				frame = viImg;
 				break;
-			case IrVisPip:
+			case IrVisPip:  //0x04
 				cv::resize(viImg, viImg, cv::Size(480, 360));
 				viImg.copyTo(irImg(cv::Rect(1280-480, 0, 480, 360)));
 				frame = irImg;

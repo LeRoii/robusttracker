@@ -386,6 +386,13 @@ enum EN_DATA_FRAME_TYPE
     HeartBeat14 = 7,
 };
 
+enum class EN_IRIMG_MODE
+{
+    WHITEHOT = 0,
+    BLACKHOT = 1,
+    PSEUDOCOLOR = 2,
+};
+
 struct ST_SYS_STATUS
 {
     bool trackOn;
@@ -393,6 +400,10 @@ struct ST_SYS_STATUS
     int trackerGateSize;
     bool detOn;
     EN_DISP_MODE enDispMode;
+    EN_IRIMG_MODE enIrImgMode;
+
+    ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
+    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT){};
 };
 
 
