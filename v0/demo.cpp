@@ -2,6 +2,8 @@
 #include "kcftracker.hpp"
 #include "multitracker.h"
 #include <yaml-cpp/yaml.h>
+#include "spdlog/spdlog.h"
+#include "spdlog/stopwatch.h"
 
 cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
@@ -53,6 +55,33 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
 
 int main()
 {
+	// spdlog::stopwatch sw;    
+	// spdlog::info("Welcome to spdlog!");
+    // spdlog::error("Some error message with arg: {}", 1);
+    
+    // spdlog::warn("Easy padding in numbers like {:08d}", 12);
+    // spdlog::critical("Support for int: {0:d};  hex: {0:x};  oct: {0:o}; bin: {0:b}", 42);
+    // spdlog::info("Support for floats {:03.2f}", 1.23456);
+    // spdlog::info("Positional args are {1} {0}..", "too", "supported");
+    // spdlog::info("{:<30}", "left aligned");
+    
+    // spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+    // spdlog::debug("This message should be displayed..");    
+    
+    // // change log pattern
+    // spdlog::set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v");
+    
+    // // Compile time log levels
+    // // define SPDLOG_ACTIVE_LEVEL to desired level
+    // SPDLOG_TRACE("Some trace message with param {}", 42);
+    // SPDLOG_DEBUG("Some debug message");
+
+	
+    // spdlog::debug("Elapsed {}", sw);
+    // spdlog::debug("Elapsed {:.3}", sw);       
+
+	// return 0;
+
 	YAML::Node config = YAML::LoadFile("../config.yaml");
 	int detOn = config["detection"].as<int>();
 	int trackOn = config["track"].as<int>();
@@ -111,7 +140,7 @@ int main()
     // Tracker results
 	cv::Rect result;
 
-	cv::Mat dispFrame, trackFrame, detFrame, detret;
+	cv::Mat dispFrame, trackFrame, trackRet, detFrame, detret;
 
     while(1)
     {
@@ -155,7 +184,7 @@ int main()
 			else{
 				result = tracker.update(frame);
 				// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
-				rectangle( dispFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
+				rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
 				// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
 			}
 		}
@@ -170,11 +199,11 @@ int main()
 
 			frameInfo.CleanRegions();
 
-			printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-			for(auto& box:boxs)
-			{
-				printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
-			}
+			// printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
+			// for(auto& box:boxs)
+			// {
+			// 	printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
+			// }
 			regions.clear();
 			for(auto &box:boxs)
 			{
@@ -194,12 +223,17 @@ int main()
 			// printf("size:%d, id:%d\n", frameInfo.m_tracks[0].size(), frameInfo.m_tracks[0][0].m_ID);
 
 			// Tracks2Boxs(frameInfo.m_tracks[0], boxs);
-			cv::imshow("det", detret);
+			
+			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
+			cv::imshow("raw-detRet", detret);
+			cv::imshow("final-detRet", dispFrame);
 		}
 
 
-		cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
-        cv::imshow("show", dispFrame);
+		// cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
+		cv::resize(trackFrame, trackFrame, cv::Size(1280,720));
+        // cv::imshow("show", dispFrame);
+        cv::imshow("trackRet", trackFrame);
         
         cv::waitKey(0);
 
