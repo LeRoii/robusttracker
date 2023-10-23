@@ -53,6 +53,11 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
 	}
 }
 
+inline double getDistance (cv::Point point1, cv::Point point2)
+{
+    return  sqrtf(powf((point1.x - point2.x),2) + powf((point1.y - point2.y),2));
+}
+
 int main()
 {
 	// spdlog::stopwatch sw;    
@@ -65,7 +70,7 @@ int main()
     // spdlog::info("Positional args are {1} {0}..", "too", "supported");
     // spdlog::info("{:<30}", "left aligned");
     
-    // spdlog::set_level(spdlog::level::debug); // Set global log level to debug
+    spdlog::set_level(spdlog::level::debug); // Set global log level to debug
     // spdlog::debug("This message should be displayed..");    
     
     // // change log pattern
@@ -179,6 +184,8 @@ int main()
 				tracker.init( cv::Rect(xMin, yMin, width, height), frame );
 				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
 				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
+
+				spdlog::debug("tracker init pt:({},{})", xMin, yMin);
 			}
 			// Update
 			else{
@@ -186,6 +193,8 @@ int main()
 				// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
 				rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
 				// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
+				userPt.x = result.x;
+				userPt.y = result.y;
 			}
 		}
 		nFrames++;
@@ -224,6 +233,36 @@ int main()
 
 			// Tracks2Boxs(frameInfo.m_tracks[0], boxs);
 			
+			
+
+			double minDist = 10000.f;
+			int minIdx = -1;
+
+			for(int i=0; i< frameInfo.m_tracks[0].size(); ++i)
+			{
+				cv::Rect brect = frameInfo.m_tracks[0][i].m_rrect.boundingRect();
+				double dist = getDistance(userPt, brect.tl());
+				printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
+				if(dist < minDist)
+				{
+					minDist = dist;
+					minIdx = i;
+				}
+			}
+
+			spdlog::debug("minIdx:({},{})", minIdx, minIdx);
+
+			if(minIdx != -1)
+			{
+				cv::Point2f rectPoints[4];
+				frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
+				for (int i = 0; i < 4; ++i)
+				{
+					cv::line(detFrame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
+				}
+			}
+			cv::imshow("show", detFrame);
+
 			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
 			cv::imshow("raw-detRet", detret);
 			cv::imshow("final-detRet", dispFrame);
