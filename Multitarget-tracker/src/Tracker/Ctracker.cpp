@@ -155,7 +155,7 @@ void CTracker::Update(const regions_t& regions, cv::UMat currFrame, float fps)
     currFrame.copyTo(m_prevFrame);
 }
 
-#define DRAW_DBG_ASSIGNMENT 0
+#define DRAW_DBG_ASSIGNMENT 1
 
 ///
 /// \brief CTracker::UpdateTrackingState
@@ -448,7 +448,9 @@ void CTracker::UpdateTrackingState(const regions_t& regions,
     std::cout << "CTracker::UpdateTrackingState: show results" << std::endl;
     for (size_t i = 0; i < m_tracks.size();i++)
     {
-        printf("ID:[%d], type:[%d], trace size:[%d], lostcnt:[%d]\n", m_tracks[i]->GetID(),m_tracks[i]->GetCurrType(),m_tracks[i]->GetTraceSize(),m_tracks[i]->SkippedFrames());
+        printf("ID:[%d], type:[%d], trace size:[%d], lostcnt:[%d], vx:[%d], vy:[%d]\n",\
+         m_tracks[i]->GetID(),m_tracks[i]->GetCurrType(),m_tracks[i]->GetTraceSize(),\
+         m_tracks[i]->SkippedFrames(),  m_tracks[i]->m_kalman.GetVelocity()[0], m_tracks[i]->m_kalman.GetVelocity()[1]);
     }
 #ifndef SILENT_WORK
     cv::namedWindow("dbgAssignment", cv::WINDOW_NORMAL);

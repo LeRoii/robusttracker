@@ -130,9 +130,10 @@ public:
 
     bool IsLost();
     int GetTraceSize();
+    TKalmanFilter m_kalman;
 
 private:
-    TKalmanFilter m_kalman;
+    
     CRegion m_lastRegion;
     Trace m_trace;
     cv::RotatedRect m_predictionRect;

@@ -1232,7 +1232,7 @@ bool CTrack::IsLost()
     }
     else
     {
-        return m_skippedFrames > 10;
+        return m_skippedFrames > 15;
     }
 }
 

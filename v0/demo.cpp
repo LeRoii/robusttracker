@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>
 #include "spdlog/spdlog.h"
 #include "spdlog/stopwatch.h"
+#include "itracker.h"
 
 cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
@@ -91,15 +92,17 @@ int main()
 	int detOn = config["detection"].as<int>();
 	int trackOn = config["track"].as<int>();
 
-    idetector *detector = new idetector("/space/code/tensorrtx/yolov8/build/visdrone-8s-2c-1011.engine");
+    idetector *detector = new idetector("/home/nx/model/vis-8s-2c.engine");
     detector->init();
-    cv::VideoCapture cap("/space/data/pl/IMG_3567.MOV");
+    cv::VideoCapture cap("/home/nx/data/IMG_3575.MOV");
     // cv::VideoCapture cap("/space/data/tracking-test.mp4");
     if(!cap.isOpened())
     {
         printf("open failed\n");
         return 0;
     }
+
+	itracker *tracker = new itracker();
 
     //*******************************multitracker init*************************
     size_t m_batchSize = 1;
@@ -129,7 +132,7 @@ int main()
 	bool MULTISCALE = true;
 	bool SILENT = true;
 	bool LAB = false;
-    KCFTracker tracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
+    // KCFTracker tracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
 
     cv::Mat frame;
     int nFrames = 0;
@@ -145,7 +148,7 @@ int main()
     // Tracker results
 	cv::Rect result;
 
-	cv::Mat dispFrame, trackFrame, trackRet, detFrame, detret;
+	cv::Mat dispFrame, trackFrame, trackRet, detFrame, trackRetByDet;
 
     while(1)
     {
@@ -158,6 +161,7 @@ int main()
 		trackFrame = frame.clone();
 		detFrame = frame.clone();
 		dispFrame = frame.clone();
+		trackRetByDet = frame.clone();
 
 		printf("=====nframe:%d======\n", nFrames);
 
@@ -181,7 +185,7 @@ int main()
 					cv::waitKey(30);
 				}
 				printf("WWWWWWW\n");
-				tracker.init( cv::Rect(xMin, yMin, width, height), frame );
+				tracker->init( cv::Rect(xMin, yMin, width, height), frame );
 				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
 				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
 
@@ -189,12 +193,15 @@ int main()
 			}
 			// Update
 			else{
-				result = tracker.update(frame);
+				float pval;
+				result = tracker->update(frame, pval);
 				// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
 				rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
 				// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
 				userPt.x = result.x;
 				userPt.y = result.y;
+
+				spdlog::debug("tracker update p val:{}, pt w:{},  h:{}", pval, result.width, result.height);
 			}
 		}
 		nFrames++;
@@ -204,7 +211,7 @@ int main()
 			frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
 			detector->process(detFrame, boxs);
 
-			detret = detFrame.clone();
+			// detret = detFrame.clone();
 
 			frameInfo.CleanRegions();
 
@@ -242,7 +249,7 @@ int main()
 			{
 				cv::Rect brect = frameInfo.m_tracks[0][i].m_rrect.boundingRect();
 				double dist = getDistance(userPt, brect.tl());
-				printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
+				// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
 				if(dist < minDist)
 				{
 					minDist = dist;
@@ -250,7 +257,7 @@ int main()
 				}
 			}
 
-			spdlog::debug("minIdx:({},{})", minIdx, minIdx);
+			spdlog::debug("best det ret:id:{}, dist:{}", frameInfo.m_tracks[0][minIdx].m_ID.ID2Str(), minDist);
 
 			if(minIdx != -1)
 			{
@@ -258,13 +265,13 @@ int main()
 				frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
 				for (int i = 0; i < 4; ++i)
 				{
-					cv::line(detFrame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
+					cv::line(trackRetByDet, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
 				}
 			}
-			cv::imshow("show", detFrame);
+			cv::imshow("show", trackRetByDet);
 
 			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
-			cv::imshow("raw-detRet", detret);
+			cv::imshow("raw-detRet", detFrame);
 			cv::imshow("final-detRet", dispFrame);
 		}
 
