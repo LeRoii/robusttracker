@@ -1,2 +1,4 @@
-detection: 0
+detection: 1
 track: 1
+engine: "/space/model/visdrone-8s-2c-1011.engine"
+videopath: "/space/data/pl/IMG_3576.MOV"

@@ -10,6 +10,11 @@ cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
 bool box_complete = false;
 cv::Point userPt;
+int GateSize = 32;
+int minIdx = -1;
+
+bool contain = false;
+
 void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数，鼠标点击后执行的内容应在此
 {
 	// cv::Mat& image = *(cv::Mat*) img;
@@ -18,7 +23,7 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
 	case cv::EVENT_LBUTTONDOWN://鼠标左键按下事件
 		drawing_box = true;//标志在画框
 		box = cv::Rect(x, y, 0, 0);//记录矩形的开始的点
-        userPt.x = x;
+        userPt.x = x;	//center point
         userPt.y = y;
 		break;
 	case cv::EVENT_MOUSEMOVE://鼠标移动事件
@@ -91,10 +96,14 @@ int main()
 	YAML::Node config = YAML::LoadFile("../config.yaml");
 	int detOn = config["detection"].as<int>();
 	int trackOn = config["track"].as<int>();
+	std::string engine = config["engine"].as<std::string>();
+	std::string videopath = config["videopath"].as<std::string>();
 
-    idetector *detector = new idetector("/home/nx/model/vis-8s-2c.engine");
+    // idetector *detector = new idetector("/home/nx/model/vis-8s-2c.engine");
+    idetector *detector = new idetector(engine);
     detector->init();
-    cv::VideoCapture cap("/home/nx/data/IMG_3575.MOV");
+    // cv::VideoCapture cap("/home/nx/data/IMG_3575.MOV");
+    cv::VideoCapture cap(videopath);
     // cv::VideoCapture cap("/space/data/tracking-test.mp4");
     if(!cap.isOpened())
     {
@@ -185,7 +194,7 @@ int main()
 					cv::waitKey(30);
 				}
 				printf("WWWWWWW\n");
-				tracker->init( cv::Rect(xMin, yMin, width, height), frame );
+				tracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
 				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
 				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
 
@@ -193,16 +202,28 @@ int main()
 			}
 			// Update
 			else{
-				float pval;
-				result = tracker->update(frame, pval);
+				bool lost;
+				result = tracker->update(frame, lost);
 				// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
 				rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
 				// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
-				userPt.x = result.x;
-				userPt.y = result.y;
+				userPt.x = result.x+GateSize/2;
+				userPt.y = result.y+GateSize/2;
 
-				spdlog::debug("tracker update p val:{}, pt w:{},  h:{}", pval, result.width, result.height);
+				spdlog::debug("tracker lost:{}", lost);
+
+				if(lost || !contain)
+				{
+					spdlog::debug("reset tracker ");
+					//reset tracker
+					cv::Rect brect = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect();
+					cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
+					tracker->reset();
+					tracker->init( cv::Rect(center.x-GateSize/2, center.y-GateSize/2, GateSize, GateSize), frame );
+				}
 			}
+
+			spdlog::debug("KCF end");
 		}
 		nFrames++;
 
@@ -243,12 +264,13 @@ int main()
 			
 
 			double minDist = 10000.f;
-			int minIdx = -1;
+			
 
 			for(int i=0; i< frameInfo.m_tracks[0].size(); ++i)
 			{
 				cv::Rect brect = frameInfo.m_tracks[0][i].m_rrect.boundingRect();
-				double dist = getDistance(userPt, brect.tl());
+				cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
+				double dist = getDistance(userPt, center);
 				// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
 				if(dist < minDist)
 				{
@@ -267,7 +289,14 @@ int main()
 				{
 					cv::line(trackRetByDet, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
 				}
+
+				contain = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(userPt);
+				spdlog::debug("contains:{}", contain);
 			}
+
+
+			cv::circle(trackRetByDet, userPt, 2, (0,255, 255), 2);
+
 			cv::imshow("show", trackRetByDet);
 
 			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));

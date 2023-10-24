@@ -55,24 +55,42 @@ void itracker::init(const cv::Rect &roi, cv::Mat image)
     trackerPtr->init(roi, image);
 }
 
-cv::Rect itracker::update(cv::Mat image, float &peakVal)
+cv::Rect itracker::update(cv::Mat image, bool &islost)
 {
+    static int st = 0;
+    static float fallEdgePv = 0;
+    static int bottomCnt = 0;
+    static int lastSt = -1;
+    static int simFailCnt = 0;
     static float lastPeakVal = 0;
+    float peakVal;
     auto result = trackerPtr->update(image, peakVal);
+
+    if(result.x < 0)
+        result.x = 0;
+    if(result.x + result.width > image.cols)
+        result.x = image.cols - result.width - 1;
+    // if()
+
+    std::cout<<result<<std::endl;
     auto retPatch = image(result);
+    islost = false;
+
     // cv::cvtColor(retPatch, retPatch, cv::COLOR_BGR2GRAY);
 
     // double ssim = cv::compareSSIM(m_oriPatch, retPatch);
 
     double sim = calculateHistogramSimilarity(m_oriPatch, retPatch);
+    if(sim > 0.99f)
+        simFailCnt++;
+    else
+        simFailCnt = 0;
+
     
-    printf("similarity:%f, peakVal:%f, diff:%f\n", sim, peakVal, peakVal - lastPeakVal);
+    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f\n", sim, peakVal, peakVal - lastPeakVal);
     float peakDif = peakVal - lastPeakVal;
     
-    static int st = 0;
-    static float fallEdgePv = 0;
-    static int bottomCnt = 0;
-    static int lastSt = -1;
+    
     
     do{
         lastSt = st;
@@ -83,12 +101,12 @@ cv::Rect itracker::update(cv::Mat image, float &peakVal)
                 {
                     st = 1;
                     fallEdgePv = lastPeakVal + 0.005;
-                    printf("ffffffallEdgePv = %f\n", fallEdgePv);
+                    printf("\n\n-----------------ffffffallEdgePv = %f\n", fallEdgePv);
                 }
                 
                 break;
             case 1:
-                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10)
+                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > 3)
                 {
                     st = 2;
                 }
@@ -100,9 +118,14 @@ cv::Rect itracker::update(cv::Mat image, float &peakVal)
                 break;
             case 2:
                 st = 0;
-                printf("bottomCnt = %d\n", bottomCnt);
+                printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
                 fallEdgePv = 0;
                 bottomCnt = 0;
+                if(bottomCnt > 10 || simFailCnt > 3)
+                {
+                    islost = true;
+                    printf("------------------Lost---------------\n");
+                }
                 break;
             default:
                 break;
