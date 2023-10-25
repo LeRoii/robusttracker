@@ -1,10 +1,11 @@
 #include "idetector.h"
 #include "kcftracker.hpp"
-#include "multitracker.h"
+// #include "multitracker.h"
 #include <yaml-cpp/yaml.h>
 #include "spdlog/spdlog.h"
 #include "spdlog/stopwatch.h"
 #include "itracker.h"
+#include "realtracker.h"
 
 cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
@@ -99,9 +100,11 @@ int main()
 	std::string engine = config["engine"].as<std::string>();
 	std::string videopath = config["videopath"].as<std::string>();
 
+	realtracker *rtracker = new realtracker(engine);
+
     // idetector *detector = new idetector("/home/nx/model/vis-8s-2c.engine");
-    idetector *detector = new idetector(engine);
-    detector->init();
+    // idetector *detector = new idetector(engine);
+    // detector->init();
     // cv::VideoCapture cap("/home/nx/data/IMG_3575.MOV");
     cv::VideoCapture cap(videopath);
     // cv::VideoCapture cap("/space/data/tracking-test.mp4");
@@ -194,7 +197,8 @@ int main()
 					cv::waitKey(30);
 				}
 				printf("WWWWWWW\n");
-				tracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
+				// tracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
+				rtracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
 				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
 				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
 
@@ -202,25 +206,27 @@ int main()
 			}
 			// Update
 			else{
-				bool lost;
-				result = tracker->update(frame, lost);
-				// drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
-				rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
-				// resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
-				userPt.x = result.x+GateSize/2;
-				userPt.y = result.y+GateSize/2;
+				// bool lost;
+				// result = tracker->update(frame, lost);
+				// // drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
+				// rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
+				// // resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
+				// userPt.x = result.x+GateSize/2;
+				// userPt.y = result.y+GateSize/2;
 
-				spdlog::debug("tracker lost:{}", lost);
+				rtracker->runTracker(trackFrame);
 
-				if(lost || !contain)
-				{
-					spdlog::debug("reset tracker ");
-					//reset tracker
-					cv::Rect brect = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect();
-					cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
-					tracker->reset();
-					tracker->init( cv::Rect(center.x-GateSize/2, center.y-GateSize/2, GateSize, GateSize), frame );
-				}
+				// spdlog::debug("tracker lost:{}", lost);
+
+				// if(lost || !contain)
+				// {
+				// 	spdlog::debug("reset tracker ");
+				// 	//reset tracker
+				// 	cv::Rect brect = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect();
+				// 	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
+				// 	tracker->reset();
+				// 	tracker->init( cv::Rect(center.x-GateSize/2, center.y-GateSize/2, GateSize, GateSize), frame );
+				// }
 			}
 
 			spdlog::debug("KCF end");
@@ -229,74 +235,72 @@ int main()
 
 		if(detOn)
 		{
-			frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
-			detector->process(detFrame, boxs);
+			// frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
+			// detector->process(detFrame, boxs);
 
-			// detret = detFrame.clone();
+			// // detret = detFrame.clone();
 
-			frameInfo.CleanRegions();
+			// frameInfo.CleanRegions();
 
-			// printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-			// for(auto& box:boxs)
+			// // printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
+			// // for(auto& box:boxs)
+			// // {
+			// // 	printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
+			// // }
+			// regions.clear();
+			// for(auto &box:boxs)
 			// {
-			// 	printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
+			// 	regions.emplace_back(cv::Rect(cvRound(1.0*box.x), cvRound(1.0*box.y), cvRound(1.0*box.w), cvRound(1.0*box.h)), (box.obj_id), box.prob);
 			// }
-			regions.clear();
-			for(auto &box:boxs)
-			{
-				regions.emplace_back(cv::Rect(cvRound(1.0*box.x), cvRound(1.0*box.y), cvRound(1.0*box.w), cvRound(1.0*box.h)), (box.obj_id), box.prob);
-			}
 
-			printf("frameInfo.m_regions[0] size%d, regions:%d\n", frameInfo.m_regions[0].size(), regions.size());
-			frameInfo.m_regions[0] = regions;
-			mtracker->Update(frameInfo.m_regions[0], frameInfo.m_frames[0].GetUMatGray(), m_fps);
-			printf("track size:%d\n", frameInfo.m_tracks[0].size());
-			mtracker->GetTracks(frameInfo.m_tracks[0]);
+			// printf("frameInfo.m_regions[0] size%d, regions:%d\n", frameInfo.m_regions[0].size(), regions.size());
+			// frameInfo.m_regions[0] = regions;
+			// mtracker->Update(frameInfo.m_regions[0], frameInfo.m_frames[0].GetUMatGray(), m_fps);
+			// printf("track size:%d\n", frameInfo.m_tracks[0].size());
+			// mtracker->GetTracks(frameInfo.m_tracks[0]);
 
-			DrawData(frameInfo.m_frames[0].GetMatBGR(), frameInfo.m_tracks[0], frameInfo.m_frameInds[0], 0);
-			// frame = frameInfo.m_frames[0].GetMatBGR().clone();
-			dispFrame = frameInfo.m_frames[0].GetMatBGR();
+			// DrawData(frameInfo.m_frames[0].GetMatBGR(), frameInfo.m_tracks[0], frameInfo.m_frameInds[0], 0);
+			// // frame = frameInfo.m_frames[0].GetMatBGR().clone();
+			// dispFrame = frameInfo.m_frames[0].GetMatBGR();
 
-			// printf("size:%d, id:%d\n", frameInfo.m_tracks[0].size(), frameInfo.m_tracks[0][0].m_ID);
+			// // printf("size:%d, id:%d\n", frameInfo.m_tracks[0].size(), frameInfo.m_tracks[0][0].m_ID);
 
-			// Tracks2Boxs(frameInfo.m_tracks[0], boxs);
-			
-			
+			// // Tracks2Boxs(frameInfo.m_tracks[0], boxs);
 
-			double minDist = 10000.f;
-			
+			// double minDist = 10000.f;
+			// for(int i=0; i< frameInfo.m_tracks[0].size(); ++i)
+			// {
+			// 	cv::Rect brect = frameInfo.m_tracks[0][i].m_rrect.boundingRect();
+			// 	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
+			// 	double dist = getDistance(userPt, center);
+			// 	// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
+			// 	if(dist < minDist)
+			// 	{
+			// 		minDist = dist;
+			// 		minIdx = i;
+			// 	}
+			// }
 
-			for(int i=0; i< frameInfo.m_tracks[0].size(); ++i)
-			{
-				cv::Rect brect = frameInfo.m_tracks[0][i].m_rrect.boundingRect();
-				cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
-				double dist = getDistance(userPt, center);
-				// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
-				if(dist < minDist)
-				{
-					minDist = dist;
-					minIdx = i;
-				}
-			}
+			// spdlog::debug("best det ret:id:{}, dist:{}", frameInfo.m_tracks[0][minIdx].m_ID.ID2Str(), minDist);
 
-			spdlog::debug("best det ret:id:{}, dist:{}", frameInfo.m_tracks[0][minIdx].m_ID.ID2Str(), minDist);
+			// if(minIdx != -1)
+			// {
+			// 	cv::Point2f rectPoints[4];
+			// 	frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
+			// 	for (int i = 0; i < 4; ++i)
+			// 	{
+			// 		cv::line(trackRetByDet, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
+			// 	}
 
-			if(minIdx != -1)
-			{
-				cv::Point2f rectPoints[4];
-				frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
-				for (int i = 0; i < 4; ++i)
-				{
-					cv::line(trackRetByDet, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
-				}
-
-				contain = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(userPt);
-				spdlog::debug("contains:{}", contain);
-			}
+			// 	contain = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(userPt);
+			// 	spdlog::debug("contains:{}", contain);
+			// }
 
 
-			cv::circle(trackRetByDet, userPt, 2, (0,255, 255), 2);
+			// cv::circle(trackRetByDet, userPt, 2, (0,255, 255), 2);
 
+			std::vector<TrackingObject> detRet;
+			rtracker->update(detFrame, detRet);
 			cv::imshow("show", trackRetByDet);
 
 			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
