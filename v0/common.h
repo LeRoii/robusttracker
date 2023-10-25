@@ -386,6 +386,14 @@ enum EN_DATA_FRAME_TYPE
     HeartBeat14 = 7,
 };
 
+struct ST_COORDINATE_CONFIG
+{
+    double longitude;
+    double latitude;
+    int16_t altitude;
+    int16_t rsvd;
+};
+
 enum class EN_IRIMG_MODE
 {
     WHITEHOT = 0,
@@ -400,10 +408,329 @@ struct ST_SYS_STATUS
     int trackerGateSize;
     bool detOn;
     EN_DISP_MODE enDispMode;
+    double rollAngle;
+    double pitchAngle;
+    ST_COORDINATE_CONFIG ACFTCoordinate;
+    ST_COORDINATE_CONFIG TAGCoordinate;
+    double lrfValue;
+    double eoValue;
     EN_IRIMG_MODE enIrImgMode;
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
     detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT){};
+};
+
+enum EN_SERVO_STATUS_MODE
+{
+    ServoStatusMotorSwitch = 0,
+    ManualSpeedMode = 1,
+    FollowTheCurrGeographicLocation = 2, // 当前不支持
+    FollowYaw = 3, 
+    ServoStatusHomePosition = 4,
+    AzimuthScanning = 5, // 当前不支持
+    TrackingMode = 6,
+    PitchScanning = 7, // 当前不支持
+    ServoStatusFixedPointFollowUp = 8, // 指向经纬度，暂不支持
+    ManualRelativeAngleMode = 9, // 当前角度为零点
+    LockYawMode = 0xA,
+    ManualAbsAngleMode = 0xB, // 回中位置为零点
+    ServoStatusFollowUpSpaceAngle = 0xC, // 当前不支持
+    ManualRCMode = 0xD,
+    MeaninglessServoMode = 0xF,
+    ServoStatusButt
+};
+
+// 伺服状态常用
+struct ST_B1_CONFIG
+{
+    uint8_t servoStatus : 4; // @ref EN_SERVO_STATUS_MODE
+    uint8_t rollAngleH4 : 4; // 1bit=180/4095°
+    uint8_t rollAngleL8; // 1bit=180/4095°，数值0-90对应负90~0（值减 90 得到实际角度）数值90-180对应0~正90度；横滚角度共计12位，高四位在字节1的低四位
+    short azimuthAngle; // 1bit=360/65536°
+    short pitchAngle;  // 1bit=360/65536°
+};
+
+enum EN_SERVO_ACTION_RESP_MODE
+{
+    NoneAction = 0,
+    PosCalcPitchAngleErrorAdjustManually = 1,
+    PosCalcHeadingAngleErrorAdjustManually = 2,
+    ZeroDriftAdjust = 8,  // 暂不支持
+    ZeroDriftCalibration = 9, // 保留
+    Fault = 0xEE,
+    ServoActionRespModeButt
+};
+
+// 伺服状态不常用
+struct ST_B2_CONFIG
+{
+    uint8_t servoActionResp : 5; // @ref EN_SERVO_ACTION_RESP_MODE
+    uint8_t rsvdB2 : 1;
+    uint8_t notCommonlyUsedFrameCounter : 2;
+    uint16_t posCalcAdjustmentAmount; /* 1bit = 0.001 度，
+                                       * 当伺服动作=0x01时，为俯仰角误差量, 正数表示向上偏，负数表示向下偏；
+                                       * 当伺服动作=0x02时，为航向角误差量，正数表示向右偏，负数表示向左偏；
+                                       */
+    short rollAngle;          // 1bit=360/65536°
+    short rollAngleSpeed;     // 1bit=0.01°/S
+    short azimuthAngleSpeed;  // 1bit=0.01°/S，
+    short pitchAngleSpeed;    // 1bit=0.01°/S，
+    uint8_t rsvd;
+};
+
+enum EN_CURR_CHOOSE_VIDEO_STREAM
+{
+    CurrChooseVideoStreamVisibleLight1 = 0,
+    SingleThermalImager = 1,
+    VisibleLight1AndThermalImagerPicInPic = 2,
+    ThermalImagerAndVisibleLight1PicInPic = 3,
+    Fusionmode = 4,
+    ThermalImager1For1352Model = 5,
+    ThermalImager2For1352Model = 6,
+    CurrChooseVideoStreamButt
+};
+
+enum EN_ELEC_MAGNIFY_MODE
+{
+    ElecMagnifyX1 = 0,
+    ElecMagnifyX2 = 1,
+    ElecMagnifyX3 = 2,
+    ElecMagnifyX4 = 3,
+    ElecMagnifyX5 = 4,
+    ElecMagnifyX6 = 5,
+    ElecMagnifyX7 = 6,
+    ElecMagnifyX8 = 7,
+    ElecMagnifyX9 = 8,
+    ElecMagnifyX10 = 9,
+    ElecMagnifyX11 = 0xA,
+    ElecMagnifyX12 = 0xB,
+    ElecMagnifyX13 = 0xC,
+    ElecMagnifyX14 = 0xD,
+    ElecMagnifyX15 = 0xE,
+    ElecMagnifyX16 = 0xF,
+    ElecMagnifyButt
+};
+
+enum EN_INFRARED_GRAYSCALE_MODE
+{
+    whiteHeat = 0,
+    BlackHeat = 1,
+    InfraredGrayScaleButt
+};
+
+enum EN_RECORD_STATE
+{
+    StopRecording = 0,
+    InRecording = 1,
+    PhotographyMode = 2,
+    RecordStateButt
+};
+
+enum EN_INFRARED_STATE_EXTEND_MODE
+{
+    GrayscaleMode = 0,
+    Rainbow = 1,
+    infraredStateExtModeButt
+};
+
+// 光学状态常用
+struct ST_D1_CONFIG
+{
+    uint8_t opticalSensor : 3; // @ref EN_CURR_CHOOSE_VIDEO_STREAM
+    uint8_t thermalImagingElectronicMagnification : 4; // @ref EN_ELEC_MAGNIFY_MODE
+    uint8_t whiteHeatOrBlackHeatState : 1; // @ref EN_INFRARED_GRAYSCALE_MODE
+    uint8_t distanceMeasurementReturnValueH;
+    uint16_t recordingStatus : 2; // @ref EN_RECORD_STATE
+    uint16_t infraredStateExt : 4; // @ref EN_INFRARED_STATE_EXTEND_MODE
+    uint16_t visibleLightElectronicMagnification : 4; // @ref EN_ELEC_MAGNIFY_MODE
+    uint16_t rsvdD2 : 6;
+    uint16_t distanceMeasurementReturnValueL; // 1bit 表示 0.1m，全零代表无效，无符号整形
+    uint16_t currSensorVertiFieldOfViewAngle; // 1bit=0.01 度
+    uint16_t currSensorHoriFieldOfViewAngle; // 1bit=0.01 度
+    uint16_t currSensorOpticsAmplificationFactor; // 1bit=0.01 度
+};
+
+enum EN_DETECTOR_TYPE
+{
+    DetectorVisibleLight1 = 0,
+    DetectorThermalImager = 1,
+    DetectorVisibleLight1AndThermalImagerInPic = 2,
+    DetectorVisibleLight1AndThermalImagerInPicInPic= 3,
+    DetectorVisibleLight2 = 4,
+    DetectorButt
+};
+
+enum EN_OPTICAL_SENSOR_PIXEL_COUNT
+{
+    opticalSensorPixelCount1080P = 1,
+    opticalSensorPixelCount2K = 2,
+    opticalSensorPixelCount4K = 3,
+    opticalSensorPixelCount960 = 4,
+    opticalSensorPixelCount720 = 5,
+    opticalSensorPixelCount640 = 6,
+    opticalSensorPixelCountButt
+};
+
+// 光学状态不常用
+struct ST_D2_CONFIG
+{
+    uint8_t currDetectorType : 3; // @ref EN_DETECTOR_TYPE
+    uint8_t equipmentFaultIdentification : 5; //
+    uint8_t isTheCurrDetectorTheMainDetector : 1; // 0：是 1：否
+    uint8_t opticalSensorPixelCount : 7; // @ref EN_OPTICAL_SENSOR_PIXEL_COUNT
+    uint8_t extendedParameters;         // 1: 电子放大
+    int8_t extendedParameterValues[2];
+};
+
+enum EN_TRACKER_TYPE
+{
+    TrackerVisibleLight1 = 0,
+    TrackerThermalImager = 1,
+    TrackerVisibleLight2 = 2,
+    TrackerButt
+};
+
+// 跟踪器状态常用
+struct ST_F1_CONFIG
+{
+    uint8_t tracker : 3; // @ref EN_TRACKER_TYPE
+    uint8_t trackerCurrStatus : 2;
+    uint8_t rsvd : 3;
+};
+
+// 跟踪器状态不常用
+struct ST_F2_CONFIG
+{
+    uint8_t rsvdF2[11];
+    short azimuthTargetPixelDifference;
+    short pitchTargetPixelDifference;
+    uint8_t rsvd1F2;
+};
+
+struct ST_TARGET_INFO
+{
+    uint8_t targetSum;
+    uint8_t totalPacketNum;
+    uint8_t currPacketId;
+    uint8_t rsvd[5];
+    uint8_t targetType;
+    uint16_t targetId;
+    uint16_t targetAzimuthCoordinate;
+    uint16_t targetPitchCoordinate;
+    uint16_t targetLength;
+    uint16_t targetWidth;
+    uint16_t targetDetectionConfidence;
+};
+
+// AI 系列识别状态反馈
+struct ST_F3_CONFIG
+{
+    ST_TARGET_INFO targetInfo[16];
+};
+
+// 目标距离来源类型
+enum EN_TARGET_DISTANCE_SOURCE_TYPE
+{
+    NoneTargetDisSrcType = 0,
+    LaserRangingValue = 1,
+    EqualHeightEstimate = 2,
+    RF = 3,
+    TargetDistanceSrcTypeButt
+};
+
+enum EN_GPS_SIGNAL_CAP_STAGE
+{
+    NoneSignal    = 0,
+    TimeLocked    = 1,
+    LockInFor2D   = 2,
+    LockInFor3D   = 3,
+    GpsSignalCapStageButt
+};
+
+enum EN_N_PACKET_RESP_MODE
+{
+    GyroOffsetAutoAdjusting = 1,
+    GyroOffsetSaving = 2,
+    GyroOffsetRecoveredToFactoryDefaultValue = 3,
+    Angle0PosOfAHRSAdjusted = 4,
+    AHRSAttitudeOffsetSaving = 5,
+    AHRSAttitudeOffsetReset = 6,
+    CalibratingGyroTemperatureDrift = 7,
+    GyroTemperatureDriftCalibratedOver = 8,
+    NPacketRespModeButt
+};
+
+// TGCC状态常用
+struct ST_T1_CONFIG
+{
+    uint8_t targetDistanceSrcType : 3;       // @ref EN_TARGET_DISTANCE_SOURCE_TYPE
+    uint8_t gpsSignalAcquisitionStage : 2;   // @ref EN_GPS_SIGNAL_CAP_STAGE
+    uint8_t gpsHorizontalSignalQuality : 3;  // rsvd
+    uint8_t gpsHeightSignalQuality : 3;      // rsvd
+    uint8_t s2PacketInstructionResp : 1;     // 0：未收到 1：响应了 S2 包指令，只持续一帧
+    uint8_t nPacketInstructionResp : 4;      // @ref EN_N_PACKET_RESP_MODE
+    ST_COORDINATE_CONFIG ACFTCoordinate;
+    ST_COORDINATE_CONFIG TAGCoordinate;
+};
+
+struct Date
+{
+    uint16_t day : 5;
+    uint16_t month : 4;
+    uint16_t year : 7;
+}; 
+
+// TGCC状态不常用
+struct ST_T2_CONFIG
+{
+    uint8_t rsvdT2;
+    Date date;
+    uint8_t time[3];
+    uint16_t gpsHeading;
+    uint16_t carrierAttitudeAngleAzimuth;
+    uint16_t carrierAttitudeAnglePitch;
+    uint16_t carrierAttitudeAngleRoll;
+    uint8_t rsvd1T2[3];
+};
+
+
+enum EN_V_CTRL_CMD
+{
+    NoneVCtrlCmd = 0,
+    VCtrlProtocolCtrl = 2,
+    TimeZone = 4,
+    OSD = 5,
+    SerialPortBaudRate = 8,
+    ThermalImageAlarmTemperature = 0xA,
+    RemoteCtrlChannelMapping = 0x10,
+    ImageBoardIDNumber = 0xEF,
+    DeviceFirmwareVersionNumber = 0xFC,
+    EquipmentModel = 0xFD,
+    EquipmentSerialNumber = 0xFE,
+    VCtrlCmdButt
+};
+
+struct ST_T1F1B1D1_CONFIG
+{
+    ST_T1_CONFIG t1Config;
+    ST_F1_CONFIG f1Config;
+    ST_B1_CONFIG b1Config;
+    ST_D1_CONFIG d1Config;
+};
+
+struct ST_T2F2B2D2_CONFIG
+{
+    ST_T2_CONFIG t2Config;
+    ST_F2_CONFIG f2Config;
+    ST_B2_CONFIG b2Config;
+    ST_D2_CONFIG d2Config;
+};
+
+// 吊舱配置反馈
+struct ST_V_CONFIG
+{
+    uint8_t ctrlCmd; // @ref EN_V_CTRL_CMD
+    uint8_t data[22];
 };
 
 

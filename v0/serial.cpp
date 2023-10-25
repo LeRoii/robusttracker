@@ -18,9 +18,8 @@ ST_A1C1E1_CONFIG stA1C1E1Cfg = {0};
 ST_A2C2E2_CONFIG stA2C2E2Cfg = {0};
 ST_A1C1E1S1_CONFIG stA1C1E1S1Cfg = {0};
 ST_A2C2E2S2_CONFIG stA2C2E2S2Cfg = {0};
-
-
-
+ST_T1F1B1D1_CONFIG stT1F1B1D1Cfg = {0};
+ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg = {0};
 
 
 bool CheckFrameHeader(uint8_t *send_buf, int Len)
@@ -160,7 +159,7 @@ static void VL_ParseSerialData_C2(uint8_t* buf)
 {
     ST_C2_CONFIG *c2Cfg = (ST_C2_CONFIG*)buf;
     stC2Cfg.opCmd1 = c2Cfg->opCmd1;
-    memcpy(stC2Cfg.opCmdPara1, c2Cfg->opCmdPara1, 2);
+    memcpy(&stC2Cfg.opCmdPara1, c2Cfg->opCmdPara1, 2);
 }
 
 //to do
@@ -287,7 +286,7 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
     uint8_t *tempData = buf + 2; // 2个字节
     ST_C2_CONFIG *c2Cfg = (ST_C2_CONFIG*)tempData;
     stA2C2E2Cfg.c2Config.opCmd1 = c2Cfg->opCmd1;
-    memcpy(stA2C2E2Cfg.c2Config.opCmdPara1, c2Cfg->opCmdPara1, 2);
+    memcpy(&stA2C2E2Cfg.c2Config.opCmdPara1, c2Cfg->opCmdPara1, 2);
 
     tempData = tempData + 3; // 3个字节
     ST_E2_CONFIG *e2Cfg = (ST_E2_CONFIG*)tempData;
@@ -355,6 +354,55 @@ static void VL_ParseSerialData_A2C2E2S2(uint8_t* buf)
     memcpy(stA2C2E2S2Cfg.s2Config.para, s2Cfg->para, 4);
 }
 
+static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
+{
+    uint8_t *tempData = buf + 2;
+    ST_COORDINATE_CONFIG *acftCoordinate = (ST_COORDINATE_CONFIG*)tempData;
+    memset(&stSysStatus.ACFTCoordinate, 0, sizeof(ST_COORDINATE_CONFIG));
+    stSysStatus.ACFTCoordinate.longitude = (double)acftCoordinate->longitude / 10000000;
+    stSysStatus.ACFTCoordinate.latitude = (double)acftCoordinate->latitude / 10000000;
+    stSysStatus.ACFTCoordinate.altitude = (double)acftCoordinate->altitude;
+
+    tempData = buf + 12;
+    ST_COORDINATE_CONFIG *tagCoordinate = (ST_COORDINATE_CONFIG*)tempData;
+    memset(&stSysStatus.TAGCoordinate, 0, sizeof(ST_COORDINATE_CONFIG));
+    stSysStatus.TAGCoordinate.longitude = (double)tagCoordinate->longitude / 10000000;
+    stSysStatus.TAGCoordinate.latitude = (double)tagCoordinate->latitude / 10000000;
+    stSysStatus.TAGCoordinate.altitude = (double)tagCoordinate->altitude;
+
+    tempData = buf + 23;
+    ST_B1_CONFIG *b1Cfg = (ST_B1_CONFIG*)tempData;
+    b1Cfg->azimuthAngle = ntohs(b1Cfg->azimuthAngle);
+    stSysStatus.rollAngle = (double)(b1Cfg->azimuthAngle) * 360 / 65536;
+    printf("rollAngle= %.2f\n", stSysStatus.rollAngle);
+
+    b1Cfg->pitchAngle = ntohs(b1Cfg->pitchAngle);
+    stSysStatus.pitchAngle = (double)(b1Cfg->pitchAngle) * 360 / 65536;
+    printf("pitchAngle= %.2f\n", stSysStatus.pitchAngle);
+
+    tempData = buf + 29;
+    ST_D1_CONFIG *d1Cfg = (ST_D1_CONFIG*)tempData;
+    stT1F1B1D1Cfg.d1Config.thermalImagingElectronicMagnification = d1Cfg->thermalImagingElectronicMagnification;
+    stSysStatus.lrfValue = (double)((d1Cfg->distanceMeasurementReturnValueH << 16) ^ d1Cfg->distanceMeasurementReturnValueL) * 0.01;
+    stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification = d1Cfg->visibleLightElectronicMagnification;
+    stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle = ntohs(d1Cfg->currSensorHoriFieldOfViewAngle);
+}
+
+static void VL_ParseSerialData_T1F1B1D1OSD(uint8_t* buf)
+{
+    
+}
+
+static void VL_ParseSerialData_T2F2B2D2(uint8_t* buf)
+{
+    
+}
+
+static void VL_ParseSerialData_V(uint8_t* buf)
+{
+    
+}
+
 void VL_ParseSerialData(uint8_t* buf)
 {
     uint8_t frameID = buf[4];
@@ -380,16 +428,16 @@ void VL_ParseSerialData(uint8_t* buf)
             VL_ParseSerialData_S1(buf);
             break;
         case 0x31:
-            VL_ParseSerialData_A2C2E2(buf);
+            VL_ParseSerialData_A2C2E2(buf + 5);
             break;
         case 0x33:
-            VL_ParseSerialData_A2C2E2S2(buf);
+            VL_ParseSerialData_A2C2E2S2(buf + 5);
             break;
         case 0x2A:
             VL_ParseSerialData_A2(buf);
             break;
         case 0x2C:
-            VL_ParseSerialData_C2(buf);
+            VL_ParseSerialData_C2(buf + 5);
             break;
         case 0x2E:
             VL_ParseSerialData_E2(buf);
@@ -399,6 +447,18 @@ void VL_ParseSerialData(uint8_t* buf)
             break;
         case 0x01:
             VL_ParseSerialData_U(buf);
+            break;
+        case 0x40:
+            VL_ParseSerialData_T1F1B1D1(buf + 5);
+            break;
+        case 0x42:
+            VL_ParseSerialData_T1F1B1D1OSD(buf + 5);
+            break;
+        case 0x41:
+            VL_ParseSerialData_T2F2B2D2(buf + 5);
+            break;
+        case 0x02:
+            VL_ParseSerialData_V(buf + 5);
             break;
         default:
             break;

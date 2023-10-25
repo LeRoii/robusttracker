@@ -57,7 +57,8 @@ find_package(MTTracking REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 set(APP_SRC 
-  ${PROJECT_SOURCE_DIR}/demo.cpp 
+  ${PROJECT_SOURCE_DIR}/demo.cpp
+  ${PROJECT_SOURCE_DIR}/painter.cpp
   ${PROJECT_SOURCE_DIR}/serial.cpp 
   ${PROJECT_SOURCE_DIR}/jetsonEncoder.cpp  
   ${PROJECT_SOURCE_DIR}/camera.cpp  

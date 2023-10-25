@@ -10,6 +10,8 @@
 #include <sstream>
 #include <cmath>
 #include "camera.h"
+#include "painter.h"
+#include<arpa/inet.h>
 
 const int DEBUG_SERIAL = 0;
 
@@ -26,6 +28,8 @@ extern ST_A1C1E1_CONFIG stA1C1E1Cfg;
 extern ST_A2C2E2_CONFIG stA2C2E2Cfg;
 extern ST_A1C1E1S1_CONFIG stA1C1E1S1Cfg;
 extern ST_A2C2E2S2_CONFIG stA2C2E2S2Cfg;
+extern ST_T1F1B1D1_CONFIG stT1F1B1D1Cfg;
+extern ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg;
 
 ST_SYS_STATUS stSysStatus;
 
@@ -219,12 +223,12 @@ void SerialTransDown2Up()
                 continue;
             }
 
-            // printf("output buf\n");
-            // for(int i=0; i< outLen ;i++)
-            // {
-            // 	printf("[%02X]", output[i]);
-            // }
-            // printf("\n");
+            printf("output buf\n");
+            for(int i=0; i< outLen ;i++)
+            {
+                printf("[%02X]", output[i]);
+            }
+            printf("\n");
 
             // continue;
             
@@ -239,6 +243,8 @@ void SerialTransDown2Up()
             // 	memset(buffRcvData_servo,0,1024);
             // 	continue;
             // }
+
+            VL_ParseSerialData(output);
 
             EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
             
@@ -267,206 +273,14 @@ void SerialTransDown2Up()
     }
 }
 
-static std::string Convert(float Num)
-{
-    std::ostringstream oss;
-    oss<<Num;
-    std::string str(oss.str());
-    return str;
-}
-
-// 绘制画面横滚角度数轴，画面从左到右对应x由小到大
-static void PaintRollAngleAxis(cv::Mat &frame0, float currRollAngle)
-{
-    int fHeight = frame0.rows;
-    int fWidth = frame0.cols;
-    int xStart = fWidth / 2;
-    int yStart = fHeight / 12;
-    int curCeil = ceil(currRollAngle);
-    int curFloor = floor(currRollAngle);
-    uint32_t distance = abs(curCeil % 5);
-    int x = xStart - 225 + ((float)curCeil - currRollAngle) * 15;
-    
-    // 绘制当前横滚角度
-    std::string currStr = Convert(currRollAngle);
-    cv::line(frame0, cv::Point(xStart, yStart + 10), cv::Point(xStart, yStart + 30), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    cv::putText(frame0, currStr, cv::Point(xStart - 10, yStart + 45), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    
-    // 计算左侧和右侧小刻度值，以及开始大刻度具体数值
-    int leftSmallScale = 0;
-    int rightSmallScale = 0;
-    int tempPos = currRollAngle - 15;
-    if (curCeil == curFloor && curCeil % 5 == 0) { // 5的倍数，类似0、5、10等
-        tempPos = curCeil - 15;
-        leftSmallScale = 0;
-        rightSmallScale = 0;
-    } else if (curCeil - curFloor == 1 && curCeil % 5 - curFloor % 5 == 1) { // 类似-139.5、0.5、1.5等等
-        int temp = currRollAngle / 5 * 5;
-        tempPos = temp - 10;
-        leftSmallScale = 5 - distance;
-        rightSmallScale = 5 - leftSmallScale;
-        if (5 - distance == 5) { // 当前位置向上取整为0的
-            tempPos -= 5;
-            leftSmallScale = 0;
-            rightSmallScale = 0;
-        }
-    } else if (curCeil - curFloor == 1 && curCeil / 5 - curFloor / 5 == 1) { // 类似-0.5、4.5等等向上取整为5的倍数的
-        if (curCeil < 0 && curFloor < 0) { // 当前角度小于0，向上向下取整均小于0的
-            int temp = curCeil / 5 * 5;
-            tempPos = temp - 15;
-            leftSmallScale = distance;
-            rightSmallScale = 5 - leftSmallScale;
-        } else {
-            tempPos = curCeil - 15;
-            leftSmallScale = 0;
-            rightSmallScale = 0;
-        }
-    }
-
-    // 左侧小刻度绘制
-    for (int i = 0; i < leftSmallScale; i++) {
-        cv::line(frame0, cv::Point(x, yStart - 5), cv::Point(x, yStart - 12), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        x += 15;
-    }
-    
-    // 绘制从第一个大刻度起的连续5段刻度
-    for (int i = 0; i < 4; i++) {
-        cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        tempPos += 5;
-        x += 15;
-        for (int j = 0; j < 4; j++) {
-            cv::line(frame0, cv::Point(x, yStart - 5), cv::Point(x, yStart - 12), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-            x += 15;
-        }
-    }
-
-    // 接着上面绘制一个大刻度
-    cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-
-    // 当前刻度若为5的倍数，则再绘制两段刻度退出，最后一个刻度是大刻度 
-    if (curCeil == curFloor && curCeil % 5 == 0) {
-        for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < 4; j++) {
-                x += 15;
-                cv::line(frame0, cv::Point(x, yStart - 5), cv::Point(x, yStart - 12), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-            }
-            x += 15;
-            tempPos += 5;
-            cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-            cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        }
-
-        return;
-    }
-
-    // 当前刻度若向上取整为5的倍数，则接着需要绘制两段刻度
-    int r = (rightSmallScale == 0) ? 2 : 1;
-    for (int i = 0; i < r; i++) {
-        for (int j = 0; j < 4; j++) {
-            x += 15;
-            cv::line(frame0, cv::Point(x, yStart - 5), cv::Point(x, yStart - 12), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        }
-        x += 15;
-        tempPos += 5;
-        cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    }
-    
-    // 绘制最右侧小刻度
-    for (int j = 0; j < rightSmallScale; j++) {
-        x += 15;
-        cv::line(frame0, cv::Point(x, yStart - 5), cv::Point(x, yStart - 12), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    }
-}
-
-// 绘制俯仰角度刻度数轴，画面从上到下对应y由小到大
-static void PaintPitchAngleAxis(cv::Mat &frame0, float currPitchAngle)
-{
-    int fHeight = frame0.rows;
-    int fWidth = frame0.cols;
-    int xStart = fWidth / 18;
-    int yStart = fHeight / 2;
-    
-    int curCeil = ceil(currPitchAngle);
-    int y = yStart - 150 - 15 - ((float)curCeil - currPitchAngle) * 15;
-    uint32_t distance = abs(curCeil % 5);
-    
-    // 绘制当前俯仰角度
-    std::string currStr = Convert(currPitchAngle);
-    cv::line(frame0, cv::Point(xStart + 10, yStart), cv::Point(xStart + 20, yStart), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    cv::putText(frame0, currStr, cv::Point(xStart + 30, yStart), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-
-    // 绘制最上侧小刻度
-    for (int i = 0; i < distance; i++) {
-        y += 15;
-        cv::line(frame0, cv::Point(xStart - 7, y), cv::Point(xStart - 15, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    }
-
-    // 从上到下连续绘制3段刻度
-    for (int i = -2; i <= 0; i++) {
-        y += 15;
-        cv::line(frame0, cv::Point(xStart, y), cv::Point(xStart - 20, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        cv::putText(frame0, Convert(((int)currPitchAngle / 5) * 5 - i * 5), cv::Point(xStart - 65, y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        for (int j = 0; j < 4; j++) {
-            y += 15;
-            cv::line(frame0, cv::Point(xStart - 7, y), cv::Point(xStart - 15, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        }
-    }
-
-    // 接着绘制一个大刻度
-    y += 15;
-    cv::line(frame0, cv::Point(xStart, y), cv::Point(xStart - 20, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    cv::putText(frame0, Convert(((int)currPitchAngle / 5) * 5 - 5), cv::Point(xStart - 65, y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    
-    // 如果是5的倍数，则再绘制一段刻度退出，最下面一个刻度是大刻度
-    if (distance == 0) {
-        for (int j = 0; j < 4; j++) {
-            y += 15;
-            cv::line(frame0, cv::Point(xStart - 7, y), cv::Point(xStart - 15, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        }
-        y += 15;
-        cv::line(frame0, cv::Point(xStart, y), cv::Point(xStart - 20, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        cv::putText(frame0, Convert(((int)currPitchAngle / 5) * 5 - 10), cv::Point(xStart - 65, y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-        
-        return;
-    }
-
-    // 绘制最下侧小刻度
-    for (int j = 0; j < (5 - distance); j++) {
-        y += 15;
-        cv::line(frame0, cv::Point(xStart - 5, y), cv::Point(xStart - 12, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    }
-}
-
-static void PaintCrossPattern(cv::Mat &frame0, float currRollAngle, float  currPitchAngle)
-{
-    int fHeight = frame0.rows;
-    int fWidth = frame0.cols;
-    int x = fWidth / 2;
-    int y = fHeight / 2;
-    int lineLen = fHeight / 12;
-
-    // 绘制x线
-    cv::line(frame0, cv::Point(x - lineLen, y), cv::Point(x - lineLen / 4, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    cv::line(frame0, cv::Point(x + lineLen, y), cv::Point(x + lineLen / 4, y), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-
-    // 绘制中心点
-    cv::circle(frame0, cv::Point(x, y), 2, cv::Scalar(0, 255, 0), -1, cv::LINE_8);
-
-    // 绘制y线
-    cv::line(frame0, cv::Point(x, y - lineLen), cv::Point(x, y - lineLen / 4), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-    cv::line(frame0, cv::Point(x, y + lineLen), cv::Point(x, y + lineLen / 4), cv::Scalar(0, 255, 0), 2, cv::LINE_8);
-}
-
-
 static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
 {
-    cv::cvtColor(img, img, cv::COLOR_RGB2GRAY);
+    
     if(mode == EN_IRIMG_MODE::BLACKHOT)
     {
+        cv::cvtColor(img, img, cv::COLOR_RGB2GRAY);
         img = 255 - img;
+        cv::cvtColor(img, img, cv::COLOR_GRAY2RGB);
     }
     else if(mode == EN_IRIMG_MODE::PSEUDOCOLOR)
     {
@@ -492,15 +306,15 @@ int main()
 
 //*******************************serial init*************************
     
-    // serialUp.set_serial(1);	//"/dev/ttyTHS1"
-    // // serialUp.OnStart();
-    // serialDown.set_serial(2);	//"/dev/ttyUSB0"
-    // // serialDown.OnStart();
+    serialUp.set_serial(1);    //"/dev/ttyTHS1"
+    // serialUp.OnStart();
+    serialDown.set_serial(2);    //"/dev/ttyUSB0"
+    // serialDown.OnStart();
 
-    // std::thread serialThUp2Down = std::thread(SerialTransUp2Down);
-    // serialThUp2Down.detach();
-    // std::thread serialThDown2Up = std::thread(SerialTransDown2Up);
-    // serialThDown2Up.detach();
+    std::thread serialThUp2Down = std::thread(SerialTransUp2Down);
+    serialThUp2Down.detach();
+    std::thread serialThDown2Up = std::thread(SerialTransDown2Up);
+    serialThDown2Up.detach();
 //*******************************serial end*************************
 
     jetsonEncoder *encoder = new jetsonEncoder(8554);
@@ -669,14 +483,20 @@ int main()
         // Sdireader_GetFrame(frame0, frame1); 
         // frame = frame0;
         // 在界面上绘制OSD
-        float currRollAngle = 0; // 需要修改为吊舱返回的当前横滚角度
-        PaintRollAngleAxis(frame, currRollAngle);
+        //float currRollAngle = -78.5; // 需要修改为吊舱返回的当前横滚角度
+        PaintRollAngleAxis(frame, stSysStatus.rollAngle);
 
-        float currPitchAngle = 0; // 需要修改为吊舱返回的当前俯仰角度
-        PaintPitchAngleAxis(frame, currPitchAngle);
+        //float currPitchAngle = 0; // 需要修改为吊舱返回的当前俯仰角度
+        PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
 
         // 绘制中心十字
-        PaintCrossPattern(frame, currRollAngle, currPitchAngle);
+        PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+
+        // 绘制经纬度、海拔高度等坐标参数
+        PaintCoordinate(frame);
+
+        // 绘制界面上其他参数
+        PaintViewPara(frame);
         cv::resize(frame, dispFrame, cv::Size(1280,720));
 
         // trackFrame = frame.clone();
