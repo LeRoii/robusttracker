@@ -26,7 +26,7 @@ static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat&
     return similarity;
 }
 
-itracker::itracker()
+itracker::itracker():m_isLost(false)
 {
     bool HOG = false;
     bool FIXEDWINDOW = false;
@@ -55,7 +55,7 @@ void itracker::init(const cv::Rect &roi, cv::Mat image)
     trackerPtr->init(roi, image);
 }
 
-cv::Rect itracker::update(cv::Mat image, bool &islost)
+cv::Rect itracker::update(cv::Mat image)
 {
     static int st = 0;
     static float fallEdgePv = 0;
@@ -74,7 +74,7 @@ cv::Rect itracker::update(cv::Mat image, bool &islost)
 
     std::cout<<result<<std::endl;
     auto retPatch = image(result);
-    islost = false;
+    // islost = false;
 
     // cv::cvtColor(retPatch, retPatch, cv::COLOR_BGR2GRAY);
 
@@ -123,7 +123,7 @@ cv::Rect itracker::update(cv::Mat image, bool &islost)
                 bottomCnt = 0;
                 if(bottomCnt > 10 || simFailCnt > 3)
                 {
-                    islost = true;
+                    m_isLost = true;
                     printf("------------------Lost---------------\n");
                 }
                 break;
@@ -136,6 +136,9 @@ cv::Rect itracker::update(cv::Mat image, bool &islost)
     
 
     lastPeakVal = peakVal;
+
+    m_centerPt.x = result.x + m_GateSize/2;
+	m_centerPt.y = result.y + m_GateSize/2;
 
     return result;
 }
@@ -153,5 +156,22 @@ void itracker::reset()
     bool SILENT = true;
     bool LAB = false;
 
+    m_isLost = false;
+
     trackerPtr = new KCFTracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
+}
+
+bool itracker::isLost()
+{
+    return m_isLost;
+}
+
+cv::Point itracker::centerPt()
+{
+    return m_centerPt;
+}
+
+void itracker::setGateSize(int s)
+{
+    m_GateSize = s;
 }

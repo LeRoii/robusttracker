@@ -10,12 +10,17 @@ public:
     ~itracker();
 
     void init(const cv::Rect &roi, cv::Mat image);
-    cv::Rect update(cv::Mat image, bool &islost);
+    cv::Rect update(cv::Mat image);
     void reset();
+    bool isLost();
+    cv::Point centerPt();
+    void setGateSize(int s);
 
 private:
-    bool m_init;
+    bool m_isLost;
     cv::Mat m_oriPatch;
+    cv::Point m_centerPt;
+    int m_GateSize;
 };
 
 
