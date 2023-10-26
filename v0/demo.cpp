@@ -48,6 +48,7 @@ static void signal_handle(int signum)
 }
 
 
+
 Serial serialUp, serialDown;
 void SerialTransUp2Down()
 {
@@ -315,6 +316,9 @@ int main()
     realtracker *rtracker = new realtracker(engine);
 
     std::vector<TrackingObject> detRet;
+
+
+    cv::VideoWriter writer = new cv::VideoWriter(filePath, CV_FOURCC('M','J','P','G'),  20, cv::Size(1920, 1080));
 
     while(!quit)
     {
