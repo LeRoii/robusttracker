@@ -63,6 +63,7 @@ set(APP_SRC
   ${PROJECT_SOURCE_DIR}/jetsonEncoder.cpp  
   ${PROJECT_SOURCE_DIR}/camera.cpp  
   ${COMMONCLSFILES} ${NET_SRC} ${XOP_SRC}
+  ${PROJECT_SOURCE_DIR}/realtracker.cpp
   )
 
 add_executable(demo ${APP_SRC})
