@@ -345,7 +345,6 @@ realtracker::~realtracker()
 
 void realtracker::init(const cv::Rect &roi, cv::Mat image)
 {
-    // regions_t regions;
     m_kcf->init(roi, image);
 }
 
@@ -433,4 +432,9 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
     DrawData(m_frameInfo.m_frames[0].GetMatBGR(), m_frameInfo.m_tracks[0], m_frameInfo.m_frameInds[0], 0);
     // frame = frameInfo.m_frames[0].GetMatBGR().clone();
     frame = m_frameInfo.m_frames[0].GetMatBGR();
+}
+
+void realtracker::reset()
+{
+    m_kcf->reset();
 }

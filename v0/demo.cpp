@@ -1,5 +1,4 @@
 #include "multitracker.h"
-
 #include <unistd.h>
 #include <signal.h>
 #include "jetsonEncoder.h"
@@ -12,6 +11,10 @@
 #include<arpa/inet.h>
 #include <yaml-cpp/yaml.h>
 #include "realtracker.h"
+#include "spdlog/spdlog.h"
+#include "spdlog/stopwatch.h"
+#include <deque>
+#include <numeric>
 
 
 const int DEBUG_SERIAL = 0;
@@ -249,6 +252,9 @@ static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
 
 int main()
 {
+    spdlog::set_level(spdlog::level::debug);
+    spdlog::stopwatch sw;
+    std::deque<double> fpsCalculater;
 
 //*******************************serial init*************************
     
@@ -284,7 +290,7 @@ int main()
 
 	stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
-    stSysStatus.detOn = true;
+    stSysStatus.detOn = false;
 
     int pipPosX, pipPosY;
 
@@ -317,20 +323,20 @@ int main()
 
     std::vector<TrackingObject> detRet;
 
-
-    cv::VideoWriter writer = new cv::VideoWriter(filePath, CV_FOURCC('M','J','P','G'),  20, cv::Size(1920, 1080));
-
     while(!quit)
     {
+        
         // usleep(1000000);
         // continue;
-		printf("while\n");
+		spdlog::debug("=====nframe:{}======", nFrames);
         cam->GetFrame(viImg, oriIrImg);
 
         if(oriIrImg.empty() || viImg.empty())
         {
             printf("input img empty, quit\n");
         }
+
+        sw.reset();
 
         cvtIrImg(oriIrImg, stSysStatus.enIrImgMode);
 
@@ -366,36 +372,35 @@ int main()
 				break;
 		}
 
-        if(frame.empty())
-		{
-			printf("empty frame\n");
-            break;
-		}
+        spdlog::debug("after cap img Elapsed {}", sw);
 
         // trackFrame = frame.clone();
         // detFrame = frame.clone();
         // dispFrame = frame.clone();
-
-        printf("=====nframe:%d======\n", nFrames);
-
-        if(stSysStatus.detOn)
-        {
-            rtracker->runDetector(frame, detRet);
-        }
 
         if(stSysStatus.trackOn)
         {
         	cv::Rect initRect = cv::Rect{(1280-stSysStatus.trackerGateSize)/2, (720-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
         	if(!stSysStatus.trackerInited)
         	{
-        		// tracker.init(initRect, dispFrame);
+                rtracker->reset();
                 rtracker->init(initRect, frame );
         		stSysStatus.trackerInited = true;
         	}
         	else
         	{
                 rtracker->runTracker(frame);
+                
+                rtracker->update(frame, detRet);
+                //send offset
+
+                //if detOn == true, send detRet
         	}
+        } 
+        else if(stSysStatus.detOn)
+        {
+            rtracker->runDetector(frame, detRet);
+            //send detRet
         }
 
         // 在界面上绘制OSD
@@ -417,12 +422,25 @@ int main()
 
         nFrames++;
 
-        cv::imshow("show", dispFrame);
+        // cv::imshow("show", dispFrame);
         encoder->process(dispFrame);
+
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
-        cv::waitKey(30);
+        // cv::waitKey(30);
         // usleep(30000);
+
+        // spdlog::debug("before cal aveg Elapsed {}", sw);
+
+        // std::chrono::duration<double> dd =  sw.elapsed();
+
+        fpsCalculater.emplace_back(sw.elapsed().count());
+        if(fpsCalculater.size() > 30)
+            fpsCalculater.pop_front();
+        double meanValue = accumulate(begin(fpsCalculater), end(fpsCalculater), 0.0) / fpsCalculater.size();                   // 求均值
+
+        spdlog::debug("size:{}, Elapsed {}", fpsCalculater.size(), meanValue);
+
 
     }
 

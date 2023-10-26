@@ -5,7 +5,8 @@ project(yolov8)
 add_definitions(-std=c++11)
 add_definitions(-DAPI_EXPORTS)
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
+# set(CMAKE_BUILD_TYPE Debug)
 
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
@@ -55,6 +56,7 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 find_package(MTTracking REQUIRED)
 
 find_package(yaml-cpp REQUIRED)
+find_package(spdlog REQUIRED)
 
 set(APP_SRC 
   ${PROJECT_SOURCE_DIR}/demo.cpp
@@ -76,3 +78,4 @@ target_link_libraries(demo -pthread
 # ${GLUT_LIBRARY}
 # ${CUDA_LIBRARIES} ${CUDNN_LIBRARIES}
 )
+target_link_libraries(demo spdlog::spdlog)
