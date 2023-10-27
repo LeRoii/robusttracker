@@ -67,14 +67,12 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
         tempPos = curCeil - 15;
         leftSmallScale = 0;
         rightSmallScale = 0;
-        printf("111 tempPos=%d\n", tempPos);
     } else if (curCeil - curFloor == 1 && (curCeil % 5) - (curFloor % 5) == 1) { // 类似-139.5、0.5、1.5等等
         int temp = currRollAngle / 5;
         int tempAngle = temp * 5;
-        tempPos = tempAngle - 10;
+        tempPos = ((curCeil < 0) && (curCeil % 5 != 0)) ? (tempAngle - 15) : (tempAngle - 10);
         leftSmallScale = (curCeil < 0) ? distance : 5 - distance;
         rightSmallScale = 5 - leftSmallScale;
-        printf("222 tempPos=%d\n", tempPos);
         if (distance == 0) { // 当前位置向上取整为0的
             tempPos -= 5;
             leftSmallScale = 0;
@@ -87,13 +85,11 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
             tempPos = tempAngle - 15;
             leftSmallScale = (curCeil < 0) ? distance : 5 - distance;
             rightSmallScale = 5 - leftSmallScale;
-            printf("333 tempPos=%d\n", tempPos);
         } else {
             tempPos = curCeil - 15;
             leftSmallScale = 0;
             rightSmallScale = 0;
         }
-        printf("444 tempPos=%d\n", tempPos);
     } else {
         int temp = currRollAngle / 5;
         int tempAngle = temp * 5;
@@ -254,6 +250,7 @@ void PaintPitchAngleAxis(cv::Mat &frame0, double currPitchAngle)
     }
 }
 
+// 绘制中心十字
 void PaintCrossPattern(cv::Mat &frame0, float currRollAngle, float currPitchAngle)
 {
     int fHeight = frame0.rows;
@@ -347,6 +344,7 @@ static void PaintDegMinSec(cv::Mat &frame0, int x, int y, const double inputAngl
         cv::Point(x + 15, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
 }
 
+// 绘制地理坐标
 void PaintCoordinate(cv::Mat &frame0)
 {
     int fHeight = frame0.rows;
@@ -379,6 +377,7 @@ std::string ConvertTimesNum2Str(double num)
     return str;
 }
 
+// 绘制界面上的其他参数
 void PaintViewPara(cv::Mat &frame0)
 {
     int fHeight = frame0.rows;
@@ -396,15 +395,12 @@ void PaintViewPara(cv::Mat &frame0)
     std::string currTime(ss1.str());
     cv::putText(frame0, currTime, cv::Point(x, y + 20), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
 
-    printf("---------------PaintViewPara C2 opCmd1=%#x\n", stA2C2E2Cfg.c2Config.opCmd1);
+
     if (stA2C2E2Cfg.c2Config.opCmd1 == 0x53) {
         uint16_t visibleLightOpticalZoomFactor = 0;
-        printf("---------------PaintViewPara opCmdPara1[%02X]-[%02X]\n", stA2C2E2Cfg.c2Config.opCmdPara1[0], stA2C2E2Cfg.c2Config.opCmdPara1[1]);
         memcpy(&visibleLightOpticalZoomFactor, &stA2C2E2Cfg.c2Config.opCmdPara1, 2);
         visibleLightOpticalZoomFactor = ntohs(visibleLightOpticalZoomFactor);
-        printf("---------------visibleLightOpticalZoomFactor=%#x\n", visibleLightOpticalZoomFactor);
         stSysStatus.eoValue = (visibleLightOpticalZoomFactor * 0.1) * (stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification + 1);
-        printf("---------------eoValue111=%04f\n", stSysStatus.eoValue);
     }
 
     double fovValue = (double)stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle * 0.01;

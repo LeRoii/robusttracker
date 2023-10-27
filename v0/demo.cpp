@@ -9,6 +9,8 @@
 #include "camera.h"
 #include "painter.h"
 #include<arpa/inet.h>
+#include <unistd.h>
+#include <sys/vfs.h>
 #include <yaml-cpp/yaml.h>
 #include "realtracker.h"
 #include "spdlog/spdlog.h"
@@ -51,8 +53,68 @@ static void signal_handle(int signum)
 }
 
 
+bool IsTransparentToPod(uint8_t *buf)
+{
+    if (buf == nullptr) {
+        return false;
+    }
+    
+    if (buf[4] == 0x5D) {
+        return false;
+    }
+    return true;
+}
 
 Serial serialUp, serialDown;
+
+void OnceSendFromDownToUp(uint8_t *buf)
+{
+    uint8_t sendBuf[1024] = {0};
+    int sendBufLen = 7;
+
+    sendBuf[0] = 0x55;
+    sendBuf[1] = 0xAA;
+    sendBuf[2] = 0xDC;
+
+    if (buf[4] == 0x5D) {
+        struct statfs diskInfo;
+        statfs("/", &diskInfo);
+        unsigned long long totalBlocks = diskInfo.f_bsize;  
+        unsigned long long totalSize = totalBlocks * diskInfo.f_blocks;  
+        size_t mbTotalsize = totalSize>>20;  
+        unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;  
+        size_t mbFreedisk = freeDisk>>20;  
+        printf ("/  total=%ldMB, free=%ldMB\n", mbTotalsize, mbFreedisk);
+
+        sendBufLen = 10;
+        
+        sendBuf[3] = 0x5 + 0x3;
+        sendBuf[4] = 0xD5;
+
+        if (buf[5] == 0x8B) {
+            sendBuf[5] = buf[6] - 1;
+            if (buf[6] == 0x2) {
+                if (mbTotalsize > 0 && mbFreedisk > 100) {
+                    sendBuf[6] = 0x1;
+                } else if (mbTotalsize == 0 || mbFreedisk == 0) {
+                    sendBuf[6] = 0x80;
+                } else {
+                    sendBuf[6] = 0x20;
+                }
+            } else if (buf[6] == 0x3) {
+                sendBuf[6] = mbTotalsize;
+            }  else if (buf[6] == 0x4) {
+                sendBuf[6] = mbFreedisk;
+            }
+            // todo: 拍照张数和剩余录像时间待计算截图与录像视频格式再补充
+        }
+    }
+    uint8_t checksum = viewlink_protocal_checksum(sendBuf);
+    sendBuf[sendBufLen - 1] = checksum;
+    sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+    printf("down send to up:%d\n", sendBufLen);
+}
+
 void SerialTransUp2Down()
 {
     uint8_t output[1024] = {0};
@@ -71,8 +133,10 @@ void SerialTransUp2Down()
             }
             printf("\n");
 #endif
-
-            retLen = serialDown.serial_send(buffRcvData_servo, retLen);
+            if (IsTransparentToPod(buffRcvData_servo)) {
+                retLen = serialDown.serial_send(buffRcvData_servo, retLen);
+            }
+            
             printf("up send to down:%d\n", retLen);
 
             int rr = serialUp.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
@@ -147,6 +211,9 @@ void SerialTransUp2Down()
             // }
 
             VL_ParseSerialData(output);
+            if (!IsTransparentToPod(buffRcvData_servo)) {
+                OnceSendFromDownToUp(output);
+            }
 
             printf("status->enDispMode:%d, detOn:%d, trackOn:%d, trackerGateSize:%d\n",\
              stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
@@ -248,6 +315,92 @@ static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
     {
         cv::applyColorMap(img, img, cv::COLORMAP_HOT);
     }
+}
+
+static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
+{
+    ST_F3_CONFIG f3Cfg = {0};
+    f3Cfg.targetSum = dets.size();
+    f3Cfg.totalPacketNum = f3Cfg.targetSum / 4;
+    if ((f3Cfg.targetSum % 4) > 0) {
+        f3Cfg.totalPacketNum += 1;
+    }
+
+    for (int i = 0; i < f3Cfg.totalPacketNum; i++) {
+        f3Cfg.currPacketId = i;
+        int currPacketTargetNum = 4;
+        if (f3Cfg.totalPacketNum - i == 1) {
+            currPacketTargetNum = f3Cfg.targetSum % 4;
+        }
+        uint8_t sendBuf[1024] = {0};
+        int sendBufLen = 5 + 8 + currPacketTargetNum * 13 + 1; // 帧头5字节,F3目标总体信息占8字节,每个目标具体信息占13字节,最后1个字节为checksum
+
+        sendBuf[0] = 0x55;
+        sendBuf[1] = 0xAA;
+        sendBuf[2] = 0xDC;
+        sendBuf[3] = ((i + 1) << 6) ^ (2 + currPacketTargetNum * 13 + 1);
+        sendBuf[4] = 0xF3;
+        sendBuf[5] = f3Cfg.targetSum;
+        sendBuf[6] = f3Cfg.totalPacketNum;
+        sendBuf[7] = f3Cfg.currPacketId;
+        sendBuf[8] = 0;
+        sendBuf[9] = 0;
+        sendBuf[10] = 0;
+        sendBuf[11] = 0;
+        sendBuf[12] = 0;
+        int pos = 13;
+        for (int j = 0; j < currPacketTargetNum; j++) {
+            f3Cfg.targetInfo[i + j].targetType = (dets[i + j].m_type == 1) ? 0 : 1; // 目标类型与向上位机传递的目标类型相反，且目前只有0，1 人、车两种
+            memcpy(&f3Cfg.targetInfo[i + j].targetId, &dets[i + j].m_ID, 2);
+            // f3Cfg.targetInfo[i + j].targetId = (uint16_t)dets[i + j].m_ID;
+            f3Cfg.targetInfo[i + j].targetAzimuthCoordinate = dets[i + j].m_rrect.boundingRect().x;
+            f3Cfg.targetInfo[i + j].targetPitchCoordinate = dets[i + j].m_rrect.boundingRect().y;
+            f3Cfg.targetInfo[i + j].targetLength = dets[i + j].m_rrect.boundingRect().width;
+            f3Cfg.targetInfo[i + j].targetWidth = dets[i + j].m_rrect.boundingRect().height;
+            f3Cfg.targetInfo[i + j].targetDetectionConfidence = dets[i + j].m_confidence * 10000;
+
+            f3Cfg.targetInfo[i + j].targetId = ntohs(f3Cfg.targetInfo[i + j].targetId);
+            f3Cfg.targetInfo[i + j].targetAzimuthCoordinate = ntohs(f3Cfg.targetInfo[i + j].targetAzimuthCoordinate);
+            f3Cfg.targetInfo[i + j].targetPitchCoordinate = ntohs(f3Cfg.targetInfo[i + j].targetPitchCoordinate);
+            f3Cfg.targetInfo[i + j].targetLength = ntohs(f3Cfg.targetInfo[i + j].targetLength);
+            f3Cfg.targetInfo[i + j].targetWidth = ntohs(f3Cfg.targetInfo[i + j].targetWidth);
+            f3Cfg.targetInfo[i + j].targetDetectionConfidence = ntohs(f3Cfg.targetInfo[i + j].targetDetectionConfidence);
+            
+            sendBuf[pos++] = f3Cfg.targetInfo[i + j].targetType;
+            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetId, 2);
+            pos += 2;
+            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetAzimuthCoordinate, 2);
+            pos += 2;
+            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetPitchCoordinate, 2);
+            pos += 2;
+            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetLength, 2);
+            pos += 2;
+            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetWidth, 2);
+            pos += 2;
+            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetDetectionConfidence, 2);
+            pos += 2;
+        }
+        sendBuf[pos] = viewlink_protocal_checksum(sendBuf);
+        sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+        printf("detector down send to up:%d\n", sendBufLen);
+#if DEBUG_SERIAL
+        for (auto x : dets) {
+            printf("[%d] ", x.m_type);
+            printf("[%zu] ", x.m_ID.ID2Module(1000));
+            printf("[%d] ", x.m_rrect.boundingRect().x);
+            printf("[%d] ", x.m_rrect.boundingRect().y);
+            printf("[%d] ", x.m_rrect.boundingRect().width);
+            printf("[%d] ", x.m_rrect.boundingRect().height);
+            printf("[%f] ", x.m_confidence);
+        }
+        printf("\npos=%d\n", pos);
+        for (int l = 0; l <= pos; l++) {
+            printf("[%02x] ", sendBuf[l]);
+        }
+        printf("\n");
+#endif
+    }
+    printf("DetectorResultFeedbackToUp end\n");
 }
 
 int main()
@@ -400,7 +553,7 @@ int main()
         else if(stSysStatus.detOn)
         {
             rtracker->runDetector(frame, detRet);
-            //send detRet
+            DetectorResultFeedbackToUp(detRet);
         }
 
         // 在界面上绘制OSD

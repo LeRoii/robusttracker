@@ -21,6 +21,9 @@ ST_A2C2E2S2_CONFIG stA2C2E2S2Cfg = {0};
 ST_T1F1B1D1_CONFIG stT1F1B1D1Cfg = {0};
 ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg = {0};
 
+ST_CMD_SD_CONFIG stCmdSDCfg = {0};
+ST_ACK_SD_CONFIG stAckSDCfg = {0};
+
 
 bool CheckFrameHeader(uint8_t *send_buf, int Len)
 {
@@ -47,6 +50,12 @@ EN_DATA_FRAME_TYPE GetFrameType(uint8_t *send_buf, int Len)
             return HeartBeat15;
         else if(send_buf[4] == 0x14)
             return HeartBeat14;
+    }
+
+    if (Len == 8) {
+        if (send_buf[4] == 0x5D) {
+            return CtrlSdCmd;
+        }
     }
 
     if(Len > 10)
@@ -403,6 +412,26 @@ static void VL_ParseSerialData_V(uint8_t* buf)
     
 }
 
+static void VL_ParseSerialData_CMD_SD(uint8_t* buf)
+{
+    ST_CMD_SD_CONFIG *cmdSdCfg = (ST_CMD_SD_CONFIG*)buf;
+    stCmdSDCfg.ctrlCmd = cmdSdCfg->ctrlCmd;
+    stCmdSDCfg.para = cmdSdCfg->para;
+}
+
+static void VL_ParseSerialData_ACK_SD(uint8_t* buf)
+{
+    ST_ACK_SD_CONFIG *ackSdCfg = (ST_ACK_SD_CONFIG*)buf;
+    stAckSDCfg.ctrlCmd = ackSdCfg->ctrlCmd;
+    if (stAckSDCfg.ctrlCmd == (InquirySDCardStatus - 1)) {
+        stAckSDCfg.ackSDData[0] = ackSdCfg->ackSDData[0];
+        stAckSDCfg.ackSDData[1] = ackSdCfg->ackSDData[1];
+    } else if ((stAckSDCfg.ctrlCmd >= (InquirySDCardTotalCapacity - 1)) && (stAckSDCfg.ctrlCmd < SDQueryCmdButt)) {
+        memcpy(&stAckSDCfg.ackSDData, ackSdCfg->ackSDData, 4);
+    }
+}
+
+
 void VL_ParseSerialData(uint8_t* buf)
 {
     uint8_t frameID = buf[4];
@@ -459,6 +488,12 @@ void VL_ParseSerialData(uint8_t* buf)
             break;
         case 0x02:
             VL_ParseSerialData_V(buf + 5);
+            break;
+        case 0x5D:
+            VL_ParseSerialData_CMD_SD(buf + 5);
+            break;
+        case 0xD5:
+            VL_ParseSerialData_ACK_SD(buf + 5);
             break;
         default:
             break;

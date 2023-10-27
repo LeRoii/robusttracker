@@ -384,6 +384,12 @@ enum EN_DATA_FRAME_TYPE
     Status41 = 5,
     FrameS2 = 6,
     HeartBeat14 = 7,
+    CtrlSdCmd = 8,
+};
+
+enum EN_ONCE_SEND_DOWN_TO_UP_TYPE
+{
+    SdCmdReply = 0,
 };
 
 struct ST_COORDINATE_CONFIG
@@ -609,14 +615,10 @@ struct ST_F2_CONFIG
 
 struct ST_TARGET_INFO
 {
-    uint8_t targetSum;
-    uint8_t totalPacketNum;
-    uint8_t currPacketId;
-    uint8_t rsvd[5];
-    uint8_t targetType;
+    uint8_t  targetType;
     uint16_t targetId;
-    uint16_t targetAzimuthCoordinate;
-    uint16_t targetPitchCoordinate;
+    int16_t targetAzimuthCoordinate;
+    int16_t targetPitchCoordinate;
     uint16_t targetLength;
     uint16_t targetWidth;
     uint16_t targetDetectionConfidence;
@@ -625,6 +627,10 @@ struct ST_TARGET_INFO
 // AI 系列识别状态反馈
 struct ST_F3_CONFIG
 {
+    uint8_t targetSum;
+    uint8_t totalPacketNum;
+    uint8_t currPacketId;
+    uint8_t rsvd[5];
     ST_TARGET_INFO targetInfo[16];
 };
 
@@ -731,6 +737,36 @@ struct ST_V_CONFIG
 {
     uint8_t ctrlCmd; // @ref EN_V_CTRL_CMD
     uint8_t data[22];
+};
+
+enum EN_SD_CTRL_CMD
+{
+    NoActionForSD = 0,
+    FormatSdCard = 0x8A,
+    QuerySDCard = 0x8B,
+    SDCtrlCmdButt
+};
+
+enum EN_SD_QUERY_CMD
+{
+    InquirySDCardStatus = 2,
+    InquirySDCardTotalCapacity = 3,
+    InquirySDCardRemainCapacity = 4,
+    InquirySDCardRemainPicturesQuantity = 5,
+    InquirySDCardRemainVideoTime = 6,
+    SDQueryCmdButt
+};
+
+struct ST_CMD_SD_CONFIG
+{
+    uint8_t ctrlCmd; // @ref EN_SD_CTRL_CMD
+    uint8_t para; // @ref EN_SD_QUERY_CMD
+};
+
+struct ST_ACK_SD_CONFIG
+{
+    uint8_t ctrlCmd; // @ref (EN_SD_QUERY_CMD - 1)
+    uint8_t ackSDData[4];
 };
 
 
