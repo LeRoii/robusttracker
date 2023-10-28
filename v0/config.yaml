@@ -1,6 +1,6 @@
 detection: 1
-track: 1
-# engine: "/space/model/visdrone-8s-2c-1011.engine"
-# videopath: "/space/data/pl/IMG_3576.MOV"
-engine: "/home/nx/model/vis-8s-2c.engine"
-videopath: "/home/nx/data/IMG_3575.MOV"
+track: 0
+engine: "/space/model/visdrone-8s-2c-1011.engine"
+videopath: "/space/data/pl/IMG_3576.MOV"
+# engine: "/home/nx/model/vis-8s-2c.engine"
+# videopath: "/home/nx/data/IMG_3575.MOV"

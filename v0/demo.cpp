@@ -164,11 +164,14 @@ int main()
 
     while(1)
     {
-        cap >> frame;
-        if(frame.empty())
-            break;
+        // cap >> frame;
+        // if(frame.empty())
+        //     break;
 
+		frame = cv::imread("/space/data/bdd1.jpg");
 		cv::resize(frame, frame, cv::Size(1280,720));
+
+		
 
 		trackFrame = frame.clone();
 		detFrame = frame.clone();
@@ -300,8 +303,8 @@ int main()
 			// cv::circle(trackRetByDet, userPt, 2, (0,255, 255), 2);
 
 			std::vector<TrackingObject> detRet;
-			rtracker->update(detFrame, detRet);
-			cv::imshow("show", trackRetByDet);
+			rtracker->runDetector(detFrame);
+			// cv::imshow("show", trackRetByDet);
 
 			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
 			cv::imshow("raw-detRet", detFrame);
