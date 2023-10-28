@@ -18,7 +18,7 @@ public:
     void runDetector(cv::Mat &frame);
     void runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRet);
     void runTracker(cv::Mat &frame);
-    void update(cv::Mat &frame, std::vector<TrackingObject> &detRet);
+    void update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
     void reset();
 
 private:

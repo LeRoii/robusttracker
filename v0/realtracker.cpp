@@ -349,43 +349,85 @@ void realtracker::init(const cv::Rect &roi, cv::Mat image)
     m_kcf->init(roi, image);
 }
 
-void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet)
+inline double getDistance (cv::Point point1, cv::Point point2)
 {
+    return  sqrtf(powf((point1.x - point2.x),2) + powf((point1.y - point2.y),2));
+}
+
+
+void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt)
+{
+    static cv::Mat trackerFrame, detFrame;
+    trackerFrame = detFrame = frame.clone();
     printf("realtracker::update\n");
-    runDetector(frame, detRet);
-    runTracker(frame);
+    runDetector(detFrame, detRet);
+    runTracker(trackerFrame);
 
-    // if(m_kcf->isLost())
-    // {
+    static int lastId = -1;
+    static cv::Point lastPt{0,0};
 
-    // }
-    // else
-    // {
+    if(m_kcf->isLost())
+    {
+        printf("m_kcf->isLost()\n");
+        if(lastId != -1)
+        {
+            for(auto &obj:m_frameInfo.m_tracks[0])
+            {
+                if(obj.m_ID == lastId)
+                {
+                    cv::Point2f rectPoints[4];
+        	        obj.m_rrect.points(rectPoints);
+                    for (int i = 0; i < 4; ++i)
+                    {
+                        cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        int minIdx = -1;
+        m_kcf->centerPt();
 
-    // }
+        double minDist = 10000.f;
+        for(int i=0; i< m_frameInfo.m_tracks[0].size(); ++i)
+        {
+        	cv::Rect brect = m_frameInfo.m_tracks[0][i].m_rrect.boundingRect();
+        	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
+        	double dist = getDistance(m_kcf->centerPt(), center);
+        	// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
+        	if(dist < minDist)
+        	{
+        		minDist = dist;
+        		minIdx = i;
+        	}
+        }
 
-    // double minDist = 10000.f;
-    // for(int i=0; i< m_frameInfo.m_tracks[0].size(); ++i)
-    // {
-    // 	cv::Rect brect = m_frameInfo.m_tracks[0][i].m_rrect.boundingRect();
-    // 	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
-    // 	double dist = getDistance(m_kcf->centerPt(), center);
-    // 	// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
-    // 	if(dist < minDist)
-    // 	{
-    // 		minDist = dist;
-    // 		minIdx = i;
-    // 	}
-    // }
+        printf("minIdx = %d\n", minIdx);
 
-    // if(minIdx != -1)
-    // {
-    // 	cv::Point2f rectPoints[4];
-    // 	frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
-    // 	for (int i = 0; i < 4; ++i)
-    // 	{
-    // 		cv::line(trackRetByDet, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
-    // 	}
+        if(minIdx != -1)
+        {
+            cv::circle(frame, m_kcf->centerPt(), 2, cv::Scalar(0,255,255), 2);
+
+            bool contain = m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(m_kcf->centerPt());
+
+        	cv::Point2f rectPoints[4];
+        	m_frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
+        	for (int i = 0; i < 4; ++i)
+        	{
+        		cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
+        	}
+
+            lastId = m_frameInfo.m_tracks[0][minIdx].m_ID.m_val;
+        }
+    }
+
+    pt.x = m_kcf->centerPt().x - lastPt.x;
+    pt.y = m_kcf->centerPt().y - lastPt.y;
+    lastPt = m_kcf->centerPt();
+
+    
 
     // 	contain = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(userPt);
     // 	spdlog::debug("contains:{}", contain);
@@ -394,7 +436,7 @@ void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet)
 
 void realtracker::runTracker(cv::Mat &frame)
 {
-    printf("realtracker::runTracker\n");
+    // printf("realtracker::runTracker\n");
     cv::Rect result;
     result = m_kcf->update(frame);
     rectangle(frame, cv::Point(result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
@@ -418,10 +460,10 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
     m_detector->process(frame, boxs);
     for(int i=0;i<boxs.size();i++)
     {
-        printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", boxs[i].x, boxs[i].y, boxs[i].w, boxs[i].h, boxs[i].prob, boxs[i].obj_id);
+        // printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", boxs[i].x, boxs[i].y, boxs[i].w, boxs[i].h, boxs[i].prob, boxs[i].obj_id);
         for(int j=i+1;j<boxs.size();++j)
         {
-            printf("\tbox-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d, diff:%d\n", boxs[j].x, boxs[j].y, boxs[j].w, boxs[j].h, boxs[j].prob, boxs[j].obj_id, boxDif(boxs[i], boxs[j]));
+            // printf("\tbox-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d, diff:%d\n", boxs[j].x, boxs[j].y, boxs[j].w, boxs[j].h, boxs[j].prob, boxs[j].obj_id, boxDif(boxs[i], boxs[j]));
 
             if(boxDif(boxs[i], boxs[j]) < 5)
             {
@@ -437,10 +479,10 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
     m_frameInfo.CleanRegions();
 
     // printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-    for(auto& box:boxs)
-    {
-    	printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
-    }
+    // for(auto& box:boxs)
+    // {
+    // 	printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
+    // }
     m_regions.clear();
     for(auto &box:boxs)
     {

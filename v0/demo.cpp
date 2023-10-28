@@ -60,10 +60,6 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
 	}
 }
 
-inline double getDistance (cv::Point point1, cv::Point point2)
-{
-    return  sqrtf(powf((point1.x - point2.x),2) + powf((point1.y - point2.y),2));
-}
 
 int main()
 {
@@ -116,35 +112,9 @@ int main()
 
 	itracker *tracker = new itracker();
 
-    //*******************************multitracker init*************************
-    size_t m_batchSize = 1;
-    float m_fps = 25;
-    const int minStaticTime = 5;
-
-    cv::Mat tmp = cv::Mat(720, 1280, CV_8UC3);
-    FrameInfo frameInfo(m_batchSize);
-	frameInfo.m_frames.resize(frameInfo.m_batchSize);
-	frameInfo.m_frameInds.resize(frameInfo.m_batchSize);
-    frameInfo.m_frames[0].GetMatBGRWrite() = tmp;
-    cv::UMat umatFrame = frameInfo.m_frames[0].GetUMatBGR();
-
-    std::unique_ptr<BaseTracker> mtracker;
-    TrackerSettings settings;
-    genTrackerSettings(settings);
-    mtracker = BaseTracker::CreateTracker(settings);
-    frameInfo.CleanRegions();
-    frameInfo.CleanTracks();
-    regions_t regions;
-//*******************************multitracker init end *************************
 
 	std::vector<bbox_t> boxs;
 
-    bool HOG = false;
-	bool FIXEDWINDOW = false;
-	bool MULTISCALE = true;
-	bool SILENT = true;
-	bool LAB = false;
-    // KCFTracker tracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
 
     cv::Mat frame;
     int nFrames = 0;
@@ -159,6 +129,7 @@ int main()
 
     // Tracker results
 	cv::Rect result;
+	cv::Point pt;
 
 	cv::Mat dispFrame, trackFrame, trackRet, detFrame, trackRetByDet;
 	std::vector<TrackingObject> detRet;
@@ -215,8 +186,9 @@ int main()
 				// // resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
 				// userPt.x = result.x+GateSize/2;
 				// userPt.y = result.y+GateSize/2;
-
-				rtracker->runTracker(trackFrame);
+				// rtracker->runTracker(trackFrame);
+				rtracker->update(trackFrame, detRet, pt);
+				cv::imshow("trackRet", trackFrame);
 
 				// spdlog::debug("tracker lost:{}", lost);
 
@@ -246,9 +218,9 @@ int main()
 
 
 		// cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
-		cv::resize(trackFrame, trackFrame, cv::Size(1280,720));
+		// cv::resize(trackFrame, trackFrame, cv::Size(1280,720));
         // cv::imshow("show", dispFrame);
-        cv::imshow("trackRet", trackFrame);
+        
         
         cv::waitKey(0);
 
