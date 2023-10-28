@@ -132,7 +132,7 @@ cv::Rect itracker::update(cv::Mat image)
         }
         
     }
-    while(lastSt != st);
+    while(lastSt != st && !m_isLost);
     
 
     lastPeakVal = peakVal;

@@ -16,8 +16,10 @@ public:
 
     void init(const cv::Rect &roi, cv::Mat image);
     void runDetector(cv::Mat &frame);
+    void runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRet);
     void runTracker(cv::Mat &frame);
     void update(cv::Mat &frame, std::vector<TrackingObject> &detRet);
+    void reset();
 
 private:
     itracker *m_kcf;

@@ -161,17 +161,16 @@ int main()
 	cv::Rect result;
 
 	cv::Mat dispFrame, trackFrame, trackRet, detFrame, trackRetByDet;
+	std::vector<TrackingObject> detRet;
 
     while(1)
     {
-        // cap >> frame;
-        // if(frame.empty())
-        //     break;
+        cap >> frame;
+        if(frame.empty())
+            break;
 
-		frame = cv::imread("/space/data/bdd1.jpg");
+		// frame = cv::imread("/space/data/123.PNG");
 		cv::resize(frame, frame, cv::Size(1280,720));
-
-		
 
 		trackFrame = frame.clone();
 		detFrame = frame.clone();
@@ -238,77 +237,11 @@ int main()
 
 		if(detOn)
 		{
-			// frameInfo.m_frames[0].GetMatBGRWrite() = dispFrame.clone();
-			// detector->process(detFrame, boxs);
-
-			// // detret = detFrame.clone();
-
-			// frameInfo.CleanRegions();
-
-			// // printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-			// // for(auto& box:boxs)
-			// // {
-			// // 	printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
-			// // }
-			// regions.clear();
-			// for(auto &box:boxs)
-			// {
-			// 	regions.emplace_back(cv::Rect(cvRound(1.0*box.x), cvRound(1.0*box.y), cvRound(1.0*box.w), cvRound(1.0*box.h)), (box.obj_id), box.prob);
-			// }
-
-			// printf("frameInfo.m_regions[0] size%d, regions:%d\n", frameInfo.m_regions[0].size(), regions.size());
-			// frameInfo.m_regions[0] = regions;
-			// mtracker->Update(frameInfo.m_regions[0], frameInfo.m_frames[0].GetUMatGray(), m_fps);
-			// printf("track size:%d\n", frameInfo.m_tracks[0].size());
-			// mtracker->GetTracks(frameInfo.m_tracks[0]);
-
-			// DrawData(frameInfo.m_frames[0].GetMatBGR(), frameInfo.m_tracks[0], frameInfo.m_frameInds[0], 0);
-			// // frame = frameInfo.m_frames[0].GetMatBGR().clone();
-			// dispFrame = frameInfo.m_frames[0].GetMatBGR();
-
-			// // printf("size:%d, id:%d\n", frameInfo.m_tracks[0].size(), frameInfo.m_tracks[0][0].m_ID);
-
-			// // Tracks2Boxs(frameInfo.m_tracks[0], boxs);
-
-			// double minDist = 10000.f;
-			// for(int i=0; i< frameInfo.m_tracks[0].size(); ++i)
-			// {
-			// 	cv::Rect brect = frameInfo.m_tracks[0][i].m_rrect.boundingRect();
-			// 	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
-			// 	double dist = getDistance(userPt, center);
-			// 	// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
-			// 	if(dist < minDist)
-			// 	{
-			// 		minDist = dist;
-			// 		minIdx = i;
-			// 	}
-			// }
-
-			// spdlog::debug("best det ret:id:{}, dist:{}", frameInfo.m_tracks[0][minIdx].m_ID.ID2Str(), minDist);
-
-			// if(minIdx != -1)
-			// {
-			// 	cv::Point2f rectPoints[4];
-			// 	frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
-			// 	for (int i = 0; i < 4; ++i)
-			// 	{
-			// 		cv::line(trackRetByDet, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
-			// 	}
-
-			// 	contain = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(userPt);
-			// 	spdlog::debug("contains:{}", contain);
-			// }
-
-
-			// cv::circle(trackRetByDet, userPt, 2, (0,255, 255), 2);
-
-			std::vector<TrackingObject> detRet;
-			rtracker->runDetector(detFrame);
+			rtracker->runDetector(detFrame, detRet);
 			// cv::imshow("show", trackRetByDet);
 
-			cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
-			cv::imshow("raw-detRet", detFrame);
-			cv::imshow("final-detRet", dispFrame);
+			// cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
+			cv::imshow("final-detRet", detFrame);
 		}
 
 

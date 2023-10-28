@@ -1,4 +1,5 @@
 #include "realtracker.h"
+// #include <stdlib.h>
 
 void DrawFilledRect(cv::Mat& frame, const cv::Rect& rect, cv::Scalar cl, int alpha)
 {
@@ -345,14 +346,13 @@ realtracker::~realtracker()
 
 void realtracker::init(const cv::Rect &roi, cv::Mat image)
 {
-    // regions_t regions;
     m_kcf->init(roi, image);
 }
 
 void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet)
 {
-    runDetector(frame);
-    detRet = m_frameInfo.m_tracks[0];
+    printf("realtracker::update\n");
+    runDetector(frame, detRet);
     runTracker(frame);
 
     // if(m_kcf->isLost())
@@ -394,6 +394,7 @@ void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet)
 
 void realtracker::runTracker(cv::Mat &frame)
 {
+    printf("realtracker::runTracker\n");
     cv::Rect result;
     result = m_kcf->update(frame);
     rectangle(frame, cv::Point(result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
@@ -402,19 +403,44 @@ void realtracker::runTracker(cv::Mat &frame)
 
 }
 
-void realtracker::runDetector(cv::Mat &frame)
+int boxDif(bbox_t &box1, bbox_t &box2)
 {
+    // int i = abs(box1.x - box2.x);
+    return (abs(int(box1.x - box2.x)) + abs(int(box1.y - box2.y)) + abs(int(box1.w - box2.w)) + abs(int(box1.h - box2.h))); 
+
+}
+
+void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRet)
+{
+    printf("realtracker::runDetector\n");
     std::vector<bbox_t> boxs;
     m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
     m_detector->process(frame, boxs);
+    for(int i=0;i<boxs.size();i++)
+    {
+        printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", boxs[i].x, boxs[i].y, boxs[i].w, boxs[i].h, boxs[i].prob, boxs[i].obj_id);
+        for(int j=i+1;j<boxs.size();++j)
+        {
+            printf("\tbox-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d, diff:%d\n", boxs[j].x, boxs[j].y, boxs[j].w, boxs[j].h, boxs[j].prob, boxs[j].obj_id, boxDif(boxs[i], boxs[j]));
+
+            if(boxDif(boxs[i], boxs[j]) < 5)
+            {
+                boxs.erase(boxs.begin()+j);
+                --j;
+            }
+        }
+    }
+    cv::Mat rawDet;
+    rawDet = frame.clone();
+    cv::imshow("rawDet", rawDet);
     // detret = detFrame.clone();
     m_frameInfo.CleanRegions();
 
     // printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-    // for(auto& box:boxs)
-    // {
-    // 	printf("box-->x:%d, y:%d, w:%d, h:%d\n", box.x, box.y, box.w, box.h);
-    // }
+    for(auto& box:boxs)
+    {
+    	printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
+    }
     m_regions.clear();
     for(auto &box:boxs)
     {
@@ -426,9 +452,14 @@ void realtracker::runDetector(cv::Mat &frame)
     m_mtracker->Update(m_frameInfo.m_regions[0], m_frameInfo.m_frames[0].GetUMatGray(), m_fps);
     printf("track size:%d\n", m_frameInfo.m_tracks[0].size());
     m_mtracker->GetTracks(m_frameInfo.m_tracks[0]);
+    detRet = m_frameInfo.m_tracks[0];
 
     DrawData(m_frameInfo.m_frames[0].GetMatBGR(), m_frameInfo.m_tracks[0], m_frameInfo.m_frameInds[0], 0);
     // frame = frameInfo.m_frames[0].GetMatBGR().clone();
     frame = m_frameInfo.m_frames[0].GetMatBGR();
+}
 
+void realtracker::reset()
+{
+    m_kcf->reset();
 }
