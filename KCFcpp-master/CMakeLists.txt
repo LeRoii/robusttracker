@@ -20,10 +20,6 @@ add_library(tracker SHARED ${PROJECT_SOURCE_DIR}/src/fhog.cpp
 target_link_libraries( tracker ${OpenCV_LIBS})
 
 add_custom_command(TARGET tracker POST_BUILD
-                  COMMAND ${CMAKE_COMMAND} -E copy libtracker.so ../../v0
-
-                  COMMAND ${CMAKE_COMMAND} -E copy libtracker.so /usr/lib
-                  
-                  COMMAND ${CMAKE_COMMAND} -E copy libtracker.so ../../v0/build)
+                  COMMAND ${CMAKE_COMMAND} -E copy libtracker.so /usr/lib)
 
 

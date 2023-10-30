@@ -99,6 +99,7 @@ public:
     
     // Update position based on the new frame
     virtual cv::Rect update(cv::Mat image);
+    virtual cv::Rect update(cv::Mat image, float &peakVal);
 
     float interp_factor; // linear interpolation factor for adaptation
     float sigma; // gaussian kernel bandwidth
