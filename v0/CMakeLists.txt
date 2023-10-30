@@ -33,6 +33,6 @@ find_package(spdlog REQUIRED)
 
 add_executable(demo ${PROJECT_SOURCE_DIR}/demo.cpp 
               ${PROJECT_SOURCE_DIR}/realtracker.cpp)
-target_link_libraries(demo  -L${PROJECT_SOURCE_DIR} -lidetector -L${PROJECT_SOURCE_DIR} -ltracker ${OpenCV_LIBS})
+target_link_libraries(demo   -lidetector  -ltracker ${OpenCV_LIBS})
 target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection yaml-cpp)
 target_link_libraries(demo spdlog::spdlog)

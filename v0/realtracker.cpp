@@ -355,7 +355,7 @@ inline double getDistance (cv::Point point1, cv::Point point2)
 }
 
 
-void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt)
+int realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt)
 {
     static cv::Mat trackerFrame, detFrame;
     trackerFrame = detFrame = frame.clone();
@@ -381,8 +381,20 @@ void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv
                     {
                         cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
                     }
+
+                    printf("\n\ntracker reset\n");
+                    m_kcf->reset();
+                    const cv::Point2f &pt = obj.m_rrect.center;
+                    cv::Rect initRect = cv::Rect(pt.x - 16, pt.y - 16, 32, 32);
+                    m_kcf->init(initRect, frame);
+                    break;
                 }
             }
+        }
+        else
+        {
+            printf("tracker lost\n\n");
+            return 0;
         }
     }
     else
@@ -393,6 +405,12 @@ void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv
         double minDist = 10000.f;
         for(int i=0; i< m_frameInfo.m_tracks[0].size(); ++i)
         {
+            if(lastId == m_frameInfo.m_tracks[0][i].m_ID.m_val)
+            {
+                minIdx = i;
+                break;
+            }
+
         	cv::Rect brect = m_frameInfo.m_tracks[0][i].m_rrect.boundingRect();
         	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
         	double dist = getDistance(m_kcf->centerPt(), center);
@@ -405,12 +423,17 @@ void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv
         }
 
         printf("minIdx = %d\n", minIdx);
-
+        lastId = -1;
         if(minIdx != -1)
         {
             cv::circle(frame, m_kcf->centerPt(), 2, cv::Scalar(0,255,255), 2);
 
-            bool contain = m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(m_kcf->centerPt());
+            if(!m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(m_kcf->centerPt()))
+            {
+                printf("\n\ntracker reset\n");
+                m_kcf->reset();
+                m_kcf->init(m_frameInfo.m_tracks[0][minIdx].m_rrect.center, frame);
+            }
 
         	cv::Point2f rectPoints[4];
         	m_frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
@@ -426,6 +449,8 @@ void realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv
     pt.x = m_kcf->centerPt().x - lastPt.x;
     pt.y = m_kcf->centerPt().y - lastPt.y;
     lastPt = m_kcf->centerPt();
+
+    return 1;
 
     
 
@@ -445,7 +470,7 @@ void realtracker::runTracker(cv::Mat &frame)
 
 }
 
-int boxDif(bbox_t &box1, bbox_t &box2)
+static inline int boxDif(bbox_t &box1, bbox_t &box2)
 {
     // int i = abs(box1.x - box2.x);
     return (abs(int(box1.x - box2.x)) + abs(int(box1.y - box2.y)) + abs(int(box1.w - box2.w)) + abs(int(box1.h - box2.h))); 
@@ -456,7 +481,8 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
 {
     printf("realtracker::runDetector\n");
     std::vector<bbox_t> boxs;
-    m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
+    m_frameInfo.m_frames[0].GetMatBGRWrite() = frame;
+    // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
     m_detector->process(frame, boxs);
     for(int i=0;i<boxs.size();i++)
     {
@@ -472,9 +498,9 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
             }
         }
     }
-    cv::Mat rawDet;
-    rawDet = frame.clone();
-    cv::imshow("rawDet", rawDet);
+    // cv::Mat rawDet;
+    // rawDet = frame.clone();
+    // cv::imshow("rawDet", rawDet);
     // detret = detFrame.clone();
     m_frameInfo.CleanRegions();
 

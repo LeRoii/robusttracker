@@ -124,8 +124,8 @@ int main()
 	float width;
 	float height;
 
-    cv::namedWindow("show");
-	cv::setMouseCallback("show", onmouse);
+    cv::namedWindow("trackRet");
+	cv::setMouseCallback("trackRet", onmouse);
 
     // Tracker results
 	cv::Rect result;
@@ -158,7 +158,7 @@ int main()
 					printf("1111111111\n");
 					auto tmpmat = frame.clone();
 					cv::rectangle( tmpmat, cv::Point(box.x,box.y), cv::Point(box.x+box.width,box.y+box.height), cv::Scalar( 48,48,255 ), 2, 8 );
-					cv::imshow("show", tmpmat);
+					cv::imshow("trackRet", tmpmat);
 					if(box_complete == true)
 					{
 						xMin = box.x;
