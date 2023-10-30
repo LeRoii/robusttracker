@@ -129,7 +129,7 @@ void SerialTransUp2Down()
 #if DEBUG_SERIAL
             for(int i=0; i< retLen ;i++)
             {
-            	printf("[%02X]", buffRcvData_servo[i]);
+                printf("[%02X]", buffRcvData_servo[i]);
             }
             printf("\n");
 #endif
@@ -149,21 +149,21 @@ void SerialTransUp2Down()
             // printf("output buf\n");
             // for(int i=0; i< outLen ;i++)
             // {
-            // 	printf("[%02X]", output[i]);
+            //     printf("[%02X]", output[i]);
             // }
             // printf("\n");
 
             //check frame header
             // if(!CheckFrameHeader(buffRcvData_servo, retLen))
             // {
-            // 	for(int i=0; i< retLen ;i++)
-            // 	{
-            // 		printf("[%02X]", buffRcvData_servo[i]);
-            // 	}
-            // 	printf("\n");
-            // 	printf("frame header error, drop data\n\n");
-            // 	memset(buffRcvData_servo,0,1024);
-            // 	continue;
+            //     for(int i=0; i< retLen ;i++)
+            //     {
+            //         printf("[%02X]", buffRcvData_servo[i]);
+            //     }
+            //     printf("\n");
+            //     printf("frame header error, drop data\n\n");
+            //     memset(buffRcvData_servo,0,1024);
+            //     continue;
             // }
 
             EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
@@ -197,7 +197,7 @@ void SerialTransUp2Down()
 
             // for(int i=0; i< retLen ;i++)
             // {
-            // 	printf("[%02X]", buffRcvData_servo[i]);
+            //     printf("[%02X]", buffRcvData_servo[i]);
             // }
             // printf("\n");
 
@@ -205,9 +205,9 @@ void SerialTransUp2Down()
             // uint8_t checksum = viewlink_protocal_checksum(buffRcvData_servo);
             // if(checksum != buffRcvData_servo[retLen - 1])
             // {
-            // 	printf("frame checksum error, drop data\n\n");
-            // 	memset(buffRcvData_servo,0,1024);
-            // 	continue;
+            //     printf("frame checksum error, drop data\n\n");
+            //     memset(buffRcvData_servo,0,1024);
+            //     continue;
             // }
 
             VL_ParseSerialData(output);
@@ -228,7 +228,7 @@ void SerialTransDown2Up()
     uint8_t output[1024] = {0};
     int outLen = 0;
     while(1)
-    {	
+    {    
         int retLen = serialDown.serial_recieve(buffRcvData_servo);
         if(retLen > 0)
         {
@@ -236,7 +236,7 @@ void SerialTransDown2Up()
 #if DEBUG_SERIAL
             for(int i=0; i< retLen ;i++)
             {
-            	printf("[%02X]", buffRcvData_servo[i]);
+                printf("[%02X]", buffRcvData_servo[i]);
             }
             printf("\n");
 #endif
@@ -263,14 +263,14 @@ void SerialTransDown2Up()
             
             // if(!CheckFrameHeader(buffRcvData_servo, retLen))
             // {
-            // 	for(int i=0; i< retLen ;i++)
-            // 	{
-            // 		printf("[%02X]", buffRcvData_servo[i]);
-            // 	}
-            // 	printf("\n");
-            // 	printf("frame header error, drop data\n\n");
-            // 	memset(buffRcvData_servo,0,1024);
-            // 	continue;
+            //     for(int i=0; i< retLen ;i++)
+            //     {
+            //         printf("[%02X]", buffRcvData_servo[i]);
+            //     }
+            //     printf("\n");
+            //     printf("frame header error, drop data\n\n");
+            //     memset(buffRcvData_servo,0,1024);
+            //     continue;
             // }
 
             VL_ParseSerialData(output);
@@ -292,7 +292,7 @@ void SerialTransDown2Up()
 
             // for(int i=0; i< retLen ;i++)
             // {
-            // 	printf("[%02X]", buffRcvData_servo[i]);
+            //     printf("[%02X]", buffRcvData_servo[i]);
             // }
             // printf("\n");
 
@@ -404,6 +404,30 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
     printf("DetectorResultFeedbackToUp end\n");
 }
 
+bool isRecording = false;;
+cv::VideoWriter writer;
+
+cv::Mat tempFrame;
+
+void SaveRecordVideo()
+{
+    printf("================================SaveRecordVideo======================\n");
+    writer.write(tempFrame);
+    tempFrame.release();
+}
+
+static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
+{
+    std::string cmd = "mkdir " + folderName;
+    int ret = system(cmd.c_str());
+    printf("create %s result is %s\n", folderName.c_str(), (ret == 0) ? "success" : "failed");
+    std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&curr), "%Y-%m-%d-%H-%M-%S");
+    std::string currTime(ss.str());
+    return currTime;
+}
+
 int main()
 {
     spdlog::set_level(spdlog::level::debug);
@@ -437,12 +461,12 @@ int main()
     int nFrames = 0;
 
     cv::Mat dispFrame, trackFrame, detFrame;
-	cv::Mat oriIrImg, viImg, irImg;
+    cv::Mat oriIrImg, viImg, irImg;
 
     irImg = cv::Mat(720, 1280, CV_8UC3);
     irImg.setTo(0);
 
-	stSysStatus.enDispMode = Vision;
+    stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
     stSysStatus.detOn = false;
 
@@ -469,7 +493,7 @@ int main()
 
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
-	std::string engine = config["engine"].as<std::string>();
+    std::string engine = config["engine"].as<std::string>();
     realtracker *rtracker = new realtracker(engine);
 
     std::vector<TrackingObject> detRet;
@@ -479,7 +503,7 @@ int main()
         
         // usleep(1000000);
         // continue;
-		spdlog::debug("=====nframe:{}======", nFrames);
+        spdlog::debug("=====nframe:{}======", nFrames);
         cam->GetFrame(viImg, oriIrImg);
 
         if(oriIrImg.empty() || viImg.empty())
@@ -500,28 +524,28 @@ int main()
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-		switch(stSysStatus.enDispMode)
-		{
-			case Vision:    //0x01
-				frame = viImg;
-				break;
-			case Ir:        //0x02
-				frame = irImg;
-				break;
-			case VisIrPip:  //0x03
-				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
-				oriIrImg.copyTo(viImg(cv::Rect(1280-480, 0, 480, 360)));
-				frame = viImg;
-				break;
-			case IrVisPip:  //0x04
-				cv::resize(viImg, viImg, cv::Size(480, 360));
-				viImg.copyTo(irImg(cv::Rect(1280-480, 0, 480, 360)));
-				frame = irImg;
-				break;
-			default:
-				frame = viImg;
-				break;
-		}
+        switch(stSysStatus.enDispMode)
+        {
+            case Vision:    //0x01
+                frame = viImg;
+                break;
+            case Ir:        //0x02
+                frame = irImg;
+                break;
+            case VisIrPip:  //0x03
+                cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
+                oriIrImg.copyTo(viImg(cv::Rect(1280-480, 0, 480, 360)));
+                frame = viImg;
+                break;
+            case IrVisPip:  //0x04
+                cv::resize(viImg, viImg, cv::Size(480, 360));
+                viImg.copyTo(irImg(cv::Rect(1280-480, 0, 480, 360)));
+                frame = irImg;
+                break;
+            default:
+                frame = viImg;
+                break;
+        }
 
         spdlog::debug("after cap img Elapsed {}", sw);
 
@@ -561,23 +585,47 @@ int main()
             DetectorResultFeedbackToUp(detRet);
         } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
-            std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
-            std::stringstream ss;
-            ss << std::put_time(std::localtime(&curr), "%Y-%m-%d-%H-%M-%S");
-            std::string currDate(ss.str());
-            std::string savePicFileName = currDate + ".png";
-            cv::imwrite(savePicFileName, frame);
+            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");
+            std::string savePicFileName = "photos/" + currTimeStr + ".png";
+            //cv::imwrite(savePicFileName, frame);
+        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
+            std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
+            writer.open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
+                20,
+                cv::Size(1280,720),
+                true);
+            if (writer.isOpened()) {
+                printf("writer open success\n");
+                isRecording = true;
+            } else {
+                printf("writer open failed\n");
+            }
+        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_END && isRecording) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+            printf("writer end\n");
+            isRecording = false;
         }
+
         cv::resize(frame, dispFrame, cv::Size(1280,720));
+
+        if (isRecording) {
+            tempFrame = dispFrame.clone();
+            std::thread saveVideoThread(SaveRecordVideo);
+            saveVideoThread.detach();
+        } else {
+            writer.release();
+        }
 
         nFrames++;
 
-        // cv::imshow("show", dispFrame);
+        //cv::imshow("show", dispFrame);
         encoder->process(dispFrame);
 
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
-        // cv::waitKey(30);
+        //cv::waitKey(30);
         // usleep(30000);
 
         // spdlog::debug("before cal aveg Elapsed {}", sw);
@@ -593,6 +641,6 @@ int main()
 
 
     }
-
+    writer.release();
     return 0;
 }
