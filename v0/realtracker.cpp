@@ -426,8 +426,6 @@ int realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv:
         lastId = -1;
         if(minIdx != -1)
         {
-            cv::circle(frame, m_kcf->centerPt(), 2, cv::Scalar(0,255,255), 2);
-
             if(!m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(m_kcf->centerPt()))
             {
                 printf("\n\ntracker reset\n");
@@ -441,6 +439,8 @@ int realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv:
         	{
         		cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
         	}
+
+            cv::circle(frame, m_kcf->centerPt(), 2, cv::Scalar(0,255,255), 2);
 
             lastId = m_frameInfo.m_tracks[0][minIdx].m_ID.m_val;
         }

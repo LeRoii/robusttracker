@@ -203,7 +203,7 @@ int main()
 				// }
 			}
 
-			spdlog::debug("KCF end");
+			spdlog::debug("tracker end");
 		}
 		nFrames++;
 

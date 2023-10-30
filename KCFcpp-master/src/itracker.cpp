@@ -3,6 +3,8 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
+#define TRACKER_DEBUG 1
+
 
 static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
     cv::Mat hsvImage1, hsvImage2;
@@ -97,8 +99,9 @@ cv::Rect itracker::update(cv::Mat image)
     else
         simFailCnt = 0;
 
-    
+#if TRACKER_DEBUG 
     printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f\n", sim, peakVal, peakVal - lastPeakVal);
+#endif
     float peakDif = peakVal - lastPeakVal;
     
     
@@ -112,7 +115,9 @@ cv::Rect itracker::update(cv::Mat image)
                 {
                     st = 1;
                     fallEdgePv = lastPeakVal + 0.005;
+#if TRACKER_DEBUG
                     printf("\n\n-----------------ffffffallEdgePv = %f\n", fallEdgePv);
+#endif
                 }
                 
                 break;
@@ -129,7 +134,9 @@ cv::Rect itracker::update(cv::Mat image)
                 break;
             case 2:
                 st = 0;
+#if TRACKER_DEBUG
                 printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
+#endif
                 
                 if(bottomCnt > 10 || simFailCnt > 3)
                 {
