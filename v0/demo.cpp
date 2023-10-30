@@ -199,7 +199,7 @@ void SerialTransUp2Down()
 #if DEBUG_SERIAL
             for(int i=0; i< retLen ;i++)
             {
-            	printf("[%02X]", buffRcvData_servo[i]);
+                printf("[%02X]", buffRcvData_servo[i]);
             }
             printf("\n");
 #endif
@@ -308,7 +308,7 @@ void SerialTransUp2Down()
 
             // for(int i=0; i< retLen ;i++)
             // {
-            // 	printf("[%02X]", buffRcvData_servo[i]);
+            //     printf("[%02X]", buffRcvData_servo[i]);
             // }
             // printf("\n");
 
@@ -316,9 +316,9 @@ void SerialTransUp2Down()
             // uint8_t checksum = viewlink_protocal_checksum(buffRcvData_servo);
             // if(checksum != buffRcvData_servo[retLen - 1])
             // {
-            // 	printf("frame checksum error, drop data\n\n");
-            // 	memset(buffRcvData_servo,0,1024);
-            // 	continue;
+            //     printf("frame checksum error, drop data\n\n");
+            //     memset(buffRcvData_servo,0,1024);
+            //     continue;
             // }
 
             // VL_ParseSerialData(output);
@@ -339,7 +339,7 @@ void SerialTransDown2Up()
     uint8_t output[1024] = {0};
     int outLen = 0;
     while(1)
-    {	
+    {    
         int retLen = serialDown.serial_recieve(buffRcvData_servo);
         if(retLen > 0)
         {
@@ -347,7 +347,7 @@ void SerialTransDown2Up()
 #if DEBUG_SERIAL
             for(int i=0; i< retLen ;i++)
             {
-            	printf("[%02X]", buffRcvData_servo[i]);
+                printf("[%02X]", buffRcvData_servo[i]);
             }
             printf("\n");
 #endif
@@ -376,14 +376,14 @@ void SerialTransDown2Up()
             
             // if(!CheckFrameHeader(buffRcvData_servo, retLen))
             // {
-            // 	for(int i=0; i< retLen ;i++)
-            // 	{
-            // 		printf("[%02X]", buffRcvData_servo[i]);
-            // 	}
-            // 	printf("\n");
-            // 	printf("frame header error, drop data\n\n");
-            // 	memset(buffRcvData_servo,0,1024);
-            // 	continue;
+            //     for(int i=0; i< retLen ;i++)
+            //     {
+            //         printf("[%02X]", buffRcvData_servo[i]);
+            //     }
+            //     printf("\n");
+            //     printf("frame header error, drop data\n\n");
+            //     memset(buffRcvData_servo,0,1024);
+            //     continue;
             // }
 
             VL_ParseSerialData(output);
@@ -405,7 +405,7 @@ void SerialTransDown2Up()
 
             // for(int i=0; i< retLen ;i++)
             // {
-            // 	printf("[%02X]", buffRcvData_servo[i]);
+            //     printf("[%02X]", buffRcvData_servo[i]);
             // }
             // printf("\n");
 
@@ -430,11 +430,12 @@ static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
     }
 }
 
+// AI识别结果向上位机反馈
 static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
 {
     ST_F3_CONFIG f3Cfg = {0};
     f3Cfg.targetSum = dets.size();
-    f3Cfg.totalPacketNum = f3Cfg.targetSum / 4;
+    f3Cfg.totalPacketNum = f3Cfg.targetSum / 4; // 每个帧包最多只能放4个目标，超过4个目标需要分包向上位机发送
     if ((f3Cfg.targetSum % 4) > 0) {
         f3Cfg.totalPacketNum += 1;
     }
@@ -516,6 +517,30 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
     printf("DetectorResultFeedbackToUp end\n");
 }
 
+bool isRecording = false;;
+cv::VideoWriter writer;
+
+cv::Mat tempFrame;
+
+void SaveRecordVideo()
+{
+    printf("================================SaveRecordVideo======================\n");
+    writer.write(tempFrame);
+    tempFrame.release();
+}
+
+static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
+{
+    std::string cmd = "mkdir " + folderName;
+    int ret = system(cmd.c_str());
+    printf("create %s result is %s\n", folderName.c_str(), (ret == 0) ? "success" : "failed");
+    std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&curr), "%Y-%m-%d-%H-%M-%S");
+    std::string currTime(ss.str());
+    return currTime;
+}
+
 int main()
 {
     spdlog::set_level(spdlog::level::debug);
@@ -558,7 +583,7 @@ int main()
     irImg = cv::Mat(irImgH, irImgW, CV_8UC3);
     irImg.setTo(0);
 
-	stSysStatus.enDispMode = Vision;
+    stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
     stSysStatus.detOn = false;
 
@@ -566,12 +591,9 @@ int main()
 
     Camera *cam = CreateCamera("../config.yaml");
 
-    if(cam != nullptr)
-    {
+    if(cam != nullptr) {
         cam->Init();
-    }
-    else
-    {
+    } else {
         printf("camera inti failed\n");
         return 0;
     }
@@ -594,14 +616,11 @@ int main()
     pipPosX = (viImg.cols - oriIrImg.cols)/2;
     pipPosY = (viImg.rows - oriIrImg.rows)/2;
 
-
-    
-
     while(!quit)
     {
         // usleep(1000000);
         // continue;
-		spdlog::debug("=====nframe:{}======", nFrames);
+        spdlog::debug("=====nframe:{}======", nFrames);
         cam->GetFrame(viImg, oriIrImg);
 
         if(oriIrImg.empty() || viImg.empty())
@@ -616,8 +635,8 @@ int main()
         // printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-        irImg.setTo(0);
-        oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
+        // irImg.setTo(0);
+        // oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
 
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
@@ -654,39 +673,6 @@ int main()
         // detFrame = frame.clone();
         // dispFrame = frame.clone();
 
-        if(stSysStatus.trackOn)
-        {
-        	cv::Rect initRect = cv::Rect{(frame.cols-stSysStatus.trackerGateSize)/2, (frame.rows-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
-        	if(!stSysStatus.trackerInited)
-        	{
-                spdlog::debug("start tracking, init Rect:");
-                std::cout<<initRect<<std::endl;
-                rtracker->reset();
-                rtracker->init(initRect, frame );
-        		stSysStatus.trackerInited = true;
-        	}
-        	else
-        	{
-                cv::Point pt;
-                int trackerRet = rtracker->update(frame, detRet, pt);
-				// cv::imshow("trackRet", trackFrame);
-                // rtracker->runTracker(frame);
-                
-                // rtracker->update(frame, detRet);
-                //send offset
-
-                //if detOn == true, send detRet
-        	}
-        } 
-        else if(stSysStatus.detOn)
-        {
-            rtracker->runDetector(frame, detRet);
-            if(stSysStatus.detRetOutput)
-                DetectorResultFeedbackToUp(detRet);
-        }
-
-        // spdlog::debug("after track  Elapsed {}", sw);
-
         // 在界面上绘制OSD
         //float currRollAngle = -78.5; // 需要修改为吊舱返回的当前横滚角度
         PaintRollAngleAxis(frame, stSysStatus.rollAngle);
@@ -702,17 +688,67 @@ int main()
 
         // 绘制界面上其他参数
         PaintViewPara(frame);
+
+        if (stSysStatus.trackOn) {
+            cv::Rect initRect = cv::Rect{(frame.cols-stSysStatus.trackerGateSize)/2, (frame.rows-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
+            if (!stSysStatus.trackerInited) {
+                spdlog::debug("start tracking, init Rect:");
+                std::cout<<initRect<<std::endl;
+                rtracker->reset();
+                rtracker->init(initRect, frame );
+        		stSysStatus.trackerInited = true;
+            } else {
+                cv::Point pt;
+                rtracker->update(trackFrame, detRet, pt);
+                // cv::imshow("trackRet", trackFrame);
+            }
+        } else if (stSysStatus.detOn) {
+            rtracker->runDetector(frame, detRet);
+            if(stSysStatus.detRetOutput)
+                DetectorResultFeedbackToUp(detRet);
+        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");
+            std::string savePicFileName = "photos/" + currTimeStr + ".png";
+            //cv::imwrite(savePicFileName, frame);
+        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
+            std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
+            writer.open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
+                20,
+                cv::Size(1280,720),
+                true);
+            if (writer.isOpened()) {
+                printf("writer open success\n");
+                isRecording = true;
+            } else {
+                printf("writer open failed\n");
+            }
+        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_END && isRecording) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+            printf("writer end\n");
+            isRecording = false;
+        }
+
         cv::resize(frame, dispFrame, cv::Size(1280,720));
 
-        spdlog::debug("after osd  Elapsed {}", sw);
+        if (isRecording) {
+            tempFrame = dispFrame.clone();
+            std::thread saveVideoThread(SaveRecordVideo);
+            saveVideoThread.detach();
+        } else {
+            writer.release();
+        }
 
         nFrames++;
 
+        //cv::imshow("show", dispFrame);
         encoder->process(dispFrame);
 
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
-        // cv::waitKey(30);
+        //cv::waitKey(30);
         // usleep(30000);
 
         // spdlog::debug("before cal aveg Elapsed {}", sw);
@@ -728,6 +764,6 @@ int main()
 
 
     }
-
+    writer.release();
     return 0;
 }
