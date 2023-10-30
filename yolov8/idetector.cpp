@@ -141,7 +141,7 @@ void idetector::process(cv::Mat& img)
         batch_process(res_batch, decode_ptr_host, img_batch.size(), bbox_element, img_batch);
     }
     // Draw bounding boxes
-    draw_bbox(img_batch, res_batch);
+    // draw_bbox(img_batch, res_batch);
 
 }
 
@@ -163,7 +163,7 @@ void idetector::process(cv::Mat& img, std::vector<bbox_t>& boxs)
         batch_process(res_batch, decode_ptr_host, img_batch.size(), bbox_element, img_batch);
     }
     // Draw bounding boxes
-    draw_bbox(img_batch, res_batch);
+    // draw_bbox(img_batch, res_batch);
 
     boxs.clear();
     for(auto& res:res_batch[0])

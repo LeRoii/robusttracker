@@ -5,7 +5,8 @@ project(yolov8)
 add_definitions(-std=c++11)
 add_definitions(-DAPI_EXPORTS)
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE Release)
 
 set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 enable_language(CUDA)
@@ -56,12 +57,8 @@ target_link_libraries(idetector nvinfer
                       cudart myplugins ${OpenCV_LIBS})
 
 add_custom_command(TARGET idetector POST_BUILD
-                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ../../v0
                   
-                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ../../v0/build
-                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ${PROJECT_SOURCE_DIR}/../v0
-                  
-                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so ${PROJECT_SOURCE_DIR}/../v0/build
+                  COMMAND ${CMAKE_COMMAND} -E copy libidetector.so /usr/lib
 )
 # install(TARGETS idetector LIBRARY DESTINATION /space/code/pltest/v0)
 # add_executable(demo ${PROJECT_SOURCE_DIR}/idetector/demo.cpp )

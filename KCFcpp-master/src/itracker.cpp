@@ -3,6 +3,8 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
+#define TRACKER_DEBUG 1
+
 
 static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
     cv::Mat hsvImage1, hsvImage2;
@@ -51,8 +53,19 @@ void itracker::init(const cv::Rect &roi, cv::Mat image)
 {
     m_oriPatch = image(roi).clone();
     // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
-    cv::imwrite("oripatch.png", m_oriPatch);
+    // cv::imwrite("oripatch.png", m_oriPatch);
     trackerPtr->init(roi, image);
+    m_GateSize = roi.width;
+}
+
+void itracker::init(const cv::Point &pt, cv::Mat image)
+{
+    // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
+    // cv::imwrite("oripatch.png", m_oriPatch);
+    cv::Rect roi= cv::Rect{pt.x - m_GateSize/2, pt.y - m_GateSize/2, m_GateSize, m_GateSize};
+    m_oriPatch = image(roi).clone();
+    trackerPtr->init(roi, image);
+    m_centerPt = pt;
 }
 
 cv::Rect itracker::update(cv::Mat image)
@@ -72,7 +85,7 @@ cv::Rect itracker::update(cv::Mat image)
         result.x = image.cols - result.width - 1;
     // if()
 
-    std::cout<<result<<std::endl;
+    // std::cout<<result<<std::endl;
     auto retPatch = image(result);
     // islost = false;
 
@@ -86,8 +99,9 @@ cv::Rect itracker::update(cv::Mat image)
     else
         simFailCnt = 0;
 
-    
+#if TRACKER_DEBUG 
     printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f\n", sim, peakVal, peakVal - lastPeakVal);
+#endif
     float peakDif = peakVal - lastPeakVal;
     
     
@@ -101,7 +115,9 @@ cv::Rect itracker::update(cv::Mat image)
                 {
                     st = 1;
                     fallEdgePv = lastPeakVal + 0.005;
+#if TRACKER_DEBUG
                     printf("\n\n-----------------ffffffallEdgePv = %f\n", fallEdgePv);
+#endif
                 }
                 
                 break;
@@ -118,7 +134,9 @@ cv::Rect itracker::update(cv::Mat image)
                 break;
             case 2:
                 st = 0;
+#if TRACKER_DEBUG
                 printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
+#endif
                 
                 if(bottomCnt > 10 || simFailCnt > 3)
                 {

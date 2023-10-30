@@ -385,6 +385,7 @@ enum EN_DATA_FRAME_TYPE
     FrameS2 = 6,
     HeartBeat14 = 7,
     CtrlSdCmd = 8,
+    HeartBeat12 = 9,
 };
 
 enum EN_ONCE_SEND_DOWN_TO_UP_TYPE
@@ -421,9 +422,15 @@ struct ST_SYS_STATUS
     double lrfValue;
     double eoValue;
     EN_IRIMG_MODE enIrImgMode;
+    bool detRetOutput;
+    int trackerInitPt[2];   //x,y -960~960, -540~540
+    int trackerArea[4];     //top left x, y, right bottom x, y
+    bool screenshoot;
+    bool record;
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
-    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT){};
+    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT),
+    detRetOutput(true), screenshoot(false), record(false){};
 };
 
 enum EN_SERVO_STATUS_MODE

@@ -18,8 +18,43 @@
 #include <deque>
 #include <numeric>
 
+static std::vector<std::vector<uint8_t>> CmdNeedProcess = 
+{
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x81, 0x00, 0x00, 0x00, 0xAC},//EO(热像白热)
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x83, 0x00, 0x00, 0x00, 0xAE},//EO+IR(白热)
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x84, 0x00, 0x00, 0x00, 0xA9},//IR(白热)+EO
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x82, 0x00, 0x00, 0x00, 0xAF},//IR(白热)
 
-const int DEBUG_SERIAL = 0;
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xC1, 0x00, 0x00, 0x00, 0xEC},//EO(热像黑热)
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xC3, 0x00, 0x00, 0x00, 0xEE},//EO+IR(黑热)
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xC4, 0x00, 0x00, 0x00, 0xE9},//IR(黑热)+EO
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0xC2, 0x00, 0x00, 0x00, 0xEF},//IR(黑热)
+
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x81, 0x00, 0x00, 0x00, 0x7C},//EO(热像红热)
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x83, 0x00, 0x00, 0x00, 0x7E},//EO+IR(红热)
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x84, 0x00, 0x00, 0x00, 0x79},//IR(红热)+EO
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x82, 0x00, 0x00, 0x00, 0x7F},//IR(红热)
+
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0xD0, 0x00, 0x00, 0x00, 0xF8},//热像放大间隔1倍
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x10, 0x00, 0x00, 0x00, 0x39},//热像缩小间隔1倍
+
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD0, 0x00, 0x00, 0x00, 0xFA},//拍照
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x10, 0x00, 0x00, 0x00, 0x3B},//录像开始
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x50, 0x00, 0x00, 0x00, 0x7B},//录像结束
+
+    {0x55, 0xAA, 0xDC, 0x05, 0x01, 0x05, 0x00, 0x01},//打开OSD
+    {0x55, 0xAA, 0xDC, 0x05, 0x01, 0x05, 0x01, 0x00},//关闭OSD
+
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x24},//开始跟踪
+    {0x55, 0xAA, 0xDC, 0x06, 0x1E, 0x00, 0x01, 0x00, 0x19}, //结束跟踪
+
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x01, 0x2A},//打开识别
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x2B},//关闭识别
+
+};
+
+
+#define DEBUG_SERIAL 0
 
 extern ST_A1_CONFIG stA1Cfg;
 extern ST_A2_CONFIG stA2Cfg;
@@ -39,11 +74,6 @@ extern ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg;
 
 ST_SYS_STATUS stSysStatus;
 
-cv::Rect box;//矩形对象
-bool drawing_box = false;//记录是否在画矩形对象
-bool box_complete = false;
-cv::Point userPt;
-
 bool quit = false;
 
 static void signal_handle(int signum)
@@ -52,17 +82,57 @@ static void signal_handle(int signum)
     // _xdma_reader_ch0.xdma_close();
 }
 
-
-bool IsTransparentToPod(uint8_t *buf)
+bool IsInCmdNeedProcess(uint8_t *buf, int len)
 {
-    if (buf == nullptr) {
-        return false;
+    if(buf[4] == 0x5D)
+        return true;
+
+    switch(buf[4])
+    {
+        case 0x30:
+        case 0x01:
+        case 0x1E:
+            for(auto &cmd:CmdNeedProcess)
+            {
+                int find = true;
+                for(int i=0;i<len;++i)
+                {
+                    if(buf[i] != cmd[i])
+                    {
+                        find = false;
+                        break;
+                    }
+                }
+                if(find)
+                    return true;
+            }
+
+        default:
+            return false;
+            break;
     }
+}
+
+
+bool IsTransparentToPod(uint8_t *buf, int len)
+{
+    // if (buf == nullptr) {
+    //     return false;
+    // }
     
-    if (buf[4] == 0x5D) {
-        return false;
+    // if (buf[4] == 0x5D) {
+    //     return false;
+    // }
+    // return true;
+
+    if(len == 8 || len == 9 || len == 20)
+    {
+        return !IsInCmdNeedProcess(buf, len);
     }
+
     return true;
+
+
 }
 
 Serial serialUp, serialDown;
@@ -133,11 +203,11 @@ void SerialTransUp2Down()
             }
             printf("\n");
 #endif
-            if (IsTransparentToPod(buffRcvData_servo)) {
-                retLen = serialDown.serial_send(buffRcvData_servo, retLen);
-            }
+            // if (IsTransparentToPod(buffRcvData_servo)) {
+            //     retLen = serialDown.serial_send(buffRcvData_servo, retLen);
+            // }
             
-            printf("up send to down:%d\n", retLen);
+            // printf("up send to down:%d\n", retLen);
 
             int rr = serialUp.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
             if(rr == RET_ERR)
@@ -145,6 +215,47 @@ void SerialTransUp2Down()
                 printf("RET_ERR\n");
                 continue;
             }
+
+            EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
+            printf("frame type:%d\n", frameType);
+            if(frameType == HeartBeat15)
+            {
+                printf("heart beat 15 from up serial\n\n");
+            }
+            else if(frameType == HandShake)
+            {
+                printf("handshake from up serial\n\n");
+            }
+            else if(frameType == FrameS2)
+            {
+                printf("TGCC Ctrl S2 from up serial\n\n");
+            }
+            else if(frameType == HeartBeat14)
+            {
+                printf("heart beat 14 from up serial\n\n");
+            }
+
+            if(IsTransparentToPod(output, outLen))
+            {
+                retLen = serialDown.serial_send(output, outLen);
+                printf("up send to down:%d\n", retLen);
+                continue;
+            }
+
+            for(int i=0; i< outLen ;i++)
+            {
+                printf("[%02X]", output[i]);
+            }
+            printf("\n");
+
+            VL_ParseSerialData(output);
+            OnceSendFromDownToUp(output);
+
+            printf("status->enDispMode:%d, detOn:%d, trackOn:%d, trackerGateSize:%d\n",\
+             stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
+            printf("\n\n");
+
+            continue;
 
             // printf("output buf\n");
             // for(int i=0; i< outLen ;i++)
@@ -166,34 +277,34 @@ void SerialTransUp2Down()
             // 	continue;
             // }
 
-            EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
-            printf("frame type:%d\n", frameType);
-            if(frameType == HeartBeat15)
-            {
-                printf("heart beat 15 from up serial\n\n");
-                continue;
-            }
-            else if(frameType == HandShake)
-            {
-                printf("handshake from up serial\n\n");
-                continue;
-            }
-            else if(frameType == FrameS2)
-            {
-                printf("TGCC Ctrl S2 from up serial\n\n");
-                continue;
-            }
-            else if(frameType == HeartBeat14)
-            {
-                printf("heart beat 14 from up serial\n\n");
-                continue;
-            }
+            // EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
+            // printf("frame type:%d\n", frameType);
+            // if(frameType == HeartBeat15)
+            // {
+            //     printf("heart beat 15 from up serial\n\n");
+            //     continue;
+            // }
+            // else if(frameType == HandShake)
+            // {
+            //     printf("handshake from up serial\n\n");
+            //     continue;
+            // }
+            // else if(frameType == FrameS2)
+            // {
+            //     printf("TGCC Ctrl S2 from up serial\n\n");
+            //     continue;
+            // }
+            // else if(frameType == HeartBeat14)
+            // {
+            //     printf("heart beat 14 from up serial\n\n");
+            //     continue;
+            // }
 
-            for(int i=0; i< outLen ;i++)
-            {
-                printf("[%02X]", output[i]);
-            }
-            printf("\n");
+            // for(int i=0; i< outLen ;i++)
+            // {
+            //     printf("[%02X]", output[i]);
+            // }
+            // printf("\n");
 
             // for(int i=0; i< retLen ;i++)
             // {
@@ -210,14 +321,14 @@ void SerialTransUp2Down()
             // 	continue;
             // }
 
-            VL_ParseSerialData(output);
-            if (!IsTransparentToPod(buffRcvData_servo)) {
-                OnceSendFromDownToUp(output);
-            }
+            // VL_ParseSerialData(output);
+            // if (!IsTransparentToPod(buffRcvData_servo)) {
+            //     OnceSendFromDownToUp(output);
+            // }
 
-            printf("status->enDispMode:%d, detOn:%d, trackOn:%d, trackerGateSize:%d\n",\
-             stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
-            printf("\n\n");
+            // printf("status->enDispMode:%d, detOn:%d, trackOn:%d, trackerGateSize:%d\n",\
+            //  stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
+            // printf("\n\n");
         }
     }
 }
@@ -252,12 +363,14 @@ void SerialTransDown2Up()
                 continue;
             }
 
+#if DEBUG_SERIAL
             printf("output buf\n");
             for(int i=0; i< outLen ;i++)
             {
                 printf("[%02X]", output[i]);
             }
             printf("\n");
+#endif
 
             // continue;
             
@@ -409,12 +522,16 @@ int main()
     spdlog::stopwatch sw;
     std::deque<double> fpsCalculater;
 
+    struct sigaction sig_action;
+    sig_action.sa_handler = signal_handle;
+    sigemptyset(&sig_action.sa_mask);
+    sig_action.sa_flags = 0;
+    sigaction(SIGINT, &sig_action, NULL);
+
 //*******************************serial init*************************
     
     serialUp.set_serial(1);    //"/dev/ttyTHS1"
-    // serialUp.OnStart();
     serialDown.set_serial(2);    //"/dev/ttyUSB0"
-    // serialDown.OnStart();
 
     std::thread serialThUp2Down = std::thread(SerialTransUp2Down);
     serialThUp2Down.detach();
@@ -424,21 +541,21 @@ int main()
 
     jetsonEncoder *encoder = new jetsonEncoder(8554);
 
-    struct sigaction sig_action;
-    sig_action.sa_handler = signal_handle;
-    sigemptyset(&sig_action.sa_mask);
-    sig_action.sa_flags = 0;
-    sigaction(SIGINT, &sig_action, NULL);
+    YAML::Node config = YAML::LoadFile("../config.yaml");
+	std::string engine = config["engine"].as<std::string>();
+    realtracker *rtracker = new realtracker(engine);
 
-    std::vector<bbox_t> boxs;
-
-    cv::Mat frame,frame0,frame1;
+    cv::Mat frame;
     int nFrames = 0;
 
     cv::Mat dispFrame, trackFrame, detFrame;
 	cv::Mat oriIrImg, viImg, irImg;
+    std::vector<TrackingObject> detRet;
 
-    irImg = cv::Mat(720, 1280, CV_8UC3);
+    int irImgW = 1920;
+    int irImgH = 1080;
+
+    irImg = cv::Mat(irImgH, irImgW, CV_8UC3);
     irImg.setTo(0);
 
 	stSysStatus.enDispMode = Vision;
@@ -466,19 +583,22 @@ int main()
         return 0;
     }
 
+    rtracker->runDetector(viImg, detRet);
+
+    int oriImgW = oriIrImg.cols;
+    int oriImgH = oriIrImg.rows;
+
+    int viImgW = viImg.cols;
+    int viImgH = viImg.rows;
+
     pipPosX = (viImg.cols - oriIrImg.cols)/2;
     pipPosY = (viImg.rows - oriIrImg.rows)/2;
 
 
-    YAML::Node config = YAML::LoadFile("../config.yaml");
-	std::string engine = config["engine"].as<std::string>();
-    realtracker *rtracker = new realtracker(engine);
-
-    std::vector<TrackingObject> detRet;
+    
 
     while(!quit)
     {
-        
         // usleep(1000000);
         // continue;
 		spdlog::debug("=====nframe:{}======", nFrames);
@@ -512,12 +632,12 @@ int main()
 				break;
 			case VisIrPip:  //0x03
 				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
-				oriIrImg.copyTo(viImg(cv::Rect(1280-480, 0, 480, 360)));
+				oriIrImg.copyTo(viImg(cv::Rect(viImgW-480, 0, 480, 360)));
 				frame = viImg;
 				break;
 			case IrVisPip:  //0x04
 				cv::resize(viImg, viImg, cv::Size(480, 360));
-				viImg.copyTo(irImg(cv::Rect(1280-480, 0, 480, 360)));
+				viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
 				frame = irImg;
 				break;
 			default:
@@ -525,7 +645,10 @@ int main()
 				break;
 		}
 
-        spdlog::debug("after cap img Elapsed {}", sw);
+        // frame = cv::imread("/home/nx/data/123.PNG");
+        // stSysStatus.detOn = true;
+
+        // spdlog::debug("after cap img Elapsed {}", sw);
 
         // trackFrame = frame.clone();
         // detFrame = frame.clone();
@@ -533,9 +656,11 @@ int main()
 
         if(stSysStatus.trackOn)
         {
-        	cv::Rect initRect = cv::Rect{(1280-stSysStatus.trackerGateSize)/2, (720-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
+        	cv::Rect initRect = cv::Rect{(frame.cols-stSysStatus.trackerGateSize)/2, (frame.rows-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
         	if(!stSysStatus.trackerInited)
         	{
+                spdlog::debug("start tracking, init Rect:");
+                std::cout<<initRect<<std::endl;
                 rtracker->reset();
                 rtracker->init(initRect, frame );
         		stSysStatus.trackerInited = true;
@@ -543,8 +668,8 @@ int main()
         	else
         	{
                 cv::Point pt;
-                rtracker->update(trackFrame, detRet, pt);
-				cv::imshow("trackRet", trackFrame);
+                int trackerRet = rtracker->update(frame, detRet, pt);
+				// cv::imshow("trackRet", trackFrame);
                 // rtracker->runTracker(frame);
                 
                 // rtracker->update(frame, detRet);
@@ -556,8 +681,11 @@ int main()
         else if(stSysStatus.detOn)
         {
             rtracker->runDetector(frame, detRet);
-            DetectorResultFeedbackToUp(detRet);
+            if(stSysStatus.detRetOutput)
+                DetectorResultFeedbackToUp(detRet);
         }
+
+        // spdlog::debug("after track  Elapsed {}", sw);
 
         // 在界面上绘制OSD
         //float currRollAngle = -78.5; // 需要修改为吊舱返回的当前横滚角度
@@ -576,9 +704,10 @@ int main()
         PaintViewPara(frame);
         cv::resize(frame, dispFrame, cv::Size(1280,720));
 
+        spdlog::debug("after osd  Elapsed {}", sw);
+
         nFrames++;
 
-        // cv::imshow("show", dispFrame);
         encoder->process(dispFrame);
 
         // cv::imshow("det", detret);
@@ -595,7 +724,7 @@ int main()
             fpsCalculater.pop_front();
         double meanValue = accumulate(begin(fpsCalculater), end(fpsCalculater), 0.0) / fpsCalculater.size();                   // 求均值
 
-        spdlog::debug("size:{}, Elapsed {}", fpsCalculater.size(), meanValue);
+        spdlog::debug("one frame Elapsed {}", meanValue);
 
 
     }

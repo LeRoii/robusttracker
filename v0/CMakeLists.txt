@@ -70,7 +70,7 @@ set(APP_SRC
 
 add_executable(demo ${APP_SRC})
 
-target_link_libraries(demo sdireader -L${PROJECT_SOURCE_DIR} -lidetector -L${PROJECT_SOURCE_DIR} -ltracker ${OpenCV_LIBS})
+target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
 target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection yaml-cpp)
 target_link_libraries(demo -pthread
 -L/usr/lib/aarch64-linux-gnu/tegra/ -lnvbuf_utils  

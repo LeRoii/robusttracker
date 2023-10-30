@@ -50,6 +50,8 @@ EN_DATA_FRAME_TYPE GetFrameType(uint8_t *send_buf, int Len)
             return HeartBeat15;
         else if(send_buf[4] == 0x14)
             return HeartBeat14;
+        else if(send_buf[4] == 0x12)
+            return HeartBeat12;
     }
 
     if (Len == 8) {
@@ -280,6 +282,30 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
     else if(stA1C1E1Cfg.c1Config.enOpCmd1 == IrRainbow)
         stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
 
+    // switch(stA1C1E1Cfg.c1Config.enOpCmd1)
+    // {
+    //     case IrWhite:
+    //         stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
+    //         break;
+    //     case IrBlack:
+    //         stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
+    //         break;
+    //     case IrRainbow:
+    //         stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
+    //         break;
+    //     case ScreenShoot:
+    //         stSysStatus.screenshoot = true;
+    //         break;
+    //     case RecordStart:
+    //         stSysStatus.record = true;
+    //         break;
+    //     case RecordEnd:
+    //         stSysStatus.record = false;
+    //         break;
+    //     default:
+    //         break;
+    // }
+
     printf("c1Config.enOpCmd1:%#x\n", stA1C1E1Cfg.c1Config.enOpCmd1);
     printf("c1Config.enBaseOpMode:%#x\n", stA1C1E1Cfg.e1Config.enBaseOpMode);
 }
@@ -303,6 +329,21 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
     memcpy(stA2C2E2Cfg.e2Config.para1, e2Cfg->para1, 2);
     memcpy(stA2C2E2Cfg.e2Config.para2, e2Cfg->para2, 2);
 
+    switch(stA2C2E2Cfg.e2Config.enExtendCmd1)
+    {
+        case EnableRecogInformationOutput:
+            stSysStatus.detRetOutput = true;
+            break;
+        case TurnOffRecogInformationOutput:
+            stSysStatus.detRetOutput = false;
+            break;
+        //to do
+        case TrackCoordinatePointSettingOfUpperLeftCornerOfRectangularArea:
+        case TrackCoordinatePointSettingOfBottomLeftCornerOfRectangularArea:
+
+        default:
+            break;
+    }
 
 }
 
