@@ -119,11 +119,12 @@ cv::Rect itracker::update(cv::Mat image)
             case 2:
                 st = 0;
                 printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
-                fallEdgePv = 0;
-                bottomCnt = 0;
+                
                 if(bottomCnt > 10 || simFailCnt > 3)
                 {
                     m_isLost = true;
+                    fallEdgePv = 0;
+                    bottomCnt = 0;
                     printf("------------------Lost---------------\n");
                 }
                 break;
@@ -132,7 +133,7 @@ cv::Rect itracker::update(cv::Mat image)
         }
         
     }
-    while(lastSt != st);
+    while(lastSt != st && !m_isLost);
     
 
     lastPeakVal = peakVal;

@@ -542,9 +542,12 @@ int main()
         	}
         	else
         	{
-                rtracker->runTracker(frame);
+                cv::Point pt;
+                rtracker->update(trackFrame, detRet, pt);
+				cv::imshow("trackRet", trackFrame);
+                // rtracker->runTracker(frame);
                 
-                rtracker->update(frame, detRet);
+                // rtracker->update(frame, detRet);
                 //send offset
 
                 //if detOn == true, send detRet
