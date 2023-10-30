@@ -273,12 +273,19 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
     if(stA1C1E1Cfg.c1Config.enDispMode != 0)
         stSysStatus.enDispMode = (EN_DISP_MODE)stA1C1E1Cfg.c1Config.enDispMode;
 
-    if(stA1C1E1Cfg.c1Config.enOpCmd1 == IrWhite)
+    if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrWhite) {
         stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
-    else if(stA1C1E1Cfg.c1Config.enOpCmd1 == IrBlack)
+    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrBlack) {
         stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
-    else if(stA1C1E1Cfg.c1Config.enOpCmd1 == IrRainbow)
+    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrRainbow) {
         stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
+    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == ScreenShoot) {
+        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_SHOOT;
+    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == RecordStart) {
+        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_START;
+    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == RecordEnd) {
+        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_END;
+    }
 
     printf("c1Config.enOpCmd1:%#x\n", stA1C1E1Cfg.c1Config.enOpCmd1);
     printf("c1Config.enBaseOpMode:%#x\n", stA1C1E1Cfg.e1Config.enBaseOpMode);

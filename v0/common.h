@@ -407,6 +407,14 @@ enum class EN_IRIMG_MODE
     PSEUDOCOLOR = 2,
 };
 
+enum class EN_SCREEN_OP_MODE
+{
+    SCREEN_NONE = 0,
+    SCREEN_SHOOT = 1,
+    RECORDING_START = 2,
+    RECORDING_END = 3,
+};
+
 struct ST_SYS_STATUS
 {
     bool trackOn;
@@ -421,9 +429,10 @@ struct ST_SYS_STATUS
     double lrfValue;
     double eoValue;
     EN_IRIMG_MODE enIrImgMode;
+    EN_SCREEN_OP_MODE enScreenOpMode;
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
-    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT){};
+    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT), enScreenOpMode(EN_SCREEN_OP_MODE::SCREEN_NONE){};
 };
 
 enum EN_SERVO_STATUS_MODE

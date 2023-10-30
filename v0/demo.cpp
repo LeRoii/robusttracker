@@ -317,11 +317,12 @@ static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
     }
 }
 
+// AI识别结果向上位机反馈
 static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
 {
     ST_F3_CONFIG f3Cfg = {0};
     f3Cfg.targetSum = dets.size();
-    f3Cfg.totalPacketNum = f3Cfg.targetSum / 4;
+    f3Cfg.totalPacketNum = f3Cfg.targetSum / 4; // 每个帧包最多只能放4个目标，超过4个目标需要分包向上位机发送
     if ((f3Cfg.targetSum % 4) > 0) {
         f3Cfg.totalPacketNum += 1;
     }
@@ -449,12 +450,9 @@ int main()
 
     Camera *cam = CreateCamera("../config.yaml");
 
-    if(cam != nullptr)
-    {
+    if(cam != nullptr) {
         cam->Init();
-    }
-    else
-    {
+    } else {
         printf("camera inti failed\n");
         return 0;
     }
@@ -496,8 +494,8 @@ int main()
         // printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-        irImg.setTo(0);
-        oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
+        // irImg.setTo(0);
+        // oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
 
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
@@ -531,34 +529,6 @@ int main()
         // detFrame = frame.clone();
         // dispFrame = frame.clone();
 
-        if(stSysStatus.trackOn)
-        {
-        	cv::Rect initRect = cv::Rect{(1280-stSysStatus.trackerGateSize)/2, (720-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
-        	if(!stSysStatus.trackerInited)
-        	{
-                rtracker->reset();
-                rtracker->init(initRect, frame );
-        		stSysStatus.trackerInited = true;
-        	}
-        	else
-        	{
-                cv::Point pt;
-                rtracker->update(trackFrame, detRet, pt);
-				cv::imshow("trackRet", trackFrame);
-                // rtracker->runTracker(frame);
-                
-                // rtracker->update(frame, detRet);
-                //send offset
-
-                //if detOn == true, send detRet
-        	}
-        } 
-        else if(stSysStatus.detOn)
-        {
-            rtracker->runDetector(frame, detRet);
-            DetectorResultFeedbackToUp(detRet);
-        }
-
         // 在界面上绘制OSD
         //float currRollAngle = -78.5; // 需要修改为吊舱返回的当前横滚角度
         PaintRollAngleAxis(frame, stSysStatus.rollAngle);
@@ -574,6 +544,30 @@ int main()
 
         // 绘制界面上其他参数
         PaintViewPara(frame);
+
+        if (stSysStatus.trackOn) {
+            cv::Rect initRect = cv::Rect{(1280-stSysStatus.trackerGateSize)/2, (720-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
+            if (!stSysStatus.trackerInited) {
+                rtracker->reset();
+                rtracker->init(initRect, frame);
+                stSysStatus.trackerInited = true;
+            } else {
+                cv::Point pt;
+                rtracker->update(trackFrame, detRet, pt);
+                cv::imshow("trackRet", trackFrame);
+            }
+        } else if (stSysStatus.detOn) {
+            rtracker->runDetector(frame, detRet);
+            DetectorResultFeedbackToUp(detRet);
+        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+            std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
+            std::stringstream ss;
+            ss << std::put_time(std::localtime(&curr), "%Y-%m-%d-%H-%M-%S");
+            std::string currDate(ss.str());
+            std::string savePicFileName = currDate + ".png";
+            cv::imwrite(savePicFileName, frame);
+        }
         cv::resize(frame, dispFrame, cv::Size(1280,720));
 
         nFrames++;
