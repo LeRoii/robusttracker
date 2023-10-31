@@ -691,7 +691,7 @@ int main()
 
         // 绘制界面上其他参数
         PaintViewPara(frame);
-
+        bool isNeedTakePhoto = false;
         if (stSysStatus.trackOn) {
             cv::Rect initRect = cv::Rect{(frame.cols-stSysStatus.trackerGateSize)/2, (frame.rows-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
             if (!stSysStatus.trackerInited) {
@@ -710,9 +710,7 @@ int main()
                 DetectorResultFeedbackToUp(detRet);
         } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
-            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");
-            std::string savePicFileName = "photos/" + currTimeStr + ".png";
-            //cv::imwrite(savePicFileName, frame);
+            isNeedTakePhoto = true;
         } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
@@ -741,6 +739,13 @@ int main()
             saveVideoThread.detach();
         } else {
             writer.release();
+        }
+
+        if (isNeedTakePhoto) {
+            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");
+            std::string savePicFileName = "photos/" + currTimeStr + ".png";
+            cv::imwrite(savePicFileName, frame);
+            isNeedTakePhoto = false;
         }
 
         nFrames++;
