@@ -83,7 +83,10 @@ cv::Rect itracker::update(cv::Mat image)
         result.x = 0;
     if(result.x + result.width > image.cols)
         result.x = image.cols - result.width - 1;
-    // if()
+    if(result.y < 0)
+        result.y = 0;
+    if(result.y + result.height > image.rows)
+        result.y = image.rows - result.height - 1;
 
     // std::cout<<result<<std::endl;
     auto retPatch = image(result);
