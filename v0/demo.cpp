@@ -40,7 +40,7 @@ static std::vector<std::vector<uint8_t>> CmdNeedProcess =
 
     {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xD0, 0x00, 0x00, 0x00, 0xFA},//拍照
     {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x10, 0x00, 0x00, 0x00, 0x3B},//录像开始
-    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x50, 0x00, 0x00, 0x00, 0x7B},//录像结束
+    {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x50, 0x00, 0x00, 0x00, 0x7B},//录像结束
 
     {0x55, 0xAA, 0xDC, 0x05, 0x01, 0x05, 0x00, 0x01},//打开OSD
     {0x55, 0xAA, 0xDC, 0x05, 0x01, 0x05, 0x01, 0x00},//关闭OSD
@@ -54,7 +54,7 @@ static std::vector<std::vector<uint8_t>> CmdNeedProcess =
 };
 
 
-#define DEBUG_SERIAL 0
+#define DEBUG_SERIAL 1
 
 extern ST_A1_CONFIG stA1Cfg;
 extern ST_A2_CONFIG stA2Cfg;
@@ -235,11 +235,11 @@ void SerialTransUp2Down()
                 printf("heart beat 14 from up serial\n\n");
             }
 
-            if(IsTransparentToPod(output, outLen))
+            // if(IsTransparentToPod(output, outLen))
             {
                 retLen = serialDown.serial_send(output, outLen);
                 printf("up send to down:%d\n", retLen);
-                continue;
+                // continue;
             }
 
             for(int i=0; i< outLen ;i++)
@@ -255,7 +255,7 @@ void SerialTransUp2Down()
              stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
             printf("\n\n");
 
-            continue;
+            // continue;
 
             // printf("output buf\n");
             // for(int i=0; i< outLen ;i++)
@@ -577,11 +577,7 @@ int main()
 	cv::Mat oriIrImg, viImg, irImg;
     std::vector<TrackingObject> detRet;
 
-    int irImgW = 1920;
-    int irImgH = 1080;
-
-    irImg = cv::Mat(irImgH, irImgW, CV_8UC3);
-    irImg.setTo(0);
+    
 
     stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
@@ -606,6 +602,12 @@ int main()
     }
 
     rtracker->runDetector(viImg, detRet);
+
+    int irImgW = viImg.cols;
+    int irImgH = viImg.rows;
+
+    irImg = cv::Mat(irImgH, irImgW, CV_8UC3);
+    irImg.setTo(0);
 
     int oriImgW = oriIrImg.cols;
     int oriImgH = oriIrImg.rows;
@@ -635,8 +637,8 @@ int main()
         // printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-        // irImg.setTo(0);
-        // oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
+        irImg.setTo(0);
+        oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
 
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
@@ -655,9 +657,10 @@ int main()
 				frame = viImg;
 				break;
 			case IrVisPip:  //0x04
-				cv::resize(viImg, viImg, cv::Size(480, 360));
-				viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
-				frame = irImg;
+				// cv::resize(viImg, viImg, cv::Size(480, 360));
+				// viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
+				// frame = irImg;
+                frame = viImg;
 				break;
 			default:
 				frame = viImg;
@@ -699,8 +702,7 @@ int main()
         		stSysStatus.trackerInited = true;
             } else {
                 cv::Point pt;
-                rtracker->update(trackFrame, detRet, pt);
-                // cv::imshow("trackRet", trackFrame);
+                rtracker->update(frame, detRet, pt);
             }
         } else if (stSysStatus.detOn) {
             rtracker->runDetector(frame, detRet);
@@ -743,12 +745,13 @@ int main()
 
         nFrames++;
 
-        //cv::imshow("show", dispFrame);
+        
         encoder->process(dispFrame);
 
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
-        //cv::waitKey(30);
+        // cv::imshow("show", dispFrame);
+        // cv::waitKey(30);
         // usleep(30000);
 
         // spdlog::debug("before cal aveg Elapsed {}", sw);

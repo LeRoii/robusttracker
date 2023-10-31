@@ -357,11 +357,11 @@ inline double getDistance (cv::Point point1, cv::Point point2)
 
 int realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt)
 {
-    static cv::Mat trackerFrame, detFrame;
+    cv::Mat trackerFrame, detFrame;
     trackerFrame = detFrame = frame.clone();
     printf("realtracker::update\n");
     runDetector(detFrame, detRet);
-    runTracker(trackerFrame);
+    runTracker(frame);
 
     static int lastId = -1;
     static cv::Point lastPt{0,0};
