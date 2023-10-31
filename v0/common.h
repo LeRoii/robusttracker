@@ -398,7 +398,6 @@ struct ST_COORDINATE_CONFIG
     double longitude;
     double latitude;
     int16_t altitude;
-    int16_t rsvd;
 };
 
 enum class EN_IRIMG_MODE
@@ -619,12 +618,9 @@ struct ST_F1_CONFIG
 };
 
 // 跟踪器状态不常用
-struct ST_F2_CONFIG
-{
-    uint8_t rsvdF2[11];
+struct ST_F2_CONFIG {
     short azimuthTargetPixelDifference;
     short pitchTargetPixelDifference;
-    uint8_t rsvd1F2;
 };
 
 struct ST_TARGET_INFO
