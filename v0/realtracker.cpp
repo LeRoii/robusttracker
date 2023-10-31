@@ -422,9 +422,9 @@ int realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv:
         	}
         }
 
-        printf("minIdx = %d\n", minIdx);
+        printf("minIdx = %d, dist:%f\n", minIdx, minDist);
         lastId = -1;
-        if(minIdx != -1)
+        if(minIdx != -1 && minDist < 300)
         {
             if(!m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(m_kcf->centerPt()))
             {
@@ -505,10 +505,10 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
     m_frameInfo.CleanRegions();
 
     // printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
-    // for(auto& box:boxs)
-    // {
-    // 	printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
-    // }
+    for(auto& box:boxs)
+    {
+    	printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
+    }
     m_regions.clear();
     for(auto &box:boxs)
     {

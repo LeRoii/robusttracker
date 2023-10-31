@@ -178,11 +178,13 @@ void OnceSendFromDownToUp(uint8_t *buf)
             }
             // todo: 拍照张数和剩余录像时间待计算截图与录像视频格式再补充
         }
+
+        uint8_t checksum = viewlink_protocal_checksum(sendBuf);
+        sendBuf[sendBufLen - 1] = checksum;
+        sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+        printf("down send to up:%d\n", sendBufLen);
     }
-    uint8_t checksum = viewlink_protocal_checksum(sendBuf);
-    sendBuf[sendBufLen - 1] = checksum;
-    sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
-    printf("down send to up:%d\n", sendBufLen);
+    
 }
 
 void SerialTransUp2Down()
@@ -518,14 +520,14 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
 }
 
 bool isRecording = false;;
-cv::VideoWriter writer;
+cv::VideoWriter *writer = nullptr;
 
 cv::Mat tempFrame;
 
 void SaveRecordVideo()
 {
     printf("================================SaveRecordVideo======================\n");
-    writer.write(tempFrame);
+    writer->write(tempFrame);
     tempFrame.release();
 }
 
@@ -543,6 +545,18 @@ static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
 
 int main()
 {
+    // std::cout << cv::getBuildInformation() << std::endl;
+    cv::Mat im = cv::imread("/home/nx/data/123.PNG");
+    cv::resize(im, im, cv::Size(1280,720));
+
+    cv::VideoWriter rtspWriterr;
+    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=600 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
+
+    if(!rtspWriterr.isOpened())
+    {
+        printf("is not opened\n");
+    }
+
     spdlog::set_level(spdlog::level::debug);
     spdlog::stopwatch sw;
     std::deque<double> fpsCalculater;
@@ -564,7 +578,7 @@ int main()
     serialThDown2Up.detach();
 //*******************************serial end*************************
 
-    jetsonEncoder *encoder = new jetsonEncoder(8554);
+    // jetsonEncoder *encoder = new jetsonEncoder(8554);
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
 	std::string engine = config["engine"].as<std::string>();
@@ -708,18 +722,21 @@ int main()
             rtracker->runDetector(frame, detRet);
             if(stSysStatus.detRetOutput)
                 DetectorResultFeedbackToUp(detRet);
-        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
+        } 
+        
+        if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             isNeedTakePhoto = true;
         } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
             std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
-            writer.open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
+            writer = new cv::VideoWriter();
+            writer->open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
                 20,
                 cv::Size(1280,720),
                 true);
-            if (writer.isOpened()) {
+            if (writer->isOpened()) {
                 printf("writer open success\n");
                 isRecording = true;
             } else {
@@ -729,16 +746,21 @@ int main()
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             printf("writer end\n");
             isRecording = false;
+            spdlog::debug("recording end");
+            writer->release();
+            delete writer;
+            writer = nullptr;
         }
 
         cv::resize(frame, dispFrame, cv::Size(1280,720));
 
         if (isRecording) {
-            tempFrame = dispFrame.clone();
-            std::thread saveVideoThread(SaveRecordVideo);
-            saveVideoThread.detach();
+            *writer << dispFrame;
+            // tempFrame = dispFrame.clone();
+            // std::thread saveVideoThread(SaveRecordVideo);
+            // saveVideoThread.detach();
         } else {
-            writer.release();
+            
         }
 
         if (isNeedTakePhoto) {
@@ -751,7 +773,8 @@ int main()
         nFrames++;
 
         
-        encoder->process(dispFrame);
+        // encoder->process(dispFrame);
+        rtspWriterr << dispFrame;
 
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
@@ -772,6 +795,6 @@ int main()
 
 
     }
-    writer.release();
+    writer->release();
     return 0;
 }

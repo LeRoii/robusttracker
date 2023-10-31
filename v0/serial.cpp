@@ -242,7 +242,7 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
 		}
 	}
     //start tracking
-	if(stA1C1E1Cfg.e1Config.enBaseOpMode == OnTrack)
+	if(stA1C1E1Cfg.e1Config.enBaseOpMode == OnTrack && stA1C1E1Cfg.a1Config.enServoCtrlMode == TrackMode)
 	{
 		stSysStatus.trackOn = true;
 	}
@@ -275,43 +275,43 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
     if(stA1C1E1Cfg.c1Config.enDispMode != 0)
         stSysStatus.enDispMode = (EN_DISP_MODE)stA1C1E1Cfg.c1Config.enDispMode;
 
-    if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrWhite) {
-        stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
-    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrBlack) {
-        stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
-    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrRainbow) {
-        stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
-    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == ScreenShoot) {
-        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_SHOOT;
-    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == RecordStart) {
-        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_START;
-    } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == RecordEnd) {
-        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_END;
-    }
-
-    // switch(stA1C1E1Cfg.c1Config.enOpCmd1)
-    // {
-    //     case IrWhite:
-    //         stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
-    //         break;
-    //     case IrBlack:
-    //         stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
-    //         break;
-    //     case IrRainbow:
-    //         stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
-    //         break;
-    //     case ScreenShoot:
-    //         stSysStatus.screenshoot = true;
-    //         break;
-    //     case RecordStart:
-    //         stSysStatus.record = true;
-    //         break;
-    //     case RecordEnd:
-    //         stSysStatus.record = false;
-    //         break;
-    //     default:
-    //         break;
+    // if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrWhite) {
+    //     stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
+    // } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrBlack) {
+    //     stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
+    // } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == IrRainbow) {
+    //     stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
+    // } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == ScreenShoot) {
+    //     stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_SHOOT;
+    // } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == RecordStart) {
+    //     stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_START;
+    // } else if (stA1C1E1Cfg.c1Config.enOpCmd1 == RecordEnd) {
+    //     stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_END;
     // }
+
+    switch(stA1C1E1Cfg.c1Config.enOpCmd1)
+    {
+        case IrWhite:
+            stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
+            break;
+        case IrBlack:
+            stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
+            break;
+        case IrRainbow:
+            stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
+            break;
+        case ScreenShoot:
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_SHOOT;
+            break;
+        case RecordStart:
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_START;
+            break;
+        case RecordEnd:
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_END;
+            break;
+        default:
+            break;
+    }
 
     printf("c1Config.enOpCmd1:%#x\n", stA1C1E1Cfg.c1Config.enOpCmd1);
     printf("c1Config.enBaseOpMode:%#x\n", stA1C1E1Cfg.e1Config.enBaseOpMode);
@@ -418,7 +418,7 @@ static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
     memset(&stSysStatus.ACFTCoordinate, 0, sizeof(ST_COORDINATE_CONFIG));
     stSysStatus.ACFTCoordinate.longitude = (double)acftCoordinate->longitude / 10000000;
     stSysStatus.ACFTCoordinate.latitude = (double)acftCoordinate->latitude / 10000000;
-    stSysStatus.ACFTCoordinate.altitude = (double)acftCoordinate->altitude;
+    stSysStatus.ACFTCoordinate.altitude = (double)(ntohs(acftCoordinate->altitude));
 
     tempData = buf + 12;
     ST_COORDINATE_CONFIG *tagCoordinate = (ST_COORDINATE_CONFIG*)tempData;
