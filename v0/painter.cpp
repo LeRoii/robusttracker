@@ -104,7 +104,6 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
         x += interval;
     }
     
-    printf("tempPos=%d\n", tempPos);
     // 绘制从第一个大刻度起的连续5段刻度
     for (int i = 0; i < 4; i++) {
         cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
@@ -339,9 +338,8 @@ static void PaintDegMinSec(cv::Mat &frame0, int x, int y, const double inputAngl
         }
     }
     ConvertLatitudeAndLongitudeUnits(abs(inputAngle), &degrees, &minutes, &seconds);
-    cv::putText(frame0,
-        ConvertDegreesNum2Str(degrees, 'd') + "deg" + ConvertDegreesNum2Str(minutes, 'm') + "'" + ConvertDegreesNum2Str(seconds, 's') + "''",
-        cv::Point(x + 15, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    std::string currDeg = ConvertDegreesNum2Str(degrees, 'd') + "deg" + ConvertDegreesNum2Str(minutes, 'm') + "'" + ConvertDegreesNum2Str(seconds, 's') + "''";
+    cv::putText(frame0, currDeg, cv::Point(x + 15, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
 }
 
 // 绘制地理坐标
@@ -355,18 +353,18 @@ void PaintCoordinate(cv::Mat &frame0)
     // 目标位置坐标
     cv::putText(frame0, "TAG", cv::Point(x, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
     PaintDegMinSec(frame0, x, y + 20, stSysStatus.TAGCoordinate.longitude, true);
-    PaintDegMinSec(frame0, x, y + 40, abs(stSysStatus.TAGCoordinate.latitude), false);
+    PaintDegMinSec(frame0, x, y + 40, stSysStatus.TAGCoordinate.latitude, false);
     cv::putText(frame0, "ALT", cv::Point(x, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, ConvertMetersNum2Str(stSysStatus.TAGCoordinate.altitude) + "m", cv::Point(x + 40, y + 60),
-        cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    std::string tagAlt = ConvertMetersNum2Str(stSysStatus.TAGCoordinate.altitude) + "m";
+    cv::putText(frame0, tagAlt, cv::Point(x + 40, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
 
     // 载机位置坐标
     cv::putText(frame0, "ACFT", cv::Point(x, y + 100), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    PaintDegMinSec(frame0, x, y + 120, abs(stSysStatus.ACFTCoordinate.longitude), true);
-    PaintDegMinSec(frame0, x, y + 140, abs(stSysStatus.ACFTCoordinate.latitude), false);
+    PaintDegMinSec(frame0, x, y + 120, stSysStatus.ACFTCoordinate.longitude, true);
+    PaintDegMinSec(frame0, x, y + 140, stSysStatus.ACFTCoordinate.latitude, false);
     cv::putText(frame0, "ALT", cv::Point(x, y + 160), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, ConvertMetersNum2Str(stSysStatus.ACFTCoordinate.altitude) + "m", cv::Point(x + 40 , y + 160),
-        cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    std::string acftAlt = ConvertMetersNum2Str(stSysStatus.ACFTCoordinate.altitude) + "m";
+    cv::putText(frame0, acftAlt, cv::Point(x + 40 , y + 160), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
 }
 
 std::string ConvertTimesNum2Str(double num)

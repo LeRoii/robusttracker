@@ -413,19 +413,32 @@ static void VL_ParseSerialData_A2C2E2S2(uint8_t* buf)
 
 static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
 {
-    uint8_t *tempData = buf + 2;
-    ST_COORDINATE_CONFIG *acftCoordinate = (ST_COORDINATE_CONFIG*)tempData;
     memset(&stSysStatus.ACFTCoordinate, 0, sizeof(ST_COORDINATE_CONFIG));
-    stSysStatus.ACFTCoordinate.longitude = (double)acftCoordinate->longitude / 10000000;
-    stSysStatus.ACFTCoordinate.latitude = (double)acftCoordinate->latitude / 10000000;
-    stSysStatus.ACFTCoordinate.altitude = (double)acftCoordinate->altitude;
+    memset(&stSysStatus.TAGCoordinate, 0, sizeof(ST_COORDINATE_CONFIG));
+
+    uint8_t *tempData = buf + 2;
+
+    uint32_t longitude = 0;
+    uint32_t latitude = 0;
+    uint16_t altitude = 0;
+
+    memcpy(&longitude, tempData, 4);
+    memcpy(&latitude, tempData + 4, 4);
+    memcpy(&altitude, tempData + 8, 2);
+    
+    stSysStatus.ACFTCoordinate.longitude = (double)longitude / 10000000;
+    stSysStatus.ACFTCoordinate.latitude = (double)latitude / 10000000;
+    stSysStatus.ACFTCoordinate.altitude = (double)altitude;
 
     tempData = buf + 12;
-    ST_COORDINATE_CONFIG *tagCoordinate = (ST_COORDINATE_CONFIG*)tempData;
-    memset(&stSysStatus.TAGCoordinate, 0, sizeof(ST_COORDINATE_CONFIG));
-    stSysStatus.TAGCoordinate.longitude = (double)tagCoordinate->longitude / 10000000;
-    stSysStatus.TAGCoordinate.latitude = (double)tagCoordinate->latitude / 10000000;
-    stSysStatus.TAGCoordinate.altitude = (double)tagCoordinate->altitude;
+
+    memcpy(&longitude, tempData, 4);
+    memcpy(&latitude, tempData + 4, 4);
+    memcpy(&altitude, tempData + 8, 2);
+
+    stSysStatus.TAGCoordinate.longitude = (double)longitude / 10000000;
+    stSysStatus.TAGCoordinate.latitude = (double)latitude / 10000000;
+    stSysStatus.TAGCoordinate.altitude = (int16_t)altitude;
 
     tempData = buf + 23;
     ST_B1_CONFIG *b1Cfg = (ST_B1_CONFIG*)tempData;
@@ -452,7 +465,6 @@ static void VL_ParseSerialData_T1F1B1D1OSD(uint8_t* buf)
 
 static void VL_ParseSerialData_T2F2B2D2(uint8_t* buf)
 {
-    
 }
 
 static void VL_ParseSerialData_V(uint8_t* buf)

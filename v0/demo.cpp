@@ -748,12 +748,12 @@ int main()
 
         nFrames++;
 
-        //cv::imshow("show", dispFrame);
+        cv::imshow("show", dispFrame);
         encoder->process(dispFrame);
 
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
-        //cv::waitKey(30);
+        cv::waitKey(30);
         // usleep(30000);
 
         // spdlog::debug("before cal aveg Elapsed {}", sw);
