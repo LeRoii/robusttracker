@@ -519,6 +519,29 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
     printf("DetectorResultFeedbackToUp end\n");
 }
 
+// 跟踪脱靶量向上位机反馈
+static void TrackerMissDistanceResultFeedbackToUp(cv::Point pt)
+{
+    uint8_t sendBuf[1024] = {0};
+    int sendBufLen = 21;
+    sendBuf[0] = 0x55;
+    sendBuf[1] = 0xAA;
+    sendBuf[2] = 0xDC;
+    sendBuf[3] = 0X12;
+    sendBuf[4] = 0xF2;
+    memset(&sendBuf[5], 0, 11);
+    uint16_t azimuthPixel = pt.x;
+    uint16_t horiPixel = pt.y;
+    azimuthPixel = ntohs(azimuthPixel);
+    horiPixel = ntohs(horiPixel);
+    memcpy(&sendBuf[16], &azimuthPixel, 2);
+    memcpy(&sendBuf[18], &horiPixel, 2);
+    sendBuf[20] = viewlink_protocal_checksum(sendBuf);
+    sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+
+    printf("Tracker MissDistance Result FeedbackToUp\n");
+}
+
 bool isRecording = false;;
 cv::VideoWriter *writer = nullptr;
 
@@ -535,7 +558,7 @@ static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
 {
     std::string cmd = "mkdir " + folderName;
     int ret = system(cmd.c_str());
-    printf("create %s result is %s\n", folderName.c_str(), (ret == 0) ? "success" : "failed");
+    printf("create %s dir result is %s\n", folderName.c_str(), (ret == 0) ? "success" : "failed");
     std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
     std::stringstream ss;
     ss << std::put_time(std::localtime(&curr), "%Y-%m-%d-%H-%M-%S");
@@ -706,6 +729,7 @@ int main()
 
         // 绘制界面上其他参数
         PaintViewPara(frame);
+
         bool isNeedTakePhoto = false;
         if (stSysStatus.trackOn) {
             cv::Rect initRect = cv::Rect{(frame.cols-stSysStatus.trackerGateSize)/2, (frame.rows-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
@@ -718,6 +742,8 @@ int main()
             } else {
                 cv::Point pt;
                 rtracker->update(frame, detRet, pt);
+                printf("=================================>>>>>>>>>x=%d y=%d", pt.x, pt.y);
+                TrackerMissDistanceResultFeedbackToUp(pt);
             }
         } else if (stSysStatus.detOn) {
             rtracker->runDetector(frame, detRet);
