@@ -1,6 +1,8 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
+#include <opencv2/opencv.hpp>
+
 const int RET_OK = 1;
 const int RET_ERR = 0;
 enum EN_SERVO_CTRL_MODE
@@ -430,6 +432,7 @@ struct ST_SYS_STATUS
     double eoValue;
     EN_IRIMG_MODE enIrImgMode;
     bool detRetOutput;
+    cv::Point trackAssignPoint;
     int trackerInitPt[2];   //x,y -960~960, -540~540
     int trackerArea[4];     //top left x, y, right bottom x, y
 

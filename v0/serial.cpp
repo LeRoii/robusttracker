@@ -335,7 +335,8 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
     stA2C2E2Cfg.e2Config.enExtendCmd1 = e2Cfg->enExtendCmd1;
     memcpy(stA2C2E2Cfg.e2Config.para1, e2Cfg->para1, 2);
     memcpy(stA2C2E2Cfg.e2Config.para2, e2Cfg->para2, 2);
-
+    uint16_t trackPointX = 0;
+    uint16_t trackPointY = 0;
     switch(stA2C2E2Cfg.e2Config.enExtendCmd1)
     {
         case EnableRecogInformationOutput:
@@ -343,6 +344,15 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
             break;
         case TurnOffRecogInformationOutput:
             stSysStatus.detRetOutput = false;
+            break;
+        case TracePointTransferredToInstructionPos:
+            memcpy(&trackPointX, e2Cfg->para1, 2);
+            memcpy(&trackPointY, e2Cfg->para2, 2);
+            trackPointX = ntohs(trackPointX);
+            trackPointY = ntohs(trackPointY);
+            stSysStatus.trackAssignPoint.x = 1920 / 2 + (int16_t)trackPointX;
+            stSysStatus.trackAssignPoint.y = 1080 / 2 + (int16_t)trackPointY;
+            printf("\n============>>Track Point:(%d, %d)<<============\n", stSysStatus.trackAssignPoint.x, stSysStatus.trackAssignPoint.y);
             break;
         //to do
         case TrackCoordinatePointSettingOfUpperLeftCornerOfRectangularArea:
