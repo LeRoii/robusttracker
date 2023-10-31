@@ -1,7 +1,7 @@
 #include "multitracker.h"
 #include <unistd.h>
 #include <signal.h>
-#include "jetsonEncoder.h"
+// #include "jetsonEncoder.h"
 #include "serial.h"
 #include "common.h"
 #include <sstream>
@@ -545,16 +545,19 @@ static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
 
 int main()
 {
-    // std::cout << cv::getBuildInformation() << std::endl;
-    cv::Mat im = cv::imread("/home/nx/data/123.PNG");
-    cv::resize(im, im, cv::Size(1280,720));
+    // std::cout << cv::getBuildInformation() << std::endl; 
 
     cv::VideoWriter rtspWriterr;
-    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=600 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
+    // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=2048 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
+    // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=main ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+    // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+    // rtspWriterr.open("appsrc ! nvvidconv ! video/x-raw(memory:NVMM),format=I420 ! nvv4l2h264enc bitrate=6000000 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
 
     if(!rtspWriterr.isOpened())
     {
         printf("is not opened\n");
+        return 0;
     }
 
     spdlog::set_level(spdlog::level::debug);
@@ -568,7 +571,6 @@ int main()
     sigaction(SIGINT, &sig_action, NULL);
 
 //*******************************serial init*************************
-    
     serialUp.set_serial(1);    //"/dev/ttyTHS1"
     serialDown.set_serial(2);    //"/dev/ttyUSB0"
 
@@ -577,8 +579,6 @@ int main()
     std::thread serialThDown2Up = std::thread(SerialTransDown2Up);
     serialThDown2Up.detach();
 //*******************************serial end*************************
-
-    // jetsonEncoder *encoder = new jetsonEncoder(8554);
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
 	std::string engine = config["engine"].as<std::string>();
@@ -590,8 +590,6 @@ int main()
     cv::Mat dispFrame, trackFrame, detFrame;
 	cv::Mat oriIrImg, viImg, irImg;
     std::vector<TrackingObject> detRet;
-
-    
 
     stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
@@ -680,6 +678,9 @@ int main()
 				frame = viImg;
 				break;
 		}
+
+        // rtspWriterr << frame;
+        // continue;
 
         // frame = cv::imread("/home/nx/data/123.PNG");
         // stSysStatus.detOn = true;

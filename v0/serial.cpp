@@ -455,7 +455,7 @@ static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
     stT1F1B1D1Cfg.d1Config.thermalImagingElectronicMagnification = d1Cfg->thermalImagingElectronicMagnification;
     stSysStatus.lrfValue = (double)((d1Cfg->distanceMeasurementReturnValueH << 16) ^ d1Cfg->distanceMeasurementReturnValueL) * 0.01;
     stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification = d1Cfg->visibleLightElectronicMagnification;
-    stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle = ntohs(d1Cfg->currSensorHoriFieldOfViewAngle);
+    stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle = d1Cfg->currSensorHoriFieldOfViewAngle;
 }
 
 static void VL_ParseSerialData_T1F1B1D1OSD(uint8_t* buf)

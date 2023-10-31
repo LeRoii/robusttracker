@@ -62,9 +62,9 @@ set(APP_SRC
   ${PROJECT_SOURCE_DIR}/demo.cpp
   ${PROJECT_SOURCE_DIR}/painter.cpp
   ${PROJECT_SOURCE_DIR}/serial.cpp 
-  ${PROJECT_SOURCE_DIR}/jetsonEncoder.cpp  
+  # ${PROJECT_SOURCE_DIR}/jetsonEncoder.cpp  
   ${PROJECT_SOURCE_DIR}/camera.cpp  
-  ${COMMONCLSFILES} ${NET_SRC} ${XOP_SRC}
+  # ${COMMONCLSFILES} ${NET_SRC} ${XOP_SRC}
   ${PROJECT_SOURCE_DIR}/realtracker.cpp
   )
 
