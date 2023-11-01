@@ -61,8 +61,9 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
 }
 
 
-int main()
+int main(int argc, char*argv[])
 {
+	int waitVAL =  argc > 1 ? 0 : 10;
 	// spdlog::stopwatch sw;    
 	// spdlog::info("Welcome to spdlog!");
     // spdlog::error("Some error message with arg: {}", 1);
@@ -171,7 +172,8 @@ int main()
 				}
 				printf("WWWWWWW\n");
 				// tracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
-				rtracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
+				// rtracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
+				rtracker->init( cv::Point(xMin, yMin), frame );
 				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
 				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
 
@@ -222,7 +224,7 @@ int main()
         // cv::imshow("show", dispFrame);
         
         
-        cv::waitKey(0);
+        cv::waitKey(waitVAL);
 
     }
     // cv::Mat img = cv::imread("/space/data/0211/2-755.png");

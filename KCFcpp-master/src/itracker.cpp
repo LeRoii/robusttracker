@@ -63,6 +63,14 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
     // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
     // cv::imwrite("oripatch.png", m_oriPatch);
     cv::Rect roi= cv::Rect{pt.x - m_GateSize/2, pt.y - m_GateSize/2, m_GateSize, m_GateSize};
+    if(roi.x < 0)
+        roi.x = 0;
+    if(roi.x + roi.width > image.cols)
+        roi.x = image.cols - roi.width - 1;
+    if(roi.y < 0)
+        roi.y = 0;
+    if(roi.y + roi.height > image.rows)
+        roi.y = image.rows - roi.height - 1;
     m_oriPatch = image(roi).clone();
     trackerPtr->init(roi, image);
     m_centerPt = pt;
@@ -83,7 +91,10 @@ cv::Rect itracker::update(cv::Mat image)
         result.x = 0;
     if(result.x + result.width > image.cols)
         result.x = image.cols - result.width - 1;
-    // if()
+    if(result.y < 0)
+        result.y = 0;
+    if(result.y + result.height > image.rows)
+        result.y = image.rows - result.height - 1;
 
     // std::cout<<result<<std::endl;
     auto retPatch = image(result);
