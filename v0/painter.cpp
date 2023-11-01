@@ -350,21 +350,25 @@ void PaintCoordinate(cv::Mat &frame0)
     int x = (fWidth / 8) * 7;
     int y = (fHeight / 4) * 3;
 
-    // 目标位置坐标
-    cv::putText(frame0, "TAG", cv::Point(x, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    PaintDegMinSec(frame0, x, y + 20, stSysStatus.TAGCoordinate.longitude, true);
-    PaintDegMinSec(frame0, x, y + 40, stSysStatus.TAGCoordinate.latitude, false);
-    cv::putText(frame0, "ALT", cv::Point(x, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    std::string tagAlt = ConvertMetersNum2Str(stSysStatus.TAGCoordinate.altitude) + "m";
-    cv::putText(frame0, tagAlt, cv::Point(x + 40, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-
-    // 载机位置坐标
-    cv::putText(frame0, "ACFT", cv::Point(x, y + 100), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    PaintDegMinSec(frame0, x, y + 120, stSysStatus.ACFTCoordinate.longitude, true);
-    PaintDegMinSec(frame0, x, y + 140, stSysStatus.ACFTCoordinate.latitude, false);
-    cv::putText(frame0, "ALT", cv::Point(x, y + 160), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    std::string acftAlt = ConvertMetersNum2Str(stSysStatus.ACFTCoordinate.altitude) + "m";
-    cv::putText(frame0, acftAlt, cv::Point(x + 40 , y + 160), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    if (stSysStatus.osdSet2Ctrl.enTAGGPSShow) {
+        // 目标位置坐标
+        cv::putText(frame0, "TAG", cv::Point(x, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        PaintDegMinSec(frame0, x, y + 20, stSysStatus.TAGCoordinate.longitude, true);
+        PaintDegMinSec(frame0, x, y + 40, stSysStatus.TAGCoordinate.latitude, false);
+        cv::putText(frame0, "ALT", cv::Point(x, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        std::string tagAlt = ConvertMetersNum2Str(stSysStatus.TAGCoordinate.altitude) + "m";
+        cv::putText(frame0, tagAlt, cv::Point(x + 40, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    }
+    
+    if (stSysStatus.osdSet1Ctrl.enACFTGPS1Show) {
+        // 载机位置坐标
+        cv::putText(frame0, "ACFT", cv::Point(x, y + 100), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        PaintDegMinSec(frame0, x, y + 120, stSysStatus.ACFTCoordinate.longitude, true);
+        PaintDegMinSec(frame0, x, y + 140, stSysStatus.ACFTCoordinate.latitude, false);
+        cv::putText(frame0, "ALT", cv::Point(x, y + 160), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        std::string acftAlt = ConvertMetersNum2Str(stSysStatus.ACFTCoordinate.altitude) + "m";
+        cv::putText(frame0, acftAlt, cv::Point(x + 40 , y + 160), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    }
 }
 
 std::string ConvertTimesNum2Str(double num)
@@ -383,32 +387,40 @@ void PaintViewPara(cv::Mat &frame0)
     int x = fWidth / 23;
     int y = fHeight / 8;
 
-    std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
-    std::stringstream ss;
-    ss << std::put_time(std::localtime(&curr), "%Y/%m/%d");
-    std::string currDate(ss.str());
-    cv::putText(frame0, currDate, cv::Point(x, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    std::stringstream ss1;
-    ss1 << std::put_time(std::localtime(&curr), "%H:%M:%S");
-    std::string currTime(ss1.str());
-    cv::putText(frame0, currTime, cv::Point(x, y + 20), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-
-
-    if (stA2C2E2Cfg.c2Config.opCmd1 == 0x53) {
-        uint16_t visibleLightOpticalZoomFactor = 0;
-        memcpy(&visibleLightOpticalZoomFactor, &stA2C2E2Cfg.c2Config.opCmdPara1, 2);
-        visibleLightOpticalZoomFactor = ntohs(visibleLightOpticalZoomFactor);
-        stSysStatus.eoValue = (visibleLightOpticalZoomFactor * 0.1) * (stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification + 1);
+    if (stSysStatus.osdSet1Ctrl.enTimeShow) {
+        std::time_t curr = std::chrono::system_clock::to_time_t (std::chrono::system_clock::now());
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&curr), "%Y/%m/%d");
+        std::string currDate(ss.str());
+        cv::putText(frame0, currDate, cv::Point(x, y), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        std::stringstream ss1;
+        ss1 << std::put_time(std::localtime(&curr), "%H:%M:%S");
+        std::string currTime(ss1.str());
+        cv::putText(frame0, currTime, cv::Point(x, y + 20), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
     }
 
-    double fovValue = (double)stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle * 0.01;
-    double irValue = (double)stT1F1B1D1Cfg.d1Config.thermalImagingElectronicMagnification + 1;
+    if (stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow) {
+        if (stA2C2E2Cfg.c2Config.opCmd1 == 0x53) {
+            uint16_t visibleLightOpticalZoomFactor = 0;
+            memcpy(&visibleLightOpticalZoomFactor, &stA2C2E2Cfg.c2Config.opCmdPara1, 2);
+            visibleLightOpticalZoomFactor = ntohs(visibleLightOpticalZoomFactor);
+            stSysStatus.eoValue = (visibleLightOpticalZoomFactor * 0.1) * (stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification + 1);
+        }
+        cv::putText(frame0, "EO ", cv::Point(x, y + 40), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        cv::putText(frame0, ConvertTimesNum2Str(stSysStatus.eoValue) + "x", cv::Point(x + 25, y + 40), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
 
-    cv::putText(frame0, "EO ", cv::Point(x, y + 40), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, ConvertTimesNum2Str(stSysStatus.eoValue) + "x", cv::Point(x + 25, y + 40), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, "FOV " + ConvertTimesNum2Str(fovValue) + "deg", cv::Point(x + 75, y + 40), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, "IR ", cv::Point(x, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, ConvertTimesNum2Str(irValue) + "x", cv::Point(x + 25, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0, "LRF ", cv::Point(x, y + 80), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-    cv::putText(frame0,  ConvertTimesNum2Str(stSysStatus.lrfValue) + "m", cv::Point(x + 25, y + 80), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        double fovValue = (double)stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle * 0.01;
+        cv::putText(frame0, "FOV " + ConvertTimesNum2Str(fovValue) + "deg", cv::Point(x + 75, y + 40), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    }
+
+    if (stSysStatus.osdSet2Ctrl.enIRShow) {
+        double irValue = (double)stT1F1B1D1Cfg.d1Config.thermalImagingElectronicMagnification + 1;
+        cv::putText(frame0, "IR ", cv::Point(x, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        cv::putText(frame0, ConvertTimesNum2Str(irValue) + "x", cv::Point(x + 25, y + 60), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    }
+
+    if (stSysStatus.osdSet2Ctrl.enLRFShow) {
+        cv::putText(frame0, "LRF ", cv::Point(x, y + 80), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+        cv::putText(frame0,  ConvertTimesNum2Str(stSysStatus.lrfValue) + "m", cv::Point(x + 25, y + 80), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
+    }
 }

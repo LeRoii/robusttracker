@@ -417,6 +417,30 @@ enum class EN_SCREEN_OP_MODE
     RECORDING_END = 3,
 };
 
+struct OSD_SET1_CTRL
+{
+    bool enOSDShow;
+    bool enCrossShow;
+    bool enAttitudeAngleShow;
+    bool enMissDistanceShow;
+    bool enACFTGPS1Show;
+    bool enTimeShow;
+    bool enEOFieldOfViewOrMultiplyShow;
+    bool enSmallFontTOrDisplayRecognitionLineShow;
+};
+
+struct OSD_SET2_CTRL
+{
+    bool enSaveSet;
+    bool enIRShow;
+    bool enLRFShow;
+    bool enGPSIsMGRS;
+    bool enTFShow;
+    bool enTAGGPSShow;
+    bool enMultiplyGreenOrFieldOfViewAngleWhiteShow;
+    bool enGPSIsDegMinSecShow;
+};
+
 struct ST_SYS_STATUS
 {
     bool trackOn;
@@ -435,8 +459,10 @@ struct ST_SYS_STATUS
     cv::Point trackAssignPoint;
     int trackerInitPt[2];   //x,y -960~960, -540~540
     int trackerArea[4];     //top left x, y, right bottom x, y
-
     EN_SCREEN_OP_MODE enScreenOpMode;
+    OSD_SET1_CTRL osdSet1Ctrl;
+    OSD_SET2_CTRL osdSet2Ctrl;
+    bool isTSeriesDevice;
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
     detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT), enScreenOpMode(EN_SCREEN_OP_MODE::SCREEN_NONE){};
@@ -724,7 +750,7 @@ enum EN_V_CTRL_CMD
     RemoteCtrlChannelMapping = 0x10,
     ImageBoardIDNumber = 0xEF,
     DeviceFirmwareVersionNumber = 0xFC,
-    EquipmentModel = 0xFD,
+    DeviceModel = 0xE4,   // 这与协议说明书上为0xFD不同，但后面携带的信息确实是设备型号无误
     EquipmentSerialNumber = 0xFE,
     VCtrlCmdButt
 };

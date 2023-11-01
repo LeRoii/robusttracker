@@ -151,11 +151,9 @@ void OnceSendFromDownToUp(uint8_t *buf)
         statfs("/", &diskInfo);
         unsigned long long totalBlocks = diskInfo.f_bsize;  
         unsigned long long totalSize = totalBlocks * diskInfo.f_blocks;  
-        size_t mbTotalsize = totalSize>>20;  
+        uint32_t mbTotalsize = totalSize>>20;  
         unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;  
-        size_t mbFreedisk = freeDisk>>20;  
-        printf ("/  total=%ldMB, free=%ldMB\n", mbTotalsize, mbFreedisk);
-
+        uint32_t mbFreedisk = freeDisk>>20;  
         sendBufLen = 10;
         
         sendBuf[3] = 0x5 + 0x3;
@@ -172,17 +170,53 @@ void OnceSendFromDownToUp(uint8_t *buf)
                     sendBuf[6] = 0x20;
                 }
             } else if (buf[6] == 0x3) {
-                sendBuf[6] = mbTotalsize;
+                mbTotalsize = ntohl(mbTotalsize);
+                memcpy(&sendBuf[6], &mbTotalsize, 4);
             }  else if (buf[6] == 0x4) {
-                sendBuf[6] = mbFreedisk;
+                mbFreedisk = ntohl(mbFreedisk);
+                memcpy(&sendBuf[6], &mbFreedisk, 4);
+            } else if (buf[6] == 0x5) {
+                uint32_t photoGraphNum = mbFreedisk / 1.5;
+                photoGraphNum = ntohl(photoGraphNum);
+                memcpy(&sendBuf[6], &photoGraphNum, 4); // 按照每张照片1MB计算，剩余拍照张数
+            } else if (buf[6] == 0x6) {
+                uint32_t recordVideoTime = mbFreedisk / 1.5;
+                recordVideoTime = ntohl(recordVideoTime);
+                memcpy(&sendBuf[6], &recordVideoTime, 4); // 按照每秒视频1.5MB计算，剩余录像时间，单位sec
             }
-            // todo: 拍照张数和剩余录像时间待计算截图与录像视频格式再补充
         }
 
         uint8_t checksum = viewlink_protocal_checksum(sendBuf);
         sendBuf[sendBufLen - 1] = checksum;
         sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
         printf("down send to up:%d\n", sendBufLen);
+    // } else if (buf[4] == 0x1) {
+    //     sendBufLen = 29;
+        
+    //     sendBuf[3] = 0x2 + 0x3;
+    //     sendBuf[4] = 0x2;
+    //     sendBuf[5] = 0x5;
+    //     sendBuf[6] = (stSysStatus.osdSet1Ctrl.enOSDShow ? 1 : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enCrossShow ? (1 << 1) : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow ? (1 << 2) : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enMissDistanceShow ? (1 << 3) : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enACFTGPS1Show ? (1 << 4) : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enTimeShow ? (1 << 5) : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow ? (1 << 6) : 0) ^ \
+    //         (stSysStatus.osdSet1Ctrl.enSmallFontTOrDisplayRecognitionLineShow ? (1 << 7) : 0);
+        
+    //     sendBuf[7] = (stSysStatus.osdSet2Ctrl.enSaveSet ? 1 : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enIRShow ? (1 << 1) : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enLRFShow ? (1 << 2) : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enGPSIsMGRS ? (1 << 3) : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enTFShow ? (1 << 4) : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enTAGGPSShow ? (1 << 5) : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow ? (1 << 6) : 0) ^ \
+    //         (stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow ? (1 << 7) : 0);
+    //     uint8_t checksum = viewlink_protocal_checksum(sendBuf);
+    //     sendBuf[sendBufLen - 1] = checksum;
+    //     sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+    //     printf("down send to up:%d\n", sendBufLen);
     }
     
 }
@@ -205,6 +239,11 @@ void SerialTransUp2Down()
             }
             printf("\n");
 #endif
+            {
+                retLen = serialDown.serial_send(buffRcvData_servo, retLen);
+                printf("up send to down:%d\n", retLen);
+                // continue;
+            }
             // if (IsTransparentToPod(buffRcvData_servo)) {
             //     retLen = serialDown.serial_send(buffRcvData_servo, retLen);
             // }
@@ -217,6 +256,12 @@ void SerialTransUp2Down()
                 printf("RET_ERR\n");
                 continue;
             }
+            printf("Up2Down output:\n");
+            for(int i=0; i< outLen ;i++)
+            {
+                printf("[%02X]", output[i]);
+            }
+            printf("\n");
 
             EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
             printf("frame type:%d\n", frameType);
@@ -238,17 +283,9 @@ void SerialTransUp2Down()
             }
 
             // if(IsTransparentToPod(output, outLen))
-            {
-                retLen = serialDown.serial_send(output, outLen);
-                printf("up send to down:%d\n", retLen);
-                // continue;
-            }
+            
 
-            for(int i=0; i< outLen ;i++)
-            {
-                printf("[%02X]", output[i]);
-            }
-            printf("\n");
+            
 
             VL_ParseSerialData(output);
             OnceSendFromDownToUp(output);
@@ -353,7 +390,6 @@ void SerialTransDown2Up()
             }
             printf("\n");
 #endif
-
             retLen = serialUp.serial_send(buffRcvData_servo, retLen);
             printf("down send to up:%d\n", retLen);
 
@@ -715,14 +751,19 @@ int main()
         // dispFrame = frame.clone();
 
         // 在界面上绘制OSD
-        //float currRollAngle = -78.5; // 需要修改为吊舱返回的当前横滚角度
-        PaintRollAngleAxis(frame, stSysStatus.rollAngle);
 
-        //float currPitchAngle = 0; // 需要修改为吊舱返回的当前俯仰角度
-        PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
+        if (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow) {
+            // 绘制吊舱当前方位角度滚轴
+            PaintRollAngleAxis(frame, stSysStatus.rollAngle);
 
-        // 绘制中心十字
-        PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+            // 绘制吊舱当前俯仰角度滚轴
+            PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
+        }
+
+        if (stSysStatus.osdSet1Ctrl.enCrossShow) {
+            // 绘制中心十字
+            PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+        }
 
         // 绘制经纬度、海拔高度等坐标参数
         PaintCoordinate(frame);
