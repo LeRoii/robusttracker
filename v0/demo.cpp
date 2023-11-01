@@ -211,6 +211,12 @@ void SerialTransUp2Down()
             
             // printf("up send to down:%d\n", retLen);
 
+            {
+                retLen = serialDown.serial_send(buffRcvData_servo, retLen);
+                printf("up send to down:%d\n", retLen);
+                // continue;
+            }
+
             int rr = serialUp.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
             if(rr == RET_ERR)
             {
@@ -238,11 +244,7 @@ void SerialTransUp2Down()
             }
 
             // if(IsTransparentToPod(output, outLen))
-            {
-                retLen = serialDown.serial_send(output, outLen);
-                printf("up send to down:%d\n", retLen);
-                // continue;
-            }
+
 
             for(int i=0; i< outLen ;i++)
             {
@@ -574,7 +576,7 @@ int main()
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=2048 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=main ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
-    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=4000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! nvvidconv ! video/x-raw(memory:NVMM),format=I420 ! nvv4l2h264enc bitrate=6000000 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
 
     if(!rtspWriterr.isOpened())
@@ -652,6 +654,8 @@ int main()
 
     pipPosX = (viImg.cols - oriIrImg.cols)/2;
     pipPosY = (viImg.rows - oriIrImg.rows)/2;
+
+    rtracker->setFrameScale((double)viImgW/1920);
 
     while(!quit)
     {
@@ -732,12 +736,11 @@ int main()
 
         bool isNeedTakePhoto = false;
         if (stSysStatus.trackOn) {
-            cv::Rect initRect = cv::Rect{(frame.cols-stSysStatus.trackerGateSize)/2, (frame.rows-stSysStatus.trackerGateSize)/2, stSysStatus.trackerGateSize, stSysStatus.trackerGateSize};
             if (!stSysStatus.trackerInited) {
                 spdlog::debug("start tracking, init Rect:");
-                std::cout<<initRect<<std::endl;
                 rtracker->reset();
-                rtracker->init(initRect, frame );
+                rtracker->setGateSize(stSysStatus.trackerGateSize);
+                rtracker->init(stSysStatus.trackAssignPoint, frame);
         		stSysStatus.trackerInited = true;
             } else {
                 cv::Point pt;
@@ -807,7 +810,7 @@ int main()
         // cv::imwrite("1.png", frame);
         // cv::imshow("show", dispFrame);
         // cv::waitKey(30);
-        // usleep(30000);
+        usleep(25000);
 
         // spdlog::debug("before cal aveg Elapsed {}", sw);
 
@@ -819,8 +822,6 @@ int main()
         double meanValue = accumulate(begin(fpsCalculater), end(fpsCalculater), 0.0) / fpsCalculater.size();                   // 求均值
 
         spdlog::debug("one frame Elapsed {}", meanValue);
-
-
     }
     writer->release();
     return 0;

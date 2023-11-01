@@ -245,6 +245,7 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
 	if(stA1C1E1Cfg.e1Config.enBaseOpMode == OnTrack && stA1C1E1Cfg.a1Config.enServoCtrlMode == TrackMode)
 	{
 		stSysStatus.trackOn = true;
+        stSysStatus.trackAssignPoint = cv::Point(960,540);
 	}
 
     if(stA1C1E1Cfg.e1Config.enBaseOpMode > TrackingSpeedAdjustment &&
@@ -353,6 +354,7 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
             stSysStatus.trackAssignPoint.x = 1920 / 2 + (int16_t)trackPointX;
             stSysStatus.trackAssignPoint.y = 1080 / 2 + (int16_t)trackPointY;
             printf("\n============>>Track Point:(%d, %d)<<============\n", stSysStatus.trackAssignPoint.x, stSysStatus.trackAssignPoint.y);
+            stSysStatus.trackOn = true;
             break;
         //to do
         case TrackCoordinatePointSettingOfUpperLeftCornerOfRectangularArea:
