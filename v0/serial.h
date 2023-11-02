@@ -58,7 +58,7 @@ public:
     // int set_callback_func(SERIAL_CALLBACK_FUNC func);
 
     int ProcessSerialData(uint8_t *inputBUf, int inputLen, uint8_t *OutputBuf, int &outputLen);
-
+    int bufLen = 0;
 
 private:
     int openPort(int fd, int comport);
@@ -96,7 +96,6 @@ private:
     // SERIAL_CALLBACK_FUNC m_Send_Data_Func;
 
     uint8_t buf[1000];
-    int bufLen = 70;
     int st = 0;
 };
 

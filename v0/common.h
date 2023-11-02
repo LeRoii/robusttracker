@@ -426,7 +426,7 @@ struct OSD_SET1_CTRL
     bool enACFTGPS1Show;
     bool enTimeShow;
     bool enEOFieldOfViewOrMultiplyShow;
-    bool enSmallFontTOrDisplayRecognitionLineShow;
+    bool enSmallFontShow;
 };
 
 struct OSD_SET2_CTRL
@@ -454,6 +454,7 @@ struct ST_SYS_STATUS
     ST_COORDINATE_CONFIG TAGCoordinate;
     double lrfValue;
     double eoValue;
+    double fovValue;
     EN_IRIMG_MODE enIrImgMode;
     bool detRetOutput;
     cv::Point trackAssignPoint;
@@ -463,9 +464,11 @@ struct ST_SYS_STATUS
     OSD_SET1_CTRL osdSet1Ctrl;
     OSD_SET2_CTRL osdSet2Ctrl;
     bool isTSeriesDevice;
+    double osdFontSize;
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
-    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT), enScreenOpMode(EN_SCREEN_OP_MODE::SCREEN_NONE){};
+    detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT),
+    enScreenOpMode(EN_SCREEN_OP_MODE::SCREEN_NONE), osdFontSize(0.5){};
 };
 
 enum EN_SERVO_STATUS_MODE
@@ -595,7 +598,7 @@ struct ST_D1_CONFIG
     uint16_t distanceMeasurementReturnValueL; // 1bit 表示 0.1m，全零代表无效，无符号整形
     uint16_t currSensorVertiFieldOfViewAngle; // 1bit=0.01 度
     uint16_t currSensorHoriFieldOfViewAngle; // 1bit=0.01 度
-    uint16_t currSensorOpticsAmplificationFactor; // 1bit=0.01 度
+    uint16_t currSensorOpticsAmplificationFactor; // 1bit=0.1倍
 };
 
 enum EN_DETECTOR_TYPE
@@ -744,7 +747,7 @@ enum EN_V_CTRL_CMD
     NoneVCtrlCmd = 0,
     VCtrlProtocolCtrl = 2,
     TimeZone = 4,
-    OSD = 5,
+    OSD = 0x85,  // 这与协议说明书上为0x5不同，但后面携带的信息确实是OSD设置信息无误
     SerialPortBaudRate = 8,
     ThermalImageAlarmTemperature = 0xA,
     RemoteCtrlChannelMapping = 0x10,
