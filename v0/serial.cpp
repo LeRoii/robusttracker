@@ -189,11 +189,47 @@ static void VL_ParseSerialData_S2(uint8_t* buf)
     memcpy(stS2Cfg.para, s2Cfg->para, 4);
 }
 
+static bool IsAllZero(uint8_t data)
+{
+    printf("\n\n--------------------------------------IsAllZero:%#x\n\n", data);
+    if (data == 0) {
+        return false;
+    }
+    return true;
+}
+
+static bool IsNotAllZero(uint8_t data)
+{
+    if (data == 0) {
+        return true;
+    }
+    return false;
+}
 static void VL_ParseSerialData_U(uint8_t* buf)
 {
     ST_U_CONFIG *uCfg = (ST_U_CONFIG*)buf;
-    stUCfg.enOpCmd = uCfg->enOpCmd;
-    memcpy(stUCfg.para, uCfg->para, 9);
+    printf("\n\n--------------------------------------VL_ParseSerialData_U:%#x\n\n", uCfg->enOpCmd);
+    if (uCfg->enOpCmd == SetOSD_1) {
+        stSysStatus.osdSet1Ctrl.enOSDShow = IsAllZero(uCfg->para[0] & 0x1);
+        stSysStatus.osdSet1Ctrl.enCrossShow = IsAllZero(uCfg->para[0] & 0x2);
+        stSysStatus.osdSet1Ctrl.enAttitudeAngleShow = IsAllZero(uCfg->para[0] & 0x4);
+        stSysStatus.osdSet1Ctrl.enMissDistanceShow = IsAllZero(uCfg->para[0] & 0x8);
+        stSysStatus.osdSet1Ctrl.enACFTGPS1Show = IsAllZero(uCfg->para[0] & 0x10);
+        stSysStatus.osdSet1Ctrl.enTimeShow = IsAllZero(uCfg->para[0] & 0x20);
+        stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow = IsAllZero(uCfg->para[0] & 0x30);
+        stSysStatus.osdSet1Ctrl.enSmallFontTOrDisplayRecognitionLineShow = IsAllZero(uCfg->para[0] & 0x40);
+    } else if (uCfg->enOpCmd == SetOSD_2) {
+        stSysStatus.osdSet2Ctrl.enSaveSet = IsNotAllZero(uCfg->para[0] & 0x1);
+        stSysStatus.osdSet2Ctrl.enIRShow = IsNotAllZero(uCfg->para[0] & 0x2);
+        stSysStatus.osdSet2Ctrl.enLRFShow = IsNotAllZero(uCfg->para[0] & 0x4);
+        stSysStatus.osdSet2Ctrl.enGPSIsMGRS = IsNotAllZero(uCfg->para[0] & 0x8);
+        stSysStatus.osdSet2Ctrl.enTFShow = IsNotAllZero(uCfg->para[0] & 0x10);
+        stSysStatus.osdSet2Ctrl.enTAGGPSShow = IsNotAllZero(uCfg->para[0] & 0x20);
+        stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow = IsNotAllZero(uCfg->para[0] & 0x30);
+        stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow = IsNotAllZero(uCfg->para[0] & 0x40);
+    }
+
+    printf("\n\n--------------------------------------enCrossShow=%d\n", stSysStatus.osdSet1Ctrl.enCrossShow);
 }
 
 static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
@@ -467,7 +503,7 @@ static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
     stT1F1B1D1Cfg.d1Config.thermalImagingElectronicMagnification = d1Cfg->thermalImagingElectronicMagnification;
     stSysStatus.lrfValue = (double)((d1Cfg->distanceMeasurementReturnValueH << 16) ^ d1Cfg->distanceMeasurementReturnValueL) * 0.01;
     stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification = d1Cfg->visibleLightElectronicMagnification;
-    stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle = d1Cfg->currSensorHoriFieldOfViewAngle;
+    stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle = ntohs(d1Cfg->currSensorHoriFieldOfViewAngle);
 }
 
 static void VL_ParseSerialData_T1F1B1D1OSD(uint8_t* buf)
@@ -479,9 +515,21 @@ static void VL_ParseSerialData_T2F2B2D2(uint8_t* buf)
 {
 }
 
+
+
 static void VL_ParseSerialData_V(uint8_t* buf)
 {
-    
+    ST_V_CONFIG *vCfg = (ST_V_CONFIG*)buf;
+    if (vCfg->ctrlCmd = DeviceModel) {
+        std::ostringstream oss;
+        oss << static_cast<char>(vCfg->data[0]);
+        std::string deviceModelId = oss.str();
+        if (deviceModelId == "A") {
+            stSysStatus.isTSeriesDevice = false;
+        } else {
+            stSysStatus.isTSeriesDevice = true;
+        }
+    }
 }
 
 static void VL_ParseSerialData_CMD_SD(uint8_t* buf)
@@ -547,7 +595,7 @@ void VL_ParseSerialData(uint8_t* buf)
             VL_ParseSerialData_S2(buf);
             break;
         case 0x01:
-            VL_ParseSerialData_U(buf);
+            VL_ParseSerialData_U(buf + 5);
             break;
         case 0x40:
             VL_ParseSerialData_T1F1B1D1(buf + 5);
