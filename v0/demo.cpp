@@ -223,6 +223,17 @@ void OnceSendFromDownToUp(uint8_t *buf)
 
 void SerialTransUp2Down()
 {
+    cpu_set_t mask;
+	int cpuid = 4;
+
+	CPU_ZERO(&mask);
+	CPU_SET(cpuid, &mask);
+	if (pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask) < 0){
+		std::cout << "set thread affinity failed" << std::endl;
+	}
+
+
+
     uint8_t output[1024] = {0};
     int outLen = 0;
     uint8_t buffRcvData_servo[1024] = {0};
@@ -249,12 +260,6 @@ void SerialTransUp2Down()
             // }
             
             // printf("up send to down:%d\n", retLen);
-
-            {
-                retLen = serialDown.serial_send(buffRcvData_servo, retLen);
-                printf("up send to down:%d\n", retLen);
-                // continue;
-            }
 
             int rr = serialUp.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
             if(rr == RET_ERR)
@@ -287,10 +292,6 @@ void SerialTransUp2Down()
             {
                 printf("heart beat 14 from up serial\n\n");
             }
-
-            // if(IsTransparentToPod(output, outLen))
-
-            
 
             VL_ParseSerialData(output);
             OnceSendFromDownToUp(output);
@@ -379,6 +380,15 @@ void SerialTransUp2Down()
 
 void SerialTransDown2Up()
 {
+    cpu_set_t mask;
+	int cpuid = 4;
+
+	CPU_ZERO(&mask);
+	CPU_SET(cpuid, &mask);
+	if (pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask) < 0){
+		std::cout << "set thread affinity failed" << std::endl;
+	}
+
     uint8_t buffRcvData_servo[1024] = {0};
     uint8_t output[1024] = {0};
     int outLen = 0;
@@ -609,13 +619,46 @@ static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
 
 int main()
 {
+    spdlog::set_level(spdlog::level::debug);
+    spdlog::stopwatch sw;
+
+    // cv::Mat im = cv::imread("/home/nx/data/123.PNG");
+    // cv::resize(im, im, cv::Size(1920,1080), cv::INTER_NEAREST);
+    // cv::Mat dst;
+
+    // int q = 0;
+    // while(q++<100)
+    // {   
+    //     sw.reset();
+    //     cv::resize(im, dst, cv::Size(1280,720), cv::INTER_NEAREST);
+    //     spdlog::debug("before cal aveg Elapsed {}", sw);
+    // }
+
+    // return 0;
+    
+    // unsigned int in = std::thread::hardware_concurrency();
+    // std::cout << in << std::endl;
     // std::cout << cv::getBuildInformation() << std::endl; 
+    // return 0;
+
+    // cpu_set_t mask;
+    // /* 初始化set集，将set设置为空*/
+    // CPU_ZERO(&mask);
+    // /* 依次将0、1号cpu加入到集合*/
+    // CPU_SET(5, &mask);
+    // CPU_SET(0, &mask);
+    // /*将当前进程绑定到cpu */
+    // if (sched_setaffinity(0, sizeof(mask), &mask) == -1) {
+    //     printf("Set CPU affinity failue, ERROR:%s\n", strerror(errno));
+    //     return -1; 
+    // }   
+
 
     cv::VideoWriter rtspWriterr;
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=2048 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=main ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
-    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=4000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
+    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=4000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1920, 1080), true);
     // rtspWriterr.open("appsrc ! nvvidconv ! video/x-raw(memory:NVMM),format=I420 ! nvv4l2h264enc bitrate=6000000 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
 
     if(!rtspWriterr.isOpened())
@@ -624,8 +667,7 @@ int main()
         return 0;
     }
 
-    spdlog::set_level(spdlog::level::debug);
-    spdlog::stopwatch sw;
+    
     std::deque<double> fpsCalculater;
 
     struct sigaction sig_action;
@@ -696,6 +738,9 @@ int main()
 
     rtracker->setFrameScale((double)viImgW/1920);
 
+    uint8_t trackerStatus[9];
+    memset(trackerStatus, 0, 9);
+
     while(!quit)
     {
         // usleep(1000000);
@@ -728,6 +773,7 @@ int main()
 				break;
 			case Ir:        //0x02
 				frame = irImg;
+                trackerStatus[4] |= 0x01;   //0000 0001
 				break;
 			case VisIrPip:  //0x03
 				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
@@ -778,6 +824,7 @@ int main()
         // 绘制界面上其他参数
         PaintViewPara(frame);
 
+
         bool isNeedTakePhoto = false;
         if (stSysStatus.trackOn) {
             if (!stSysStatus.trackerInited) {
@@ -787,10 +834,8 @@ int main()
                 rtracker->init(stSysStatus.trackAssignPoint, frame);
         		stSysStatus.trackerInited = true;
             } else {
-                cv::Point pt;
-                rtracker->update(frame, detRet, pt);
-                printf("=================================>>>>>>>>>x=%d y=%d", pt.x, pt.y);
-                TrackerMissDistanceResultFeedbackToUp(pt);
+                rtracker->update(frame, detRet, trackerStatus);
+                // TrackerMissDistanceResultFeedbackToUp(pt);
             }
         } else if (stSysStatus.detOn) {
             rtracker->runDetector(frame, detRet);
@@ -826,16 +871,17 @@ int main()
             writer = nullptr;
         }
 
-        cv::resize(frame, dispFrame, cv::Size(1280,720));
+        spdlog::debug("before resize Elapsed {}", sw);
+
+        // cv::resize(frame, dispFrame, cv::Size(1280,720), cv::INTER_NEAREST);
+        cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
 
         if (isRecording) {
             *writer << dispFrame;
             // tempFrame = dispFrame.clone();
             // std::thread saveVideoThread(SaveRecordVideo);
             // saveVideoThread.detach();
-        } else {
-            
-        }
+        } 
 
         if (isNeedTakePhoto) {
             std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");
@@ -845,8 +891,7 @@ int main()
         }
 
         nFrames++;
-
-        
+        spdlog::debug("before rtsp Elapsed {}", sw);
         // encoder->process(dispFrame);
         rtspWriterr << dispFrame;
 
@@ -854,9 +899,9 @@ int main()
         // cv::imwrite("1.png", frame);
         // cv::imshow("show", dispFrame);
         // cv::waitKey(30);
-        usleep(25000);
+        // usleep(25000);
 
-        // spdlog::debug("before cal aveg Elapsed {}", sw);
+        spdlog::debug("before cal aveg Elapsed {}", sw);
 
         // std::chrono::duration<double> dd =  sw.elapsed();
 
