@@ -602,6 +602,31 @@ static void QueryOSDSettingSendToDown()
     printf("QueryOSDSettingSendToDown sendBufLen=%d\n", sendBufLen);
 }
 
+// 上位机拉流时首先板子向吊舱发送查询OSD设置信息，使自制OSD可以直接呈现到界面，否则刚拉的流不会有自制OSD呈现
+static void QueryDeviceModelSendToDown()
+{
+    uint8_t sendBuf[1024] = {0};
+    int sendBufLen = 8;
+    sendBuf[0] = 0x55;
+    sendBuf[1] = 0xAA;
+    sendBuf[2] = 0xDC;
+    sendBuf[3] = 0X05;
+    sendBuf[4] = 0x01;
+    sendBuf[5] = 0xE4;
+    sendBuf[6] = 0;
+    sendBuf[7] = viewlink_protocal_checksum(sendBuf);
+
+#if DEBUG_SERIAL
+    printf("\n QueryDeviceModelSendToDown:\n");
+    for (int i = 0; i < 8; i++) {
+        printf("[%02X] ", sendBuf[i]);
+    }
+    printf("\n");
+#endif
+    sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
+    printf("QueryDeviceModelSendToDown sendBufLen=%d\n", sendBufLen);
+}
+
 bool isRecording = false;;
 cv::VideoWriter *writer = nullptr;
 
@@ -716,7 +741,8 @@ int main()
 
     if(cam != nullptr) {
         cam->Init();
-        QueryOSDSettingSendToDown();
+        // QueryDeviceModelSendToDown();
+        // QueryOSDSettingSendToDown();
     } else {
         printf("camera inti failed\n");
         return 0;
@@ -814,8 +840,9 @@ int main()
         // dispFrame = frame.clone();
 
         // 在界面上绘制OSD
-
+        stSysStatus.osdSet1Ctrl.enOSDShow = true;
         if (stSysStatus.osdSet1Ctrl.enOSDShow) {
+            stSysStatus.osdSet1Ctrl.enAttitudeAngleShow = true;
             if (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow) {
                 // 绘制吊舱当前方位角度滚轴
                 PaintRollAngleAxis(frame, stSysStatus.rollAngle);
@@ -823,7 +850,7 @@ int main()
                 // 绘制吊舱当前俯仰角度滚轴
                 PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
             }
-
+            stSysStatus.osdSet1Ctrl.enCrossShow = true;
             if (stSysStatus.osdSet1Ctrl.enCrossShow) {
                 // 绘制中心十字
                 PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);

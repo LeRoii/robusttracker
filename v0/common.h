@@ -468,7 +468,7 @@ struct ST_SYS_STATUS
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
     detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT),
-    enScreenOpMode(EN_SCREEN_OP_MODE::SCREEN_NONE), osdFontSize(0.5){};
+    enScreenOpMode(EN_SCREEN_OP_MODE::SCREEN_NONE), osdFontSize(0.8){};
 };
 
 enum EN_SERVO_STATUS_MODE

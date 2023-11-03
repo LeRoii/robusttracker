@@ -191,7 +191,6 @@ static void VL_ParseSerialData_S2(uint8_t* buf)
 
 static bool IsAllZero(uint8_t data)
 {
-    printf("\n--------------------------------------IsAllZero:%#x\n", data);
     if (data == 0) {
         return true;
     }
@@ -207,6 +206,7 @@ static bool IsNotAllZero(uint8_t data)
 }
 static void VL_ParseSerialData_U(uint8_t* buf)
 {
+#if 0
     ST_U_CONFIG *uCfg = (ST_U_CONFIG*)buf;
     printf("\n\n--------------------------------------VL_ParseSerialData_U:%#x\n\n", uCfg->enOpCmd);
     if (uCfg->enOpCmd == SetOSD_1) {
@@ -253,6 +253,7 @@ static void VL_ParseSerialData_U(uint8_t* buf)
         stSysStatus.osdSet2Ctrl.enTAGGPSShow,
         stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow,
         stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow);
+#endif
 }
 
 static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
@@ -543,6 +544,7 @@ static void VL_ParseSerialData_T2F2B2D2(uint8_t* buf)
 
 static void VL_ParseSerialData_V(uint8_t* buf)
 {
+#if 0
     ST_V_CONFIG *vCfg = (ST_V_CONFIG*)buf;
     printf("-----------------------vvvvvvvvvvvvvvvvvvv[%02x]\n", vCfg->ctrlCmd);
     if (vCfg->ctrlCmd == DeviceModel) {
@@ -597,6 +599,7 @@ static void VL_ParseSerialData_V(uint8_t* buf)
     } else {
         stSysStatus.osdFontSize = 0.6;
     }
+#endif
 }
 
 static void VL_ParseSerialData_CMD_SD(uint8_t* buf)
