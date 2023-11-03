@@ -53,7 +53,7 @@ static std::vector<std::vector<uint8_t>> CmdNeedProcess =
 };
 
 
-#define DEBUG_SERIAL 1
+#define DEBUG_SERIAL 0
 
 extern ST_A1_CONFIG stA1Cfg;
 extern ST_A2_CONFIG stA2Cfg;
@@ -569,12 +569,17 @@ static void TrackerMissDistanceResultFeedbackToUp(uint8_t *buf)
     // uint16_t horiPixel = pt.y;
     // azimuthPixel = ntohs(azimuthPixel);
     // horiPixel = ntohs(horiPixel);
-    // memcpy(&sendBuf[16], &azimuthPixel, 2);
+    // memcpy(&sendBuf[16], &azimuthPixel, 2); 
     // memcpy(&sendBuf[18], &horiPixel, 2);
     sendBuf[14] = viewlink_protocal_checksum(sendBuf);
-    sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+    sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
 
-    printf("Tracker MissDistance Result FeedbackToUp\n");
+    printf("Tracker MissDistance Result FeedbackTodown, %d\n", sendBufLen);
+    for(int i=0;i<15;++i)
+    {
+        printf("%#x,", sendBuf[i]);
+    }
+    printf("\n");
 }
 
 // 上位机拉流时首先板子向吊舱发送查询OSD设置信息，使自制OSD可以直接呈现到界面，否则刚拉的流不会有自制OSD呈现
@@ -875,7 +880,7 @@ int main()
             } else {
                 rtracker->update(frame, detRet, trackerStatus);
                 spdlog::debug("tracker status:{}", trackerStatus[4]);
-                // TrackerMissDistanceResultFeedbackToUp(pt);
+                TrackerMissDistanceResultFeedbackToUp(trackerStatus);
             }
         } else if (stSysStatus.detOn) {
             rtracker->runDetector(frame, detRet);
@@ -911,7 +916,7 @@ int main()
             writer = nullptr;
         }
 
-        spdlog::debug("before resize Elapsed {}", sw);
+        // spdlog::debug("before resize Elapsed {}", sw);
 
         cv::resize(frame, dispFrame, cv::Size(1280,720), cv::INTER_NEAREST);
         // cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
@@ -931,7 +936,7 @@ int main()
         }
 
         nFrames++;
-        spdlog::debug("before rtsp Elapsed {}", sw);
+        // spdlog::debug("before rtsp Elapsed {}", sw);
         // encoder->process(dispFrame);
         rtspWriterr << dispFrame;
 
@@ -941,7 +946,7 @@ int main()
         // cv::waitKey(30);
         // usleep(25000);
 
-        spdlog::debug("before cal aveg Elapsed {}", sw);
+        // spdlog::debug("before cal aveg Elapsed {}", sw);
 
         // std::chrono::duration<double> dd =  sw.elapsed();
 

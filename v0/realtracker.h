@@ -43,7 +43,7 @@ private:
     void FSM_PROC_DTRACK(cv::Mat &frame);
     void FSM_PROC_SEARCH(cv::Mat &frame);
 
-    itracker *m_kcf;
+    itracker *m_stracker;
     idetector *m_detector;
     FrameInfo m_frameInfo;
     std::unique_ptr<BaseTracker> m_mtracker;
