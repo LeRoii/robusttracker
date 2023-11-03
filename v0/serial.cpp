@@ -191,19 +191,19 @@ static void VL_ParseSerialData_S2(uint8_t* buf)
 
 static bool IsAllZero(uint8_t data)
 {
-    printf("\n\n--------------------------------------IsAllZero:%#x\n\n", data);
+    printf("\n--------------------------------------IsAllZero:%#x\n", data);
     if (data == 0) {
-        return false;
+        return true;
     }
-    return true;
+    return false;
 }
 
 static bool IsNotAllZero(uint8_t data)
 {
     if (data == 0) {
-        return true;
+        return false;
     }
-    return false;
+    return true;
 }
 static void VL_ParseSerialData_U(uint8_t* buf)
 {
@@ -216,8 +216,8 @@ static void VL_ParseSerialData_U(uint8_t* buf)
         stSysStatus.osdSet1Ctrl.enMissDistanceShow = IsAllZero(uCfg->para[0] & 0x8);
         stSysStatus.osdSet1Ctrl.enACFTGPS1Show = IsAllZero(uCfg->para[0] & 0x10);
         stSysStatus.osdSet1Ctrl.enTimeShow = IsAllZero(uCfg->para[0] & 0x20);
-        stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow = IsAllZero(uCfg->para[0] & 0x30);
-        stSysStatus.osdSet1Ctrl.enSmallFontTOrDisplayRecognitionLineShow = IsAllZero(uCfg->para[0] & 0x40);
+        stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow = IsAllZero(uCfg->para[0] & 0x40);
+        stSysStatus.osdSet1Ctrl.enSmallFontShow = IsAllZero(uCfg->para[0] & 0x80);
     } else if (uCfg->enOpCmd == SetOSD_2) {
         stSysStatus.osdSet2Ctrl.enSaveSet = IsNotAllZero(uCfg->para[0] & 0x1);
         stSysStatus.osdSet2Ctrl.enIRShow = IsNotAllZero(uCfg->para[0] & 0x2);
@@ -225,11 +225,34 @@ static void VL_ParseSerialData_U(uint8_t* buf)
         stSysStatus.osdSet2Ctrl.enGPSIsMGRS = IsNotAllZero(uCfg->para[0] & 0x8);
         stSysStatus.osdSet2Ctrl.enTFShow = IsNotAllZero(uCfg->para[0] & 0x10);
         stSysStatus.osdSet2Ctrl.enTAGGPSShow = IsNotAllZero(uCfg->para[0] & 0x20);
-        stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow = IsNotAllZero(uCfg->para[0] & 0x30);
-        stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow = IsNotAllZero(uCfg->para[0] & 0x40);
+        stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow = IsNotAllZero(uCfg->para[0] & 0x40);
+        stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow = IsNotAllZero(uCfg->para[0] & 0x80);
     }
 
-    printf("\n\n--------------------------------------enCrossShow=%d\n", stSysStatus.osdSet1Ctrl.enCrossShow);
+    if (!stSysStatus.osdSet1Ctrl.enSmallFontShow) {
+        stSysStatus.osdFontSize = 0.8;
+    } else {
+        stSysStatus.osdFontSize = 0.6;
+    }
+
+    printf("\n\nenOSDShow=%d enCrossShow=%d enAttitudeAngleShow=%d enMissDistanceShow=%d enACFTGPS1Show=%d enTimeShow=%d enEOFieldOfViewOrMultiplyShow=%d enSmallFontShow=%d\n",
+        stSysStatus.osdSet1Ctrl.enOSDShow,
+        stSysStatus.osdSet1Ctrl.enCrossShow,
+        stSysStatus.osdSet1Ctrl.enAttitudeAngleShow,
+        stSysStatus.osdSet1Ctrl.enMissDistanceShow,
+        stSysStatus.osdSet1Ctrl.enACFTGPS1Show,
+        stSysStatus.osdSet1Ctrl.enTimeShow,
+        stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow,
+        stSysStatus.osdSet1Ctrl.enSmallFontShow);
+    printf("\n\n enSaveSet=%d enIRShow=%d enLRFShow=%d enGPSIsMGRS=%d enTFShow=%d enTAGGPSShow=%d enMultiplyGreenOrFieldOfViewAngleWhiteShow=%d enGPSIsDegMinSecShow=%d\n",
+        stSysStatus.osdSet2Ctrl.enSaveSet,
+        stSysStatus.osdSet2Ctrl.enIRShow,
+        stSysStatus.osdSet2Ctrl.enLRFShow,
+        stSysStatus.osdSet2Ctrl.enGPSIsMGRS,
+        stSysStatus.osdSet2Ctrl.enTFShow,
+        stSysStatus.osdSet2Ctrl.enTAGGPSShow,
+        stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow,
+        stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow);
 }
 
 static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
@@ -501,9 +524,10 @@ static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
     tempData = buf + 29;
     ST_D1_CONFIG *d1Cfg = (ST_D1_CONFIG*)tempData;
     stT1F1B1D1Cfg.d1Config.thermalImagingElectronicMagnification = d1Cfg->thermalImagingElectronicMagnification;
-    stSysStatus.lrfValue = (double)((d1Cfg->distanceMeasurementReturnValueH << 16) ^ d1Cfg->distanceMeasurementReturnValueL) * 0.01;
+    stSysStatus.lrfValue = (double)((d1Cfg->distanceMeasurementReturnValueH << 8) ^ ntohs(d1Cfg->distanceMeasurementReturnValueL)) * 0.1;
     stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification = d1Cfg->visibleLightElectronicMagnification;
     stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle = ntohs(d1Cfg->currSensorHoriFieldOfViewAngle);
+    stT1F1B1D1Cfg.d1Config.currSensorOpticsAmplificationFactor = ntohs(d1Cfg->currSensorOpticsAmplificationFactor);
 }
 
 static void VL_ParseSerialData_T1F1B1D1OSD(uint8_t* buf)
@@ -520,7 +544,8 @@ static void VL_ParseSerialData_T2F2B2D2(uint8_t* buf)
 static void VL_ParseSerialData_V(uint8_t* buf)
 {
     ST_V_CONFIG *vCfg = (ST_V_CONFIG*)buf;
-    if (vCfg->ctrlCmd = DeviceModel) {
+    printf("-----------------------vvvvvvvvvvvvvvvvvvv[%02x]\n", vCfg->ctrlCmd);
+    if (vCfg->ctrlCmd == DeviceModel) {
         std::ostringstream oss;
         oss << static_cast<char>(vCfg->data[0]);
         std::string deviceModelId = oss.str();
@@ -529,6 +554,48 @@ static void VL_ParseSerialData_V(uint8_t* buf)
         } else {
             stSysStatus.isTSeriesDevice = true;
         }
+    } else if (vCfg->ctrlCmd == OSD) {
+        stSysStatus.osdSet1Ctrl.enOSDShow = IsAllZero(vCfg->data[0] & 0x1);
+        stSysStatus.osdSet1Ctrl.enCrossShow = IsAllZero(vCfg->data[0] & 0x2);
+        stSysStatus.osdSet1Ctrl.enAttitudeAngleShow = IsAllZero(vCfg->data[0] & 0x4);
+        stSysStatus.osdSet1Ctrl.enMissDistanceShow = IsAllZero(vCfg->data[0] & 0x8);
+        stSysStatus.osdSet1Ctrl.enACFTGPS1Show = IsAllZero(vCfg->data[0] & 0x10);
+        stSysStatus.osdSet1Ctrl.enTimeShow = IsAllZero(vCfg->data[0] & 0x20);
+        stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow = IsAllZero(vCfg->data[0] & 0x40);
+        stSysStatus.osdSet1Ctrl.enSmallFontShow = IsAllZero(vCfg->data[0] & 0x80);
+        stSysStatus.osdSet2Ctrl.enSaveSet = IsNotAllZero(vCfg->data[1] & 0x1);
+        stSysStatus.osdSet2Ctrl.enIRShow = IsNotAllZero(vCfg->data[1] & 0x2);
+        stSysStatus.osdSet2Ctrl.enLRFShow = IsNotAllZero(vCfg->data[1] & 0x4);
+        stSysStatus.osdSet2Ctrl.enGPSIsMGRS = IsNotAllZero(vCfg->data[1] & 0x8);
+        stSysStatus.osdSet2Ctrl.enTFShow = IsNotAllZero(vCfg->data[1] & 0x10);
+        stSysStatus.osdSet2Ctrl.enTAGGPSShow = IsNotAllZero(vCfg->data[1] & 0x20);
+        stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow = IsNotAllZero(vCfg->data[1] & 0x40);
+        stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow = IsNotAllZero(vCfg->data[1] & 0x80);
+        
+        printf("\nVL_ParseSerialData_V\nenOSDShow=%d enCrossShow=%d enAttitudeAngleShow=%d enMissDistanceShow=%d enACFTGPS1Show=%d enTimeShow=%d enEOFieldOfViewOrMultiplyShow=%d enSmallFontShow=%d\n",
+        stSysStatus.osdSet1Ctrl.enOSDShow,
+        stSysStatus.osdSet1Ctrl.enCrossShow,
+        stSysStatus.osdSet1Ctrl.enAttitudeAngleShow,
+        stSysStatus.osdSet1Ctrl.enMissDistanceShow,
+        stSysStatus.osdSet1Ctrl.enACFTGPS1Show,
+        stSysStatus.osdSet1Ctrl.enTimeShow,
+        stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow,
+        stSysStatus.osdSet1Ctrl.enSmallFontShow);
+
+        printf("\nenSaveSet=%d enIRShow=%d enLRFShow=%d enGPSIsMGRS=%d enTFShow=%d enTAGGPSShow=%d enMultiplyGreenOrFieldOfViewAngleWhiteShow=%d enGPSIsDegMinSecShow=%d\n",
+        stSysStatus.osdSet2Ctrl.enSaveSet,
+        stSysStatus.osdSet2Ctrl.enIRShow,
+        stSysStatus.osdSet2Ctrl.enLRFShow,
+        stSysStatus.osdSet2Ctrl.enGPSIsMGRS,
+        stSysStatus.osdSet2Ctrl.enTFShow,
+        stSysStatus.osdSet2Ctrl.enTAGGPSShow,
+        stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow,
+        stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow);
+    }
+    if (!stSysStatus.osdSet1Ctrl.enSmallFontShow) {
+        stSysStatus.osdFontSize = 0.8;
+    } else {
+        stSysStatus.osdFontSize = 0.6;
     }
 }
 
@@ -1008,7 +1075,7 @@ const int Serial::SetStatus(const int status)
 
 const int Serial::GetStatus() const
 {
-    return this->m_RunStatus;
+    return this->st;
 }
 
 

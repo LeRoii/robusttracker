@@ -9,7 +9,6 @@
 #include "camera.h"
 #include "painter.h"
 #include<arpa/inet.h>
-#include <unistd.h>
 #include <sys/vfs.h>
 #include <yaml-cpp/yaml.h>
 #include "realtracker.h"
@@ -190,33 +189,6 @@ void OnceSendFromDownToUp(uint8_t *buf)
         sendBuf[sendBufLen - 1] = checksum;
         sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
         printf("down send to up:%d\n", sendBufLen);
-    // } else if (buf[4] == 0x1) {
-    //     sendBufLen = 29;
-        
-    //     sendBuf[3] = 0x2 + 0x3;
-    //     sendBuf[4] = 0x2;
-    //     sendBuf[5] = 0x5;
-    //     sendBuf[6] = (stSysStatus.osdSet1Ctrl.enOSDShow ? 1 : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enCrossShow ? (1 << 1) : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow ? (1 << 2) : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enMissDistanceShow ? (1 << 3) : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enACFTGPS1Show ? (1 << 4) : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enTimeShow ? (1 << 5) : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enEOFieldOfViewOrMultiplyShow ? (1 << 6) : 0) ^ \
-    //         (stSysStatus.osdSet1Ctrl.enSmallFontTOrDisplayRecognitionLineShow ? (1 << 7) : 0);
-        
-    //     sendBuf[7] = (stSysStatus.osdSet2Ctrl.enSaveSet ? 1 : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enIRShow ? (1 << 1) : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enLRFShow ? (1 << 2) : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enGPSIsMGRS ? (1 << 3) : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enTFShow ? (1 << 4) : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enTAGGPSShow ? (1 << 5) : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enMultiplyGreenOrFieldOfViewAngleWhiteShow ? (1 << 6) : 0) ^ \
-    //         (stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow ? (1 << 7) : 0);
-    //     uint8_t checksum = viewlink_protocal_checksum(sendBuf);
-    //     sendBuf[sendBufLen - 1] = checksum;
-    //     sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
-    //     printf("down send to up:%d\n", sendBufLen);
     }
     
 }
@@ -260,13 +232,16 @@ void SerialTransUp2Down()
             // }
             
             // printf("up send to down:%d\n", retLen);
-
+            int aa = 5;
+            while (aa--) {
             int rr = serialUp.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
-            if(rr == RET_ERR)
+            
+            if (rr == RET_ERR)
             {
                 printf("RET_ERR\n");
-                continue;
+                break;
             }
+            retLen = 0;
             printf("Up2Down output:\n");
             for(int i=0; i< outLen ;i++)
             {
@@ -297,7 +272,7 @@ void SerialTransUp2Down()
             OnceSendFromDownToUp(output);
 
             printf("status->enDispMode:%d, detOn:%d, trackOn:%d, trackerGateSize:%d\n",\
-             stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
+                stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
             printf("\n\n");
 
             // continue;
@@ -374,7 +349,11 @@ void SerialTransUp2Down()
             // printf("status->enDispMode:%d, detOn:%d, trackOn:%d, trackerGateSize:%d\n",\
             //  stSysStatus.enDispMode, stSysStatus.detOn, stSysStatus.trackOn, stSysStatus.trackerGateSize);
             // printf("\n\n");
-        }
+            if (serialDown.bufLen == 0) {
+                printf("parse buf over\n");
+                break;
+            }
+        }}
     }
 }
 
@@ -407,15 +386,15 @@ void SerialTransDown2Up()
 #endif
             retLen = serialUp.serial_send(buffRcvData_servo, retLen);
             printf("down send to up:%d\n", retLen);
-
+            int aa = 5;
+            while (aa--) {
             int rr = serialDown.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
-
-            if(rr == RET_ERR)
+            if (rr == RET_ERR)
             {
                 printf("RET_ERR\n");
-                continue;
+                break;
             }
-
+            retLen = 0;
 #if DEBUG_SERIAL
             printf("output buf\n");
             for(int i=0; i< outLen ;i++)
@@ -463,8 +442,12 @@ void SerialTransDown2Up()
             // printf("\n");
 
             printf("\n\n");
+            if (serialDown.bufLen == 0) {
+                printf("parse buf over\n");
+                break;
+            }
         }
-        
+        }
     }
 }
 
@@ -593,6 +576,31 @@ static void TrackerMissDistanceResultFeedbackToUp(cv::Point pt)
     printf("Tracker MissDistance Result FeedbackToUp\n");
 }
 
+// 上位机拉流时首先板子向吊舱发送查询OSD设置信息，使自制OSD可以直接呈现到界面，否则刚拉的流不会有自制OSD呈现
+static void QueryOSDSettingSendToDown()
+{
+    uint8_t sendBuf[1024] = {0};
+    int sendBufLen = 8;
+    sendBuf[0] = 0x55;
+    sendBuf[1] = 0xAA;
+    sendBuf[2] = 0xDC;
+    sendBuf[3] = 0X5;
+    sendBuf[4] = 0x01;
+    sendBuf[5] = 0x85;
+    sendBuf[6] = 0;
+    sendBuf[7] = viewlink_protocal_checksum(sendBuf);
+
+#if DEBUG_SERIAL
+    printf("\nQueryOSDSettingSendToDown:\n");
+    for (int i = 0; i < 8; i++) {
+        printf("[%02X] ", sendBuf[i]);
+    }
+    printf("\n");
+#endif
+    sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
+    printf("QueryOSDSettingSendToDown sendBufLen=%d\n", sendBufLen);
+}
+
 bool isRecording = false;;
 cv::VideoWriter *writer = nullptr;
 
@@ -707,6 +715,7 @@ int main()
 
     if(cam != nullptr) {
         cam->Init();
+        QueryOSDSettingSendToDown();
     } else {
         printf("camera inti failed\n");
         return 0;
@@ -805,24 +814,26 @@ int main()
 
         // 在界面上绘制OSD
 
-        if (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow) {
-            // 绘制吊舱当前方位角度滚轴
-            PaintRollAngleAxis(frame, stSysStatus.rollAngle);
+        if (stSysStatus.osdSet1Ctrl.enOSDShow) {
+            if (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow) {
+                // 绘制吊舱当前方位角度滚轴
+                PaintRollAngleAxis(frame, stSysStatus.rollAngle);
 
-            // 绘制吊舱当前俯仰角度滚轴
-            PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
+                // 绘制吊舱当前俯仰角度滚轴
+                PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
+            }
+
+            if (stSysStatus.osdSet1Ctrl.enCrossShow) {
+                // 绘制中心十字
+                PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+            }
+
+            // 绘制经纬度、海拔高度等坐标参数
+            PaintCoordinate(frame);
+
+            // 绘制界面上其他参数
+            PaintViewPara(frame);
         }
-
-        if (stSysStatus.osdSet1Ctrl.enCrossShow) {
-            // 绘制中心十字
-            PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
-        }
-
-        // 绘制经纬度、海拔高度等坐标参数
-        PaintCoordinate(frame);
-
-        // 绘制界面上其他参数
-        PaintViewPara(frame);
 
 
         bool isNeedTakePhoto = false;
