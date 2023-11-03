@@ -554,26 +554,33 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
 }
 
 // 跟踪脱靶量向上位机反馈
-static void TrackerMissDistanceResultFeedbackToUp(cv::Point pt)
+static void TrackerMissDistanceResultFeedbackToUp(uint8_t *buf)
 {
-    uint8_t sendBuf[1024] = {0};
-    int sendBufLen = 21;
+    uint8_t sendBuf[15] = {0};
+    int sendBufLen = 15;
     sendBuf[0] = 0x55;
     sendBuf[1] = 0xAA;
     sendBuf[2] = 0xDC;
-    sendBuf[3] = 0X12;
-    sendBuf[4] = 0xF2;
-    memset(&sendBuf[5], 0, 11);
-    uint16_t azimuthPixel = pt.x;
-    uint16_t horiPixel = pt.y;
-    azimuthPixel = ntohs(azimuthPixel);
-    horiPixel = ntohs(horiPixel);
-    memcpy(&sendBuf[16], &azimuthPixel, 2);
-    memcpy(&sendBuf[18], &horiPixel, 2);
-    sendBuf[20] = viewlink_protocal_checksum(sendBuf);
-    sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
-
-    printf("Tracker MissDistance Result FeedbackToUp\n");
+    sendBuf[3] = 0X0C;
+    sendBuf[4] = 0x66;
+    // memset(&sendBuf[5], 0, 11);
+    memcpy(sendBuf+5, buf, 9);
+    // uint16_t azimuthPixel = pt.x;
+    // uint16_t horiPixel = pt.y;
+    // azimuthPixel = ntohs(azimuthPixel);
+    // horiPixel = ntohs(horiPixel);
+    // memcpy(&sendBuf[16], &azimuthPixel, 2); 
+    // memcpy(&sendBuf[18], &horiPixel, 2);
+    sendBuf[14] = viewlink_protocal_checksum(sendBuf);
+    sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
+    stSysStatus.trackMissDistance[0] = (buf[0] << 8) ^ buf[1];
+    stSysStatus.trackMissDistance[1] = (buf[2] << 8) ^ buf[3];
+    printf("Tracker MissDistance Result FeedbackTodown, %d\n", sendBufLen);
+    for(int i=0;i<15;++i)
+    {
+        printf("%#x,", sendBuf[i]);
+    }
+    printf("\n");
 }
 
 // 上位机拉流时首先板子向吊舱发送查询OSD设置信息，使自制OSD可以直接呈现到界面，否则刚拉的流不会有自制OSD呈现
@@ -860,6 +867,9 @@ int main()
 
             // 绘制界面上其他参数
             PaintViewPara(frame);
+
+            // 绘制脱靶量
+            PaintTrackerMissDistance(frame);
         }
 
 
@@ -873,7 +883,7 @@ int main()
         		stSysStatus.trackerInited = true;
             } else {
                 rtracker->update(frame, detRet, trackerStatus);
-                // TrackerMissDistanceResultFeedbackToUp(pt);
+                TrackerMissDistanceResultFeedbackToUp(trackerStatus);
             }
         } else if (stSysStatus.detOn) {
             rtracker->runDetector(frame, detRet);

@@ -28,6 +28,9 @@ extern ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg;
 // OSD 字体宽度
 int fontThickness = 1;
 
+// OSD 颜色
+cv::Scalar osdColor = cv::Scalar(0, 255, 0);
+
 static std::string Convert(double num)
 {
     std::ostringstream oss;
@@ -45,6 +48,17 @@ static std::string Convert(double num)
     return str;
 }
 
+// 绘制脱靶量
+void PaintTrackerMissDistance(cv::Mat &frame0)
+{
+    int fHeight = frame0.rows;
+    int fWidth = frame0.cols;
+    int xStart = (fWidth / 3) * 2;
+    int yStart = fHeight / 12;
+    cv::putText(frame0, "Miss X " + Convert(stSysStatus.trackMissDistance[0]), cv::Point(xStart, yStart), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+    cv::putText(frame0, "Miss Y " + Convert(stSysStatus.trackMissDistance[1]), cv::Point(xStart, yStart + 30), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+}
+
 // 绘制画面横滚角度数轴，画面从左到右对应x由小到大
 void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
 {
@@ -60,8 +74,8 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
     
     // 绘制当前横滚角度
     std::string currStr = Convert(currRollAngle);
-    cv::line(frame0, cv::Point(xStart, yStart + 10), cv::Point(xStart, yStart + 30), cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-    cv::putText(frame0, currStr, cv::Point(xStart - 10, yStart + 45), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+    cv::line(frame0, cv::Point(xStart, yStart + 10), cv::Point(xStart, yStart + 30), osdColor, fontThickness, cv::LINE_AA);
+    cv::putText(frame0, currStr, cv::Point(xStart - 10, yStart + 45), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
     
     // 计算左侧和右侧小刻度值，以及开始大刻度具体数值
     int leftSmallScale = 0;
@@ -367,12 +381,12 @@ void PaintCoordinate(cv::Mat &frame0)
     stSysStatus.osdSet1Ctrl.enACFTGPS1Show = true;
     if (stSysStatus.osdSet1Ctrl.enACFTGPS1Show) {
         // 载机位置坐标
-        cv::putText(frame0, "ACFT", cv::Point(x, y + 120), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-        PaintDegMinSec(frame0, x, y + 150, stSysStatus.ACFTCoordinate.longitude, true);
-        PaintDegMinSec(frame0, x, y + 180, stSysStatus.ACFTCoordinate.latitude, false);
-        cv::putText(frame0, "ALT", cv::Point(x, y + 210), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        cv::putText(frame0, "ACFT", cv::Point(x, y + 140), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        PaintDegMinSec(frame0, x, y + 170, stSysStatus.ACFTCoordinate.longitude, true);
+        PaintDegMinSec(frame0, x, y + 200, stSysStatus.ACFTCoordinate.latitude, false);
+        cv::putText(frame0, "ALT", cv::Point(x, y + 230), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
         std::string acftAlt = ConvertMetersNum2Str(stSysStatus.ACFTCoordinate.altitude) + "m";
-        cv::putText(frame0, acftAlt, cv::Point(x + 40 , y + 210), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        cv::putText(frame0, acftAlt, cv::Point(x + 40 , y + 230), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
     }
 }
 
