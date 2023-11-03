@@ -554,23 +554,24 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
 }
 
 // 跟踪脱靶量向上位机反馈
-static void TrackerMissDistanceResultFeedbackToUp(cv::Point pt)
+static void TrackerMissDistanceResultFeedbackToUp(uint8_t *buf)
 {
-    uint8_t sendBuf[1024] = {0};
-    int sendBufLen = 21;
+    uint8_t sendBuf[15] = {0};
+    int sendBufLen = 15;
     sendBuf[0] = 0x55;
     sendBuf[1] = 0xAA;
     sendBuf[2] = 0xDC;
-    sendBuf[3] = 0X12;
-    sendBuf[4] = 0xF2;
-    memset(&sendBuf[5], 0, 11);
-    uint16_t azimuthPixel = pt.x;
-    uint16_t horiPixel = pt.y;
-    azimuthPixel = ntohs(azimuthPixel);
-    horiPixel = ntohs(horiPixel);
-    memcpy(&sendBuf[16], &azimuthPixel, 2);
-    memcpy(&sendBuf[18], &horiPixel, 2);
-    sendBuf[20] = viewlink_protocal_checksum(sendBuf);
+    sendBuf[3] = 0X0C;
+    sendBuf[4] = 0x66;
+    // memset(&sendBuf[5], 0, 11);
+    memcpy(sendBuf+5, buf, 9);
+    // uint16_t azimuthPixel = pt.x;
+    // uint16_t horiPixel = pt.y;
+    // azimuthPixel = ntohs(azimuthPixel);
+    // horiPixel = ntohs(horiPixel);
+    // memcpy(&sendBuf[16], &azimuthPixel, 2);
+    // memcpy(&sendBuf[18], &horiPixel, 2);
+    sendBuf[14] = viewlink_protocal_checksum(sendBuf);
     sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
 
     printf("Tracker MissDistance Result FeedbackToUp\n");
@@ -666,7 +667,7 @@ int main()
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=2048 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=main ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
-    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=4000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1920, 1080), true);
+    rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=4000000 control-rate=2 ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280,720), true);
     // rtspWriterr.open("appsrc ! nvvidconv ! video/x-raw(memory:NVMM),format=I420 ! nvv4l2h264enc bitrate=6000000 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
 
     if(!rtspWriterr.isOpened())
@@ -790,10 +791,10 @@ int main()
 				frame = viImg;
 				break;
 			case IrVisPip:  //0x04
-				// cv::resize(viImg, viImg, cv::Size(480, 360));
-				// viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
-				// frame = irImg;
-                frame = viImg;
+				cv::resize(viImg, viImg, cv::Size(480, 360));
+				viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
+				frame = irImg;
+                // frame = viImg;
 				break;
 			default:
 				frame = viImg;
@@ -846,6 +847,7 @@ int main()
         		stSysStatus.trackerInited = true;
             } else {
                 rtracker->update(frame, detRet, trackerStatus);
+                spdlog::debug("tracker status:{}", trackerStatus[4]);
                 // TrackerMissDistanceResultFeedbackToUp(pt);
             }
         } else if (stSysStatus.detOn) {
@@ -884,8 +886,8 @@ int main()
 
         spdlog::debug("before resize Elapsed {}", sw);
 
-        // cv::resize(frame, dispFrame, cv::Size(1280,720), cv::INTER_NEAREST);
-        cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
+        cv::resize(frame, dispFrame, cv::Size(1280,720), cv::INTER_NEAREST);
+        // cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
 
         if (isRecording) {
             *writer << dispFrame;
