@@ -135,6 +135,11 @@ int main(int argc, char*argv[])
 	cv::Mat dispFrame, trackFrame, trackRet, detFrame, trackRetByDet;
 	std::vector<TrackingObject> detRet;
 
+	uint8_t trackerStatus[9];
+    memset(trackerStatus, 0, 9);
+
+	cv::Mat templt;
+
     while(1)
     {
         cap >> frame;
@@ -177,6 +182,8 @@ int main(int argc, char*argv[])
 				// rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
 				// resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
 
+				templt = frame(cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize)).clone();
+
 				spdlog::debug("tracker init pt:({},{})", xMin, yMin);
 			}
 			// Update
@@ -189,8 +196,18 @@ int main(int argc, char*argv[])
 				// userPt.x = result.x+GateSize/2;
 				// userPt.y = result.y+GateSize/2;
 				// rtracker->runTracker(trackFrame);
-				rtracker->update(trackFrame, detRet, pt);
-				cv::imshow("trackRet", trackFrame);
+				rtracker->update(trackFrame, detRet, trackerStatus);
+				
+
+				cv::Mat templret;
+				matchTemplate(trackFrame,templt,templret,cv::TM_CCOEFF_NORMED);//模板匹配
+				double maxVal,minVal;
+				cv::Point minLoc,maxLoc;
+				//寻找匹配结果中的最大值和最小值以及坐标位置
+				minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
+				//回执最佳匹配结果
+				rectangle(trackFrame,cv::Rect(maxLoc.x,maxLoc.y,templt.cols,templt.rows),cv::Scalar(135,32,156),2);
+
 
 				// spdlog::debug("tracker lost:{}", lost);
 
@@ -203,6 +220,9 @@ int main(int argc, char*argv[])
 				// 	tracker->reset();
 				// 	tracker->init( cv::Rect(center.x-GateSize/2, center.y-GateSize/2, GateSize, GateSize), frame );
 				// }
+
+				spdlog::debug("tracker status:{}", trackerStatus[4]);
+				cv::imshow("trackRet", trackFrame);
 			}
 
 			spdlog::debug("tracker end");

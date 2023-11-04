@@ -32,7 +32,7 @@ public:
     void runTracker(cv::Mat &frame);
     void runTrackerNoDraw(cv::Mat &frame);
     // int update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
-    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
+    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
     void reset();
     void setFrameScale(double s);
     void setGateSize(int s);
@@ -43,7 +43,7 @@ private:
     void FSM_PROC_DTRACK(cv::Mat &frame);
     void FSM_PROC_SEARCH(cv::Mat &frame);
 
-    itracker *m_kcf;
+    itracker *m_stracker;
     idetector *m_detector;
     FrameInfo m_frameInfo;
     std::unique_ptr<BaseTracker> m_mtracker;
@@ -58,6 +58,9 @@ private:
 
     cv::Mat m_initTarget;
     int m_trackCls;
+    int lastId;
+    TrackingObject m_trackObj;
+    int m_mtrackerLostCnt;
 
 };
 
