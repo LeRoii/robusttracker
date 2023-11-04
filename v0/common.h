@@ -465,6 +465,7 @@ struct ST_SYS_STATUS
     OSD_SET2_CTRL osdSet2Ctrl;
     bool isTSeriesDevice;
     double osdFontSize;
+    int16_t trackMissDistance[2];
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),
     detOn(true), enDispMode(Vision), enIrImgMode(EN_IRIMG_MODE::WHITEHOT),

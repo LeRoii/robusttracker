@@ -415,6 +415,7 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
             stSysStatus.trackAssignPoint.y = 1080 / 2 + (int16_t)trackPointY;
             printf("\n============>>Track Point:(%d, %d)<<============\n", stSysStatus.trackAssignPoint.x, stSysStatus.trackAssignPoint.y);
             stSysStatus.trackOn = true;
+            stSysStatus.trackerInited = false;
             break;
         //to do
         case TrackCoordinatePointSettingOfUpperLeftCornerOfRectangularArea:
@@ -511,6 +512,10 @@ static void VL_ParseSerialData_T1F1B1D1(uint8_t* buf)
     stSysStatus.TAGCoordinate.longitude = (double)longitude / 10000000;
     stSysStatus.TAGCoordinate.latitude = (double)latitude / 10000000;
     stSysStatus.TAGCoordinate.altitude = (int16_t)altitude;
+
+    tempData = buf + 22;
+    ST_F1_CONFIG *f1Cfg = (ST_F1_CONFIG*)tempData;
+    printf("---------------------trackerCurrStatus = %d\n", f1Cfg->trackerCurrStatus);
 
     tempData = buf + 23;
     ST_B1_CONFIG *b1Cfg = (ST_B1_CONFIG*)tempData;

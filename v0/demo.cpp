@@ -242,31 +242,37 @@ void SerialTransUp2Down()
                 break;
             }
             retLen = 0;
-            printf("Up2Down output:\n");
-            for(int i=0; i< outLen ;i++)
-            {
-                printf("[%02X]", output[i]);
-            }
-            printf("\n");
+           
 
             EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
             printf("frame type:%d\n", frameType);
             if(frameType == HeartBeat15)
             {
                 printf("heart beat 15 from up serial\n\n");
+                 continue;
             }
             else if(frameType == HandShake)
             {
                 printf("handshake from up serial\n\n");
+                 continue;
             }
             else if(frameType == FrameS2)
             {
                 printf("TGCC Ctrl S2 from up serial\n\n");
+                 continue;
             }
             else if(frameType == HeartBeat14)
             {
                 printf("heart beat 14 from up serial\n\n");
+                 continue;
             }
+
+            printf("Up2Down output:\n");
+            for(int i=0; i< outLen ;i++)
+            {
+                printf("[%02X]", output[i]);
+            }
+            printf("\n");
 
             VL_ParseSerialData(output);
             OnceSendFromDownToUp(output);
@@ -553,8 +559,9 @@ static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
     printf("DetectorResultFeedbackToUp end\n");
 }
 
+bool tempFlag = true;
 // 跟踪脱靶量向上位机反馈
-static void TrackerMissDistanceResultFeedbackToUp(uint8_t *buf)
+static void TrackerMissDistanceResultFeedbackToDown(uint8_t *buf)
 {
     uint8_t sendBuf[15] = {0};
     int sendBufLen = 15;
@@ -571,13 +578,34 @@ static void TrackerMissDistanceResultFeedbackToUp(uint8_t *buf)
     // horiPixel = ntohs(horiPixel);
     // memcpy(&sendBuf[16], &azimuthPixel, 2); 
     // memcpy(&sendBuf[18], &horiPixel, 2);
-    sendBuf[14] = viewlink_protocal_checksum(sendBuf);
-    sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
+    
+    stSysStatus.trackMissDistance[0] = (buf[0] << 8) ^ buf[1];
+    stSysStatus.trackMissDistance[1] = (buf[2] << 8) ^ buf[3];
+    // if (stSysStatus.trackMissDistance[0] == 0 && stSysStatus.trackMissDistance[1] == 0) {
+    //     printf("Tracker MissDistance is All Zero\n");
+    //     if (tempFlag) {
+    //         sendBuf[6] = 0x01;
+    //         sendBuf[8] = 0x01;
+    //         tempFlag = false;
+    //     } else {
+    //         sendBuf[5] = 0xff;
+    //         sendBuf[6] = 0xff;
+    //         sendBuf[7] = 0xff;
+    //         sendBuf[8] = 0xff;
+    //         tempFlag = true;
+    //     }
+        
+    //     sendBuf[9] |= 0x02;
+    // }
 
+    sendBuf[14] = viewlink_protocal_checksum(sendBuf);
+    printf("trackMissDistance x:%d, y:%d\n", stSysStatus.trackMissDistance[0], stSysStatus.trackMissDistance[1]);
+    sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
     printf("Tracker MissDistance Result FeedbackTodown, %d\n", sendBufLen);
+    
     for(int i=0;i<15;++i)
     {
-        printf("%#x,", sendBuf[i]);
+        printf("[%02X] ", sendBuf[i]);
     }
     printf("\n");
 }
@@ -844,6 +872,25 @@ int main()
         // detFrame = frame.clone();
         // dispFrame = frame.clone();
 
+        bool isNeedTakePhoto = false;
+        if (stSysStatus.trackOn) {
+            if (!stSysStatus.trackerInited) {
+                spdlog::debug("start tracking, init Rect:");
+                rtracker->reset();
+                rtracker->setGateSize(stSysStatus.trackerGateSize);
+                rtracker->init(stSysStatus.trackAssignPoint, frame);
+        		stSysStatus.trackerInited = true;
+            } else {
+                rtracker->update(frame, detRet, trackerStatus);
+                spdlog::debug("tracker status:{}", trackerStatus[4]);
+                TrackerMissDistanceResultFeedbackToDown(trackerStatus);
+            }
+        } else if (stSysStatus.detOn) {
+            rtracker->runDetector(frame, detRet);
+            if(stSysStatus.detRetOutput)
+                DetectorResultFeedbackToUp(detRet);
+        }
+
         // 在界面上绘制OSD
         stSysStatus.osdSet1Ctrl.enOSDShow = true;
         if (stSysStatus.osdSet1Ctrl.enOSDShow) {
@@ -856,37 +903,21 @@ int main()
                 PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
             }
             stSysStatus.osdSet1Ctrl.enCrossShow = true;
-            if (stSysStatus.osdSet1Ctrl.enCrossShow) {
-                // 绘制中心十字
-                PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
-            }
+            // if (stSysStatus.osdSet1Ctrl.enCrossShow) {
+            //     // 绘制中心十字
+            //     PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+            // }
 
             // 绘制经纬度、海拔高度等坐标参数
             PaintCoordinate(frame);
 
             // 绘制界面上其他参数
             PaintViewPara(frame);
+
+            // 绘制脱靶量
+            PaintTrackerMissDistance(frame);
         }
 
-
-        bool isNeedTakePhoto = false;
-        if (stSysStatus.trackOn) {
-            if (!stSysStatus.trackerInited) {
-                spdlog::debug("start tracking, init Rect:");
-                rtracker->reset();
-                rtracker->setGateSize(stSysStatus.trackerGateSize);
-                rtracker->init(stSysStatus.trackAssignPoint, frame);
-        		stSysStatus.trackerInited = true;
-            } else {
-                rtracker->update(frame, detRet, trackerStatus);
-                spdlog::debug("tracker status:{}", trackerStatus[4]);
-                TrackerMissDistanceResultFeedbackToUp(trackerStatus);
-            }
-        } else if (stSysStatus.detOn) {
-            rtracker->runDetector(frame, detRet);
-            if(stSysStatus.detRetOutput)
-                DetectorResultFeedbackToUp(detRet);
-        } 
         
         if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;

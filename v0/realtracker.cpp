@@ -608,8 +608,8 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
             memcpy(trackerStatus+7, &h, 2);
         }
 
-        int16_t x = m_stracker->centerPt().x - lastPt.x;
-        int16_t y = m_stracker->centerPt().y - lastPt.y;
+        int16_t x = m_stracker->centerPt().x - 960;
+        int16_t y = m_stracker->centerPt().y - 540;
 
         printf("tracker center pt x:%d, y:%d\n", m_stracker->centerPt().x, m_stracker->centerPt().y);
         printf("tracker offset x:%d, y:%d\n", x, y);
@@ -617,7 +617,7 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
         x = ntohs(x);
         y = ntohs(y);
 
-        printf("tracker offset after ntohs x:%d, y:%d\n", x, y);
+        // printf("tracker offset after ntohs x:%d, y:%d\n", x, y);
         memcpy(trackerStatus, &x, 2);
         memcpy(trackerStatus+2, &y, 2);
 
@@ -740,7 +740,7 @@ void realtracker::runTracker(cv::Mat &frame)
     // printf("realtracker::runTracker\n");
     cv::Rect result;
     result = m_stracker->update(frame);
-    rectangle(frame, cv::Point(result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
+    // rectangle(frame, cv::Point(result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar(255,255,255), 2, 8 );
     printf("stracker rect:\n");
     std::cout<<result<<std::endl;
 
@@ -860,6 +860,7 @@ void realtracker::runDetectorNoDraw(cv::Mat &frame, std::vector<TrackingObject> 
 
 void realtracker::reset()
 {
+    m_mtrackerLostCnt = 0;
     m_stracker->reset();
 }
 
