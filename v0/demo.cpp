@@ -903,10 +903,10 @@ int main()
                 PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
             }
             stSysStatus.osdSet1Ctrl.enCrossShow = true;
-            // if (stSysStatus.osdSet1Ctrl.enCrossShow) {
-            //     // 绘制中心十字
-            //     PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
-            // }
+            if (stSysStatus.osdSet1Ctrl.enCrossShow) {
+                // 绘制中心十字
+                PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+            }
 
             // 绘制经纬度、海拔高度等坐标参数
             PaintCoordinate(frame);
