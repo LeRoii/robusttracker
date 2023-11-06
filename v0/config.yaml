@@ -3,4 +3,5 @@ track: 1
 # engine: "/space/model/visdrone-8s-2c-1011.engine"
 # videopath: "/space/data/pl/IMG_3573.MOV"
 engine: "/home/nx/model/vis-8s-2c.engine"
-videopath: "/home/nx/code/1017/robusttracker-main/v0/build/videos_recorded/2023-11-04-15-16-28.mp4"
+videopath: "/home/nx/data/IMG_3573-ok.MOV"
+# videopath: "/home/nx/data/1/2023-11-04-16-42-11.mp4"

@@ -343,6 +343,8 @@ realtracker::realtracker(std::string enginepath):m_frameInfo()
 
     m_state = EN_TRACKER_FSM::LOST;
     m_frameScale = 1.f;
+
+    m_trackerOffsetLimit = 85;
 }
 
 realtracker::~realtracker()
@@ -396,11 +398,15 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
     {
         if(m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(iniPt))
         {
-            printf("\n\ninit pt with det\n");
+            
             m_state = EN_TRACKER_FSM::DTRACK;
             m_initTarget = image(m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect());
+#if TRACKER_DEBUG
+            printf("\n\ninit pt with det\n");
             cv::imwrite("initdet.png", m_initTarget);
+#endif
             m_trackCls = m_frameInfo.m_tracks[0][minIdx].m_type;
+            lastId = m_frameInfo.m_tracks[0][minIdx].m_ID.m_val;
         }
     }
 
@@ -610,6 +616,17 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
 
         int16_t x = m_stracker->centerPt().x - 960;
         int16_t y = m_stracker->centerPt().y - 540;
+        // int16_t x = m_strackerRet.x+m_stracker->m_GateSize/2- 960;
+        // int16_t y = m_strackerRet.y+m_stracker->m_GateSize/2 - 540;
+
+        if(x > m_trackerOffsetLimit)
+            x = m_trackerOffsetLimit;
+        if(x < -m_trackerOffsetLimit)
+            x = -m_trackerOffsetLimit;
+        if(y > m_trackerOffsetLimit)
+            y = m_trackerOffsetLimit;
+        if(y < -m_trackerOffsetLimit)
+            y = -m_trackerOffsetLimit;
 
         printf("tracker center pt x:%d, y:%d\n", m_stracker->centerPt().x, m_stracker->centerPt().y);
         printf("tracker offset x:%d, y:%d\n", x, y);
@@ -630,119 +647,36 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
 
 }
 
-
-// int realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt)
-// {
-//     cv::Mat trackerFrame, detFrame;
-//     trackerFrame = detFrame = frame.clone();
-//     printf("realtracker::update\n");
-//     runDetector(detFrame, detRet);
-//     runTracker(frame);
-
-//     static int lastId = -1;
-//     static cv::Point lastPt{0,0};
-
-//     if(m_stracker->isLost())
-//     {
-//         printf("m_stracker->isLost()\n");
-//         if(lastId != -1)
-//         {
-//             for(auto &obj:m_frameInfo.m_tracks[0])
-//             {
-//                 if(obj.m_ID == lastId)
-//                 {
-//                     cv::Point2f rectPoints[4];
-//         	        obj.m_rrect.points(rectPoints);
-//                     for (int i = 0; i < 4; ++i)
-//                     {
-//                         cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
-//                     }
-
-//                     printf("\n\ntracker reset\n");
-//                     m_stracker->reset();
-//                     const cv::Point2f &pt = obj.m_rrect.center;
-//                     cv::Rect initRect = cv::Rect(pt.x - 16, pt.y - 16, 32, 32);
-//                     m_stracker->init(initRect, frame);
-//                     break;
-//                 }
-//             }
-//         }
-//         else
-//         {
-//             printf("tracker lost\n\n");
-//             return 0;
-//         }
-//     }
-//     else
-//     {
-//         int minIdx = -1;
-//         m_stracker->centerPt();
-
-//         double minDist = 10000.f;
-//         for(int i=0; i< m_frameInfo.m_tracks[0].size(); ++i)
-//         {
-//             if(lastId == m_frameInfo.m_tracks[0][i].m_ID.m_val)
-//             {
-//                 minIdx = i;
-//                 break;
-//             }
-
-//         	cv::Rect brect = m_frameInfo.m_tracks[0][i].m_rrect.boundingRect();
-//         	cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
-//         	double dist = getDistance(m_stracker->centerPt(), center);
-//         	// printf("obj pos:(%d, %d), dist:%f\n", brect.tl().x, brect.tl().y, dist);
-//         	if(dist < minDist)
-//         	{
-//         		minDist = dist;
-//         		minIdx = i;
-//         	}
-//         }
-
-//         printf("minIdx = %d, dist:%f\n", minIdx, minDist);
-//         lastId = -1;
-//         if(minIdx != -1 && minDist < 300)
-//         {
-//             if(!m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(m_stracker->centerPt()))
-//             {
-//                 printf("\n\ntracker reset\n");
-//                 m_stracker->reset();
-//                 m_stracker->init(m_frameInfo.m_tracks[0][minIdx].m_rrect.center, frame);
-//             }
-
-//         	cv::Point2f rectPoints[4];
-//         	m_frameInfo.m_tracks[0][minIdx].m_rrect.points(rectPoints);
-//         	for (int i = 0; i < 4; ++i)
-//         	{
-//         		cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 0, 255), 2);
-//         	}
-
-//             cv::circle(frame, m_stracker->centerPt(), 2, cv::Scalar(0,255,255), 2);
-
-//             lastId = m_frameInfo.m_tracks[0][minIdx].m_ID.m_val;
-//         }
-//     }
-
-//     pt.x = m_stracker->centerPt().x - lastPt.x;
-//     pt.y = m_stracker->centerPt().y - lastPt.y;
-//     lastPt = m_stracker->centerPt();
-
-//     return 1;
-
-    
-
-//     // 	contain = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect().contains(userPt);
-//     // 	spdlog::debug("contains:{}", contain);
-//     // }
-// }
-
 void realtracker::runTracker(cv::Mat &frame)
 {
     // printf("realtracker::runTracker\n");
-    cv::Rect result;
-    result = m_stracker->update(frame);
-    rectangle(frame, cv::Point(result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar(255,255,255), 2, 8 );
-    printf("stracker rect:\n");
-    std::cout<<result<<std::endl;
+    cv::Rect kcfResult, templateRet;
+    // cv::Point ScreenCenter = cv::Point(960,540);
+    kcfResult = m_stracker->update(frame);
+    rectangle(frame, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(255,255,255), 3, 8 );
+    // double kcfDist = getDistance(cv::Point(kcfResult.tl().x + m_stracker->m_GateSize/2, kcfResult.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
+    // templateRet = m_stracker->updateTP(frame);
+    // double templateDist = getDistance(cv::Point(templateRet.tl().x + m_stracker->m_GateSize/2, templateRet.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
+    // rectangle(frame, cv::Point(templateRet.x, templateRet.y ), cv::Point( templateRet.x+templateRet.width, templateRet.y+templateRet.height), cv::Scalar(255,255,255), 2, 8 );
+    // printf("stracker rect, kcfdist:%f, templatedist:%f\n", kcfDist, templateDist);
+    // std::cout<<result<<std::endl;
+
+    // if(kcfDist > templateDist)
+    // {
+    //     m_stracker->reset();
+    //     m_stracker->init(templateRet, frame);
+    //     m_strackerRet = templateRet;
+    // }
+    // else
+    // {
+    //     m_strackerRet = kcfResult;
+    //     cv::Mat temp = frame(kcfResult);
+    //     m_stracker->resetTemplate(temp);
+    // }
+
+    m_strackerRet = kcfResult;
+
+    // m_strackerRet = (kcfDist > templateDist ? templateRet : kcfResult);
 
 }
 void realtracker::runTrackerNoDraw(cv::Mat &frame)

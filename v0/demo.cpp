@@ -199,14 +199,13 @@ int main(int argc, char*argv[])
 				rtracker->update(trackFrame, detRet, trackerStatus);
 				
 
-				cv::Mat templret;
-				matchTemplate(trackFrame,templt,templret,cv::TM_CCOEFF_NORMED);//模板匹配
-				double maxVal,minVal;
-				cv::Point minLoc,maxLoc;
-				//寻找匹配结果中的最大值和最小值以及坐标位置
-				minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
-				//回执最佳匹配结果
-				rectangle(trackFrame,cv::Rect(maxLoc.x,maxLoc.y,templt.cols,templt.rows),cv::Scalar(135,32,156),2);
+				// cv::Mat templret;
+				// matchTemplate(trackFrame,templt,templret,cv::TM_CCOEFF_NORMED);
+				// double maxVal,minVal;
+				// cv::Point minLoc,maxLoc;
+				// minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
+				// //回执最佳匹配结果
+				// rectangle(trackFrame,cv::Rect(maxLoc.x,maxLoc.y,templt.cols,templt.rows),cv::Scalar(135,32,156),2);
 
 
 				// spdlog::debug("tracker lost:{}", lost);

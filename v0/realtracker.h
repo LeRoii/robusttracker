@@ -62,6 +62,9 @@ private:
     TrackingObject m_trackObj;
     int m_mtrackerLostCnt;
 
+    cv::Rect m_strackerRet;
+    int m_trackerOffsetLimit;
+
 };
 
 #endif
