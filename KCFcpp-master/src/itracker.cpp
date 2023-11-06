@@ -37,6 +37,9 @@ itracker::itracker():m_isLost(false)
     bool LAB = false;
 
     trackerPtr = new KCFTracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
+
+    m_templateSearchWindowSize = 150;
+    m_templateSearchOffset = m_templateSearchWindowSize/2;
 }
 
 itracker::~itracker()
@@ -62,6 +65,7 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
 {
     // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
     // cv::imwrite("oripatch.png", m_oriPatch);
+    printf("\n\nstracker init with pt x:%d, y:%d\n", pt.x, pt.y);
     cv::Rect roi= cv::Rect{pt.x - m_GateSize/2, pt.y - m_GateSize/2, m_GateSize, m_GateSize};
     if(roi.x < 0)
         roi.x = 0;
@@ -71,9 +75,37 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
         roi.y = 0;
     if(roi.y + roi.height > image.rows)
         roi.y = image.rows - roi.height - 1;
-    m_oriPatch = image(roi).clone();
+    m_template = m_oriPatch = image(roi).clone();
     trackerPtr->init(roi, image);
     m_centerPt = pt;
+
+}
+
+cv::Rect itracker::updateTP(cv::Mat image)
+{
+    cv::Mat templret;
+    cv::Rect rr = cv::Rect(m_centerPt.x - m_templateSearchOffset,m_centerPt.y-m_templateSearchOffset, m_templateSearchWindowSize,m_templateSearchWindowSize);
+    if(rr.x < 0)
+        rr.x = 0;
+    if(rr.x + rr.width > image.cols)
+        rr.x = image.cols - rr.width - 1;
+    if(rr.y < 0)
+        rr.y = 0;
+    if(rr.y + rr.height > image.rows)
+        rr.y = image.rows - rr.height - 1;
+    rectangle(image,rr,cv::Scalar(135,32,156),2);
+
+    matchTemplate(image(rr),m_template,templret,cv::TM_CCOEFF_NORMED);
+    double maxVal,minVal;
+    cv::Point minLoc,maxLoc;
+    minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
+    // rectangle(image,cv::Rect(maxLoc.x,maxLoc.y,m_GateSize, m_GateSize),cv::Scalar(135,32,156),2);
+
+    m_centerPt.x = m_centerPt.x - m_templateSearchOffset + maxLoc.x + m_GateSize/2;
+	m_centerPt.y = m_centerPt.y-m_templateSearchOffset + maxLoc.y + m_GateSize/2;
+
+    return cv::Rect(m_centerPt.x - m_GateSize/2,m_centerPt.y - m_GateSize/2,m_GateSize, m_GateSize);
+
 }
 
 cv::Rect itracker::update(cv::Mat image)
@@ -163,6 +195,8 @@ cv::Rect itracker::update(cv::Mat image)
         
     }
     while(lastSt != st && !m_isLost);
+
+    m_isLost = false;
     
 
     lastPeakVal = peakVal;
@@ -204,4 +238,10 @@ cv::Point itracker::centerPt()
 void itracker::setGateSize(int s)
 {
     m_GateSize = s;
+}
+
+void itracker::resetTemplate(cv::Mat &img)
+{
+    m_template = img.clone();
+    cv::imwrite("m_template.png", m_template);
 }
