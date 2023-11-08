@@ -75,7 +75,14 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
     // 绘制当前横滚角度
     std::string currStr = Convert(currRollAngle);
     cv::line(frame0, cv::Point(xStart, yStart + 10), cv::Point(xStart, yStart + 30), osdColor, fontThickness, cv::LINE_AA);
-    cv::putText(frame0, currStr, cv::Point(xStart - 10, yStart + 45), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+
+    int xCurrRollAngle = xStart - 10;
+    int leftBigScalePaintSize = 0;
+    if (currRollAngle < -15) {
+        xCurrRollAngle = xStart - 20;
+        leftBigScalePaintSize = 10;
+    }
+    cv::putText(frame0, currStr, cv::Point(xCurrRollAngle, yStart + 60), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
     
     // 计算左侧和右侧小刻度值，以及开始大刻度具体数值
     int leftSmallScale = 0;
@@ -125,7 +132,7 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
     // 绘制从第一个大刻度起的连续5段刻度
     for (int i = 0; i < 4; i++) {
         cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-        cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        cv::putText(frame0, Convert(tempPos), cv::Point(x - 10 - leftBigScalePaintSize, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
         tempPos += 5;
         x += interval;
         for (int j = 0; j < 4; j++) {
@@ -136,7 +143,7 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
 
     // 接着上面绘制一个大刻度
     cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-    cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+    cv::putText(frame0, Convert(tempPos), cv::Point(x - 10 - leftBigScalePaintSize, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
 
     // 当前刻度若为5的倍数，则再绘制两段刻度退出，最后一个刻度是大刻度 
     if (curCeil == curFloor && curCeil % 5 == 0) {
@@ -148,7 +155,7 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
             x += interval;
             tempPos += 5;
             cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-            cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+            cv::putText(frame0, Convert(tempPos), cv::Point(x - 10 - leftBigScalePaintSize, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
         }
 
         return;
@@ -164,7 +171,7 @@ void PaintRollAngleAxis(cv::Mat &frame0, double currRollAngle)
         x += interval;
         tempPos += 5;
         cv::line(frame0, cv::Point(x, yStart), cv::Point(x, yStart - 20), cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-        cv::putText(frame0, Convert(tempPos), cv::Point(x - 10, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        cv::putText(frame0, Convert(tempPos), cv::Point(x - 10 - leftBigScalePaintSize, yStart - 35), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
     }
     
     // 绘制最右侧小刻度
@@ -208,7 +215,7 @@ void PaintPitchAngleAxis(cv::Mat &frame0, double currPitchAngle)
     // 绘制当前俯仰角度
     std::string currStr = Convert(currPitchAngle);
     cv::line(frame0, cv::Point(xStart + 5, yStart), cv::Point(xStart + 20, yStart), cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-    cv::putText(frame0, currStr, cv::Point(xStart + 15, yStart + 10), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+    cv::putText(frame0, currStr, cv::Point(xStart + 25, yStart + 10), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
 
     int upSmallScale = (curCeil < 0) ? (5 - distance) : distance;
     // 绘制最上侧小刻度
@@ -357,7 +364,7 @@ static void PaintDegMinSec(cv::Mat &frame0, int x, int y, const double inputAngl
     }
     ConvertLatitudeAndLongitudeUnits(abs(inputAngle), &degrees, &minutes, &seconds);
     std::string currDeg = ConvertDegreesNum2Str(degrees, 'd') + "deg " + ConvertDegreesNum2Str(minutes, 'm') + "'" + ConvertDegreesNum2Str(seconds, 's') + "''";
-    cv::putText(frame0, currDeg, cv::Point(x + 15, y), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+    cv::putText(frame0, currDeg, cv::Point(x + 20, y), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
 }
 
 // 绘制地理坐标
@@ -376,7 +383,7 @@ void PaintCoordinate(cv::Mat &frame0)
         PaintDegMinSec(frame0, x, y + 60, stSysStatus.TAGCoordinate.latitude, false);
         cv::putText(frame0, "ALT", cv::Point(x, y + 90), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
         std::string tagAlt = ConvertMetersNum2Str(stSysStatus.TAGCoordinate.altitude) + "m";
-        cv::putText(frame0, tagAlt, cv::Point(x + 40, y + 90), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        cv::putText(frame0, tagAlt, cv::Point(x + 45, y + 90), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
     }
     stSysStatus.osdSet1Ctrl.enACFTGPS1Show = true;
     if (stSysStatus.osdSet1Ctrl.enACFTGPS1Show) {
@@ -386,7 +393,7 @@ void PaintCoordinate(cv::Mat &frame0)
         PaintDegMinSec(frame0, x, y + 200, stSysStatus.ACFTCoordinate.latitude, false);
         cv::putText(frame0, "ALT", cv::Point(x, y + 230), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
         std::string acftAlt = ConvertMetersNum2Str(stSysStatus.ACFTCoordinate.altitude) + "m";
-        cv::putText(frame0, acftAlt, cv::Point(x + 40 , y + 230), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+        cv::putText(frame0, acftAlt, cv::Point(x + 45 , y + 230), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
     }
 }
 
@@ -438,7 +445,7 @@ void PaintViewPara(cv::Mat &frame0)
         if (!stSysStatus.isTSeriesDevice) { // A系列此值为TAGGPS展示，不对EO和FOV产生影响
             stSysStatus.eoValue = (visibleLightOpticalZoomFactor * 0.1) * (stT1F1B1D1Cfg.d1Config.visibleLightElectronicMagnification + 1);
             cv::putText(frame0, "EO", cv::Point(x, y + 60), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
-            cv::putText(frame0, ConvertTimesNum2Str(stSysStatus.eoValue) + "x", cv::Point(x + 30, y + 60), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
+            cv::putText(frame0, ConvertTimesNum2Str(stSysStatus.eoValue) + "x", cv::Point(x + 40, y + 60), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);
             
             stSysStatus.fovValue = (double)stT1F1B1D1Cfg.d1Config.currSensorHoriFieldOfViewAngle * 0.01;
             cv::putText(frame0, "    FOV " + ConvertTimesNum2Str(stSysStatus.fovValue) + "deg", cv::Point(x + 75, y + 60), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, cv::Scalar(0, 255, 0), fontThickness, cv::LINE_AA);

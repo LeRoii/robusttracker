@@ -386,6 +386,12 @@ static void VL_ParseSerialData_A2C2E2(uint8_t* buf)
     stA2C2E2Cfg.a2Config.u2UnusedFrameCounter = a2Cfg->u2UnusedFrameCounter;
     stA2C2E2Cfg.a2Config.adjustmentAmount = a2Cfg->adjustmentAmount;
 
+    printf("enServoOpMode=%d enUnuseStateReturnCtrlMode=%d u2UnusedFrameCounter=%d adjustmentAmount=%d",
+        stA2C2E2Cfg.a2Config.enServoOpMode,
+        stA2C2E2Cfg.a2Config.enUnuseStateReturnCtrlMode,
+        stA2C2E2Cfg.a2Config.u2UnusedFrameCounter,
+        stA2C2E2Cfg.a2Config.adjustmentAmount);
+
     uint8_t *tempData = buf + 2; // 2个字节
     ST_C2_CONFIG *c2Cfg = (ST_C2_CONFIG*)tempData;
     stA2C2E2Cfg.c2Config.opCmd1 = c2Cfg->opCmd1;

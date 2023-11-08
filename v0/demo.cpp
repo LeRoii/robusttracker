@@ -599,15 +599,15 @@ static void TrackerMissDistanceResultFeedbackToDown(uint8_t *buf)
     // }
 
     sendBuf[14] = viewlink_protocal_checksum(sendBuf);
-    printf("trackMissDistance x:%d, y:%d\n", stSysStatus.trackMissDistance[0], stSysStatus.trackMissDistance[1]);
+    // printf("trackMissDistance x:%d, y:%d\n", stSysStatus.trackMissDistance[0], stSysStatus.trackMissDistance[1]);
     sendBufLen = serialDown.serial_send(sendBuf, sendBufLen);
-    printf("Tracker MissDistance Result FeedbackTodown, %d\n", sendBufLen);
+    // printf("Tracker MissDistance Result FeedbackTodown, %d\n", sendBufLen);
     
-    for(int i=0;i<15;++i)
-    {
-        printf("[%02X] ", sendBuf[i]);
-    }
-    printf("\n");
+    // for(int i=0;i<15;++i)
+    // {
+    //     printf("[%02X] ", sendBuf[i]);
+    // }
+    // printf("\n");
 }
 
 // 上位机拉流时首先板子向吊舱发送查询OSD设置信息，使自制OSD可以直接呈现到界面，否则刚拉的流不会有自制OSD呈现
@@ -860,6 +860,8 @@ int main()
 				break;
 		}
 
+        cv::Mat rcFrame = frame.clone();
+
         // rtspWriterr << frame;
         // continue;
 
@@ -928,7 +930,7 @@ int main()
             std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
             writer = new cv::VideoWriter();
             writer->open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
-                20,
+                15,
                 cv::Size(1280,720),
                 true);
             if (writer->isOpened()) {
@@ -953,7 +955,9 @@ int main()
         // cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
 
         if (isRecording) {
-            *writer << dispFrame;
+            cv::resize(rcFrame, rcFrame, cv::Size(1280,720), cv::INTER_NEAREST);
+            *writer << rcFrame;
+            ///*writer << dispFrame;
             // tempFrame = dispFrame.clone();
             // std::thread saveVideoThread(SaveRecordVideo);
             // saveVideoThread.detach();
