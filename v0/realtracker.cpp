@@ -577,6 +577,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
             printf("mtracker lost, minIdx == 0\n");
             if(m_mtrackerLostCnt > 3)
             {
+                printf("state to EN_TRACKER_FSM::SEARCH\n");
                 m_state = EN_TRACKER_FSM::SEARCH;
                 m_mtrackerLostCnt = 0;
                 return ;
@@ -623,6 +624,7 @@ void realtracker::fsmUpdate(cv::Mat &frame)
 
 EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus)
 {
+    printf("realtracker::update start\n");
     static cv::Point lastPt{0,0};
 
     fsmUpdate(frame);
@@ -675,11 +677,12 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
     }
     else if(m_state == EN_TRACKER_FSM::SEARCH)
     {
+        printf("realtracker::update in search\n");
         trackerStatus[4] |= 0x02;   //0000 0010
-
-        // printf("tracker offset after ntohs x:%d, y:%d\n", x, y);
-        memcpy(trackerStatus, 0, 2);
-        memcpy(trackerStatus+2, 0, 2);
+        int16_t x = 0;
+        int16_t y = 0;
+        memcpy(trackerStatus, &x, 2);
+        memcpy(trackerStatus+2, &y, 2);
     }
 
     return m_state;
