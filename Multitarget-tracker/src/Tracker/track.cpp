@@ -258,7 +258,7 @@ void CTrack::Update(const CRegion& region,
                     cv::UMat currFrame,
                     int trajLen, int maxSpeedForStatic)
 {
-	//std::cout << "CTrack::Update: dataCorrect = " << dataCorrect << ", m_predictionRect: " << m_predictionRect.center << ", " << m_predictionRect.angle << ", " << m_predictionRect.size << std::endl;
+	// std::cout << "CTrack::Update: dataCorrect = " << dataCorrect << ", m_predictionRect: " << m_predictionRect.center << ", " << m_predictionRect.angle << ", " << m_predictionRect.size << std::endl;
 
     if (dataCorrect)
     {
@@ -335,6 +335,8 @@ void CTrack::Update(const CRegion& region,
                     cv::UMat currFrame,
                     int trajLen, int maxSpeedForStatic)
 {
+    // std::cout << "CTrack::Update with enbedding dataCorrect = " << dataCorrect << ", m_predictionRect: " << m_predictionRect.center << ", " << m_predictionRect.angle << ", " << m_predictionRect.size << std::endl;
+
     m_regionEmbedding = regionEmbedding;
 
 	switch (m_filterGoal)
@@ -352,7 +354,7 @@ void CTrack::Update(const CRegion& region,
 
     if (dataCorrect)
     {
-        //std::cout << m_lastRegion.m_brect << " - " << region.m_brect << std::endl;
+        // std::cout << m_lastRegion.m_brect << " - " << region.m_brect << std::endl;
 
         m_lastRegion = region;
         m_trace.push_back(m_predictionPoint, m_lastRegion.m_rrect.center);
@@ -1212,8 +1214,8 @@ void CTrack::PointUpdate(const Point_t& pt,
 	auto p = m_predictionPoint;
     m_outOfTheFrame = Clamp(p.x, frameSize.width) || Clamp(p.y, frameSize.height) || (m_predictionRect.size.width < 1) || (m_predictionRect.size.height < 1);
 
-	//std::cout << "CTrack::PointUpdate: m_predictionRect: " << m_predictionRect.center << ", " << m_predictionRect.angle << ", " << m_predictionRect.size << std::endl;
-    //std::cout << GetID().ID2Str() << ": predictionRect = " << m_predictionRect.boundingRect() << ", outOfTheFrame = " << m_outOfTheFrame << ", predictionPoint = " << m_predictionPoint << ", newAngle = " << newAngle << std::endl;
+	// std::cout << "CTrack::PointUpdate: m_predictionRect: " << m_predictionRect.center << ", " << m_predictionRect.angle << ", " << m_predictionRect.size << std::endl;
+    // std::cout << GetID().ID2Str() << ": predictionRect = " << m_predictionRect.boundingRect() << ", outOfTheFrame = " << m_outOfTheFrame << ", predictionPoint = " << m_predictionPoint << ", newAngle = " << newAngle << std::endl;
 }
 
 bool CTrack::IsLost()

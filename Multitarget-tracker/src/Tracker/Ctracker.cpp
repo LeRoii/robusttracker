@@ -449,7 +449,7 @@ void CTracker::UpdateTrackingState(const regions_t& regions,
     for (size_t i = 0; i < m_tracks.size();i++)
     {
         cv::Rect rect = m_tracks[i]->GetLastRect().boundingRect();
-        printf("ID:[%d], type:[%d], trace size:[%d], lostcnt:[%d], vx:[%d], vy:[%d], \
+        printf("ID:[%d], type:[%d], trace size:[%d], lostcnt:[%d], vx:[%f], vy:[%f], \
         x:%d, y:%d, w:%d, h:%d\n", m_tracks[i]->GetID(),m_tracks[i]->GetCurrType(),\
         m_tracks[i]->GetTraceSize(),m_tracks[i]->SkippedFrames(),m_tracks[i]->m_kalman.GetVelocity()[0], \
         m_tracks[i]->m_kalman.GetVelocity()[1],rect.x, rect.y, rect.width, rect.height);
@@ -517,7 +517,7 @@ void CTracker::CreateDistaceMatrix(const regions_t& regions,
                     if constexpr (DIST_LOGS)
                     {
                         std::cout << "DistCenters : " << m_settings.m_distType[ind] << ", dist = " << dist << "\n";
-                        //std::cout << "dist = " << dist << ", ed = " << ellipseDist << ", reg.m_rrect.center = " << reg.m_rrect.center << ", predictedArea: center = " << predictedArea.center << ", size = " << predictedArea.size << ", angle = " << predictedArea.angle << "\n";
+                        // std::cout << "dist = " << dist << ", ed = " << ellipseDist << ", reg.m_rrect.center = " << reg.m_rrect.boundingRect() << "\n";//, predictedArea: center = " << predictedArea.center << ", size = " << predictedArea.size << ", angle = " << predictedArea.angle << "\n";
                         std::cout << "track id = " << m_tracks[i]->GetID().ID2Str() << " type = " << TypeConverter::Type2Str(m_tracks[i]->LastRegion().m_type) << " (" << m_tracks[i]->LastRegion().m_type << "), region id = " << j << ", type = " << TypeConverter::Type2Str(reg.m_type) << " (" << reg.m_type << ")" << std::endl;
                     }
 				}

@@ -688,6 +688,7 @@ Point_t TKalmanFilter::GetPointPrediction()
 ///
 Point_t TKalmanFilter::Update(Point_t pt, bool dataCorrect)
 {
+    // printf("Mtracker Kalman TKalmanFilter::Update\n");
     if (!m_initialized)
     {
         if (m_initialPoints.size() < MIN_INIT_VALS)
@@ -800,8 +801,21 @@ Point_t TKalmanFilter::Update(Point_t pt, bool dataCorrect)
     else
     {
         if (dataCorrect)
+        {
+            // printf("Mtracker Kalman datacorrect\n");
             m_lastPointResult = pt;
+        }
     }
+    // m_lastPointResult.x = (m_lastPointResult.x + pt.x)*0.5;
+    // m_lastPointResult.y = (m_lastPointResult.y + pt.y)*0.5;
+    // m_lastPointResult = pt;
+
+    if (dataCorrect)
+    {
+        // printf("Mtracker Kalman datacorrect\n");
+        m_lastPointResult = pt;
+    }
+
     return m_lastPointResult;
 }
 
