@@ -60,8 +60,8 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
         if (trackOn) {
             if (rtracker) {
                 rtracker->reset();
-                cv::rectangle(trackFrame, cv::Rect(userPt.x - 16, userPt.y - 16, 32,32),cv::Scalar( 48,48,255 ), 2, 8 );
                 rtracker->init( userPt, trackFrame );
+                cv::rectangle(trackFrame, cv::Rect(userPt.x - 16, userPt.y - 16, 32,32),cv::Scalar( 48,48,255 ), 2, 8 );
                 trackerInited = true;
                 cv::imshow("trackRet", trackFrame);
             }
@@ -148,7 +148,7 @@ int main(int argc, char*argv[])
     cv::Point pt;
 
     cv::Mat dispFrame, trackRet, detFrame, trackRetByDet;
-    std::vector<TrackingObject> detRet;
+    std::vector<bbox_t> detRet;
 
     uint8_t trackerStatus[9];
     memset(trackerStatus, 0, 9);
