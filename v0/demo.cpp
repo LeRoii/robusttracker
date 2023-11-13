@@ -16,6 +16,7 @@
 #include "spdlog/stopwatch.h"
 #include <deque>
 #include <numeric>
+#include <queue>
 
 static std::vector<std::vector<uint8_t>> CmdNeedProcess = 
 {
@@ -663,13 +664,28 @@ static void QueryDeviceModelSendToDown()
 bool isRecording = false;;
 cv::VideoWriter *writer = nullptr;
 
-cv::Mat tempFrame;
+std::mutex m_mtx;
+std::condition_variable conVar;
+std::queue<cv::Mat> m_queue;
 
+cv::Mat rcFrame;
 void SaveRecordVideo()
 {
-    printf("================================SaveRecordVideo======================\n");
-    writer->write(tempFrame);
-    tempFrame.release();
+    while (1) {
+        std::unique_lock<std::mutex> lock(m_mtx);
+        while(m_queue.empty()) {
+            conVar.wait(lock);
+        }
+        while (!m_queue.empty()) {
+            cv::Mat mat = m_queue.front().clone();
+            if (writer != nullptr) {
+                writer->write(mat);
+                m_queue.pop();
+            }
+        }
+        writer->release();
+        writer = nullptr;
+    }
 }
 
 static std::string CreateDirAndReturnCurrTimeStr(std::string folderName)
@@ -810,6 +826,12 @@ int main()
     uint8_t trackerStatus[9];
     memset(trackerStatus, 0, 9);
 
+    std::thread saveVideTh(&SaveRecordVideo);
+    saveVideTh.detach();
+
+    // 等待上次录制完成，需要进行录制标志
+    bool isNeedRecording = false;
+
     while(!quit)
     {
         // usleep(1000000);
@@ -860,7 +882,7 @@ int main()
 				break;
 		}
 
-        cv::Mat rcFrame = frame.clone();
+        rcFrame = frame.clone();
 
         // rtspWriterr << frame;
         // continue;
@@ -920,33 +942,37 @@ int main()
             PaintTrackerMissDistance(frame);
         }
 
-        
         if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             isNeedTakePhoto = true;
-        } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) {
-            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
-            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
-            std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
-            writer = new cv::VideoWriter();
-            writer->open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
+        } else if ((stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) || isNeedRecording) {
+            if (!m_queue.empty()) {
+                isNeedRecording = true;
+                printf("wait recording video\n");
+            } else {
+                isNeedRecording = false;
+                printf("start recording video\n");
+                stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
+                std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
+                std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
+                if (writer == nullptr) {
+                    writer = new cv::VideoWriter();
+                }
+                writer->open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
                 15,
                 cv::Size(1280,720),
                 true);
-            if (writer->isOpened()) {
-                printf("writer open success\n");
-                isRecording = true;
-            } else {
-                printf("writer open failed\n");
+                if (writer->isOpened()) {
+                    printf("writer open success\n");
+                    isRecording = true;
+                } else {
+                    printf("writer open failed\n");
+                }
             }
         } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_END && isRecording) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
-            printf("writer end\n");
+            printf("recording end\n");
             isRecording = false;
-            spdlog::debug("recording end");
-            writer->release();
-            delete writer;
-            writer = nullptr;
         }
 
         // spdlog::debug("before resize Elapsed {}", sw);
@@ -956,12 +982,12 @@ int main()
 
         if (isRecording) {
             cv::resize(rcFrame, rcFrame, cv::Size(1280,720), cv::INTER_NEAREST);
-            *writer << rcFrame;
-            ///*writer << dispFrame;
-            // tempFrame = dispFrame.clone();
-            // std::thread saveVideoThread(SaveRecordVideo);
-            // saveVideoThread.detach();
-        } 
+            // *writer << rcFrame;
+            // *writer << dispFrame;
+
+            m_queue.push(rcFrame);
+            conVar.notify_all();
+        }
 
         if (isNeedTakePhoto) {
             std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");

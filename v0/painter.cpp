@@ -26,7 +26,7 @@ extern ST_T1F1B1D1_CONFIG stT1F1B1D1Cfg;
 extern ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg;
 
 // OSD 字体宽度
-int fontThickness = 1;
+int fontThickness = 2;
 
 // OSD 颜色
 cv::Scalar osdColor = cv::Scalar(0, 255, 0);
