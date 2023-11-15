@@ -197,13 +197,13 @@ void OnceSendFromDownToUp(uint8_t *buf)
 void SerialTransUp2Down()
 {
     cpu_set_t mask;
-	int cpuid = 4;
+    int cpuid = 4;
 
-	CPU_ZERO(&mask);
-	CPU_SET(cpuid, &mask);
-	if (pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask) < 0){
-		std::cout << "set thread affinity failed" << std::endl;
-	}
+    CPU_ZERO(&mask);
+    CPU_SET(cpuid, &mask);
+    if (pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask) < 0){
+        std::cout << "set thread affinity failed" << std::endl;
+    }
 
 
 
@@ -287,21 +287,21 @@ void SerialTransUp2Down()
             // printf("output buf\n");
             // for(int i=0; i< outLen ;i++)
             // {
-            // 	printf("[%02X]", output[i]);
+            //     printf("[%02X]", output[i]);
             // }
             // printf("\n");
 
             //check frame header
             // if(!CheckFrameHeader(buffRcvData_servo, retLen))
             // {
-            // 	for(int i=0; i< retLen ;i++)
-            // 	{
-            // 		printf("[%02X]", buffRcvData_servo[i]);
-            // 	}
-            // 	printf("\n");
-            // 	printf("frame header error, drop data\n\n");
-            // 	memset(buffRcvData_servo,0,1024);
-            // 	continue;
+            //     for(int i=0; i< retLen ;i++)
+            //     {
+            //         printf("[%02X]", buffRcvData_servo[i]);
+            //     }
+            //     printf("\n");
+            //     printf("frame header error, drop data\n\n");
+            //     memset(buffRcvData_servo,0,1024);
+            //     continue;
             // }
 
             // EN_DATA_FRAME_TYPE frameType = GetFrameType(output, outLen);
@@ -367,13 +367,13 @@ void SerialTransUp2Down()
 void SerialTransDown2Up()
 {
     cpu_set_t mask;
-	int cpuid = 4;
+    int cpuid = 4;
 
-	CPU_ZERO(&mask);
-	CPU_SET(cpuid, &mask);
-	if (pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask) < 0){
-		std::cout << "set thread affinity failed" << std::endl;
-	}
+    CPU_ZERO(&mask);
+    CPU_SET(cpuid, &mask);
+    if (pthread_setaffinity_np(pthread_self(), sizeof(mask), &mask) < 0){
+        std::cout << "set thread affinity failed" << std::endl;
+    }
 
     uint8_t buffRcvData_servo[1024] = {0};
     uint8_t output[1024] = {0};
@@ -456,6 +456,92 @@ void SerialTransDown2Up()
         }
         }
     }
+}
+
+int sockfd;
+int clientfd;
+int clientSocketfd;
+bool tcpAcc = false;
+
+std::mutex m_mtxTcp;
+std::condition_variable conVarTcp;
+
+void TCPTransUp2Down()
+{
+    printf("TCPTransUp2Down\n");
+    // 接收上位机消息，并作为客户端向吊舱转发消息
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);                    // 1、创建接收上位机消息套接字
+    
+    struct sockaddr_in serveraddr;
+    serveraddr.sin_addr.s_addr = inet_addr("192.168.5.178");
+    serveraddr.sin_port = htons(9999);
+    serveraddr.sin_family = AF_INET;
+    bind(sockfd, (struct sockaddr *)&serveraddr,sizeof(serveraddr)); // 2、绑定套接字
+ 
+    listen(sockfd, 10);                                              // 3、监听套接字
+    char buf[1024];
+
+    while(!quit) {
+        if (!tcpAcc) {
+            printf("TCPTransUp2Down wait accept\n");
+            clientfd = accept(sockfd, NULL, NULL);                       // 4、接受客户端连接，返回值就是与客户端通信的套接字
+            int flags  = fcntl(clientfd, F_GETFL,0);
+            fcntl(clientfd, F_SETFL, flags & ~O_NONBLOCK);    //设置成阻塞模式；
+            tcpAcc = true;
+            conVarTcp.notify_all();
+            printf("TCPTransUp2Down accepted, tcpAcc true\n");
+        } else {
+            memset(buf, 0, 1024);
+            int num = recv(clientfd, buf, 1024, 0);//返回值就是接收的大小
+            if (num > 0) {
+                printf("TCPTransUp2Down size is %d \n TCPTransUp2Down buf:", num);
+                for (int i = 0; i < num; i++) {
+                    printf("[%02X]", buf[i]);
+                }
+                printf("\n");
+        
+                int ret = send(clientSocketfd, buf, num, 0);
+                printf("TCPTransUp2Down send to down, ret=%d\n", ret);
+            } else {
+                tcpAcc = false;
+            }
+        }
+    }
+    close(clientfd);
+    close(sockfd);
+    close(clientSocketfd);
+}
+
+void TCPTransDown2Up()
+{
+    printf("TCPTransDown2Up\n");
+    char buf[1024];
+
+    while(!quit) {
+        if (!tcpAcc) {
+            std::unique_lock<std::mutex> lock(m_mtxTcp);
+            printf("TCPTransDown2Up wait accept\n");
+            conVarTcp.wait(lock);
+            printf("TCPTransDown2Up accepted\n");
+        } else {
+            memset(buf, 0, 1024);
+            int num = recv(clientSocketfd, buf, 1024, 0);//返回值就是接收的大小
+            if (num > 0) {
+                printf("TCPTransDown2Up size is %d \n TCPTransDown2Up buf:", num);
+                for (int i = 0; i < num; i++) {
+                    printf("[%02X]", buf[i]);
+                }
+                printf("\n");
+
+                int ret = send(clientfd, buf, num, 0);
+                printf("TCPTransDown2Up send to up ret=%d\n", ret);
+            }
+        }
+    }
+
+    close(clientfd);
+    close(sockfd);
+    close(clientSocketfd);
 }
 
 static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
@@ -769,15 +855,42 @@ int main()
     serialThDown2Up.detach();
 //*******************************serial end*************************
 
+//*******************************tcp socket*************************
+    /* 与上位机tcp客户端连接，作为服务器端接收上位机发的tcp消息 */
+    /* 作为客户端与吊舱服务器端建立连接，首先创建客户端套接字并绑定 */
+    clientSocketfd = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in clientaddr;
+    clientaddr.sin_family = AF_INET;
+    clientaddr.sin_port = htons(9999); //目标端口和IP
+    inet_pton(AF_INET, "192.168.2.178", &clientaddr.sin_addr.s_addr);
+    bind(clientSocketfd, (struct sockaddr *)&clientaddr, sizeof(clientaddr));
+
+    // 与吊舱服务器端建立连接
+    struct sockaddr_in serveraddrPod;
+    serveraddrPod.sin_family  = AF_INET;
+    serveraddrPod.sin_port = htons(2000); // 为当前进程添加的端口号为2000
+    inet_pton(AF_INET, "192.168.2.119", &serveraddrPod.sin_addr.s_addr);
+    if(connect(clientSocketfd, (struct sockaddr *)&serveraddrPod, sizeof(serveraddrPod)) < 0) {
+        printf("TCPTrans connect error\n");
+    } else {
+        printf("TCPTrans connect ok\n");
+    }
+
+    std::thread tcpUp2DownTh = std::thread(TCPTransUp2Down);
+    tcpUp2DownTh.detach();
+    std::thread tcpDown2UpTh = std::thread(TCPTransDown2Up);
+    tcpDown2UpTh.detach();
+//*******************************tcp end*************************
+
     YAML::Node config = YAML::LoadFile("../config.yaml");
-	std::string engine = config["engine"].as<std::string>();
+    std::string engine = config["engine"].as<std::string>();
     realtracker *rtracker = new realtracker(engine);
 
     cv::Mat frame;
     int nFrames = 0;
 
     cv::Mat dispFrame, trackFrame, detFrame;
-	cv::Mat oriIrImg, viImg, irImg;
+    cv::Mat oriIrImg, viImg, irImg;
     std::vector<TrackingObject> detRet;
 
     stSysStatus.enDispMode = Vision;
@@ -857,30 +970,30 @@ int main()
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-		switch(stSysStatus.enDispMode)
-		{
-			case Vision:    //0x01
-				frame = viImg;
-				break;
-			case Ir:        //0x02
-				frame = irImg;
+        switch(stSysStatus.enDispMode)
+        {
+            case Vision:    //0x01
+                frame = viImg;
+                break;
+            case Ir:        //0x02
+                frame = irImg;
                 trackerStatus[4] |= 0x01;   //0000 0001
-				break;
-			case VisIrPip:  //0x03
-				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
-				oriIrImg.copyTo(viImg(cv::Rect(viImgW-480, 0, 480, 360)));
-				frame = viImg;
-				break;
-			case IrVisPip:  //0x04
-				cv::resize(viImg, viImg, cv::Size(480, 360));
-				viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
-				frame = irImg;
+                break;
+            case VisIrPip:  //0x03
+                cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
+                oriIrImg.copyTo(viImg(cv::Rect(viImgW-480, 0, 480, 360)));
+                frame = viImg;
+                break;
+            case IrVisPip:  //0x04
+                cv::resize(viImg, viImg, cv::Size(480, 360));
+                viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
+                frame = irImg;
                 // frame = viImg;
-				break;
-			default:
-				frame = viImg;
-				break;
-		}
+                break;
+            default:
+                frame = viImg;
+                break;
+        }
 
         rcFrame = frame.clone();
 
@@ -903,7 +1016,7 @@ int main()
                 rtracker->reset();
                 rtracker->setGateSize(stSysStatus.trackerGateSize);
                 rtracker->init(stSysStatus.trackAssignPoint, frame);
-        		stSysStatus.trackerInited = true;
+                stSysStatus.trackerInited = true;
             } else {
                 rtracker->update(frame, detRet, trackerStatus);
                 spdlog::debug("tracker status:{}", trackerStatus[4]);

@@ -230,9 +230,9 @@ static void VL_ParseSerialData_U(uint8_t* buf)
     }
 
     if (!stSysStatus.osdSet1Ctrl.enSmallFontShow) {
-        stSysStatus.osdFontSize = 0.8;
+        stSysStatus.osdFontSize = 0.9;
     } else {
-        stSysStatus.osdFontSize = 0.6;
+        stSysStatus.osdFontSize = 0.7;
     }
 
     printf("\n\nenOSDShow=%d enCrossShow=%d enAttitudeAngleShow=%d enMissDistanceShow=%d enACFTGPS1Show=%d enTimeShow=%d enEOFieldOfViewOrMultiplyShow=%d enSmallFontShow=%d\n",
@@ -606,9 +606,9 @@ static void VL_ParseSerialData_V(uint8_t* buf)
         stSysStatus.osdSet2Ctrl.enGPSIsDegMinSecShow);
     }
     if (!stSysStatus.osdSet1Ctrl.enSmallFontShow) {
-        stSysStatus.osdFontSize = 0.8;
+        stSysStatus.osdFontSize = 0.9;
     } else {
-        stSysStatus.osdFontSize = 0.6;
+        stSysStatus.osdFontSize = 0.7;
     }
 #endif
 }
