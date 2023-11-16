@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0 
 
 
 static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
@@ -196,7 +196,7 @@ cv::Rect itracker::update(cv::Mat image)
     }
     while(lastSt != st && !m_isLost);
 
-    m_isLost = false;
+    // m_isLost = false;
     
 
     lastPeakVal = peakVal;

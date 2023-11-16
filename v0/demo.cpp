@@ -148,12 +148,15 @@ int main(int argc, char*argv[])
     cv::Point pt;
 
     cv::Mat dispFrame, trackRet, detFrame, trackRetByDet;
-    std::vector<bbox_t> detRet;
+    // std::vector<bbox_t> detRet;
+    std::vector<TrackingObject> detRet;
 
     uint8_t trackerStatus[9];
     memset(trackerStatus, 0, 9);
 
     cv::Mat templt;
+
+    // rtracker->setIrFrame(true);
 
     while(1)
     {
