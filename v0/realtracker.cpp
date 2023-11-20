@@ -421,6 +421,8 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
                 roi.y = image.rows - roi.height - 1;
 
             m_initTarget = image(roi);
+
+            m_stracker->resetTemplate(m_initTarget);
 #if TRACKER_DEBUG
             printf("\n\ninit pt with det\n");
             cv::imwrite("initdet.png", m_initTarget);
@@ -429,9 +431,6 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
             lastId = m_frameInfo.m_tracks[0][minIdx].m_ID.m_val;
         }
     }
-
-    
-
 }
 
 
@@ -461,12 +460,25 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
     printf("\nFSM_PROC_STRACK\n");
     lastId = -1;
     std::vector<TrackingObject> detRet;
-    runTracker(frame);
+
     if(!m_irFrame)
     {
-        auto detimg = frame.clone();
-        runDetector(detimg, detRet);
+        // auto detimg = frame.clone();
+        // runDetector(detimg, detRet);
+
+#if TRACKER_DEBUG
+        runDetector(frame, detRet);
+#else
+        runDetectorNoDraw(frame, detRet);
+#endif
+
     }
+
+#if TRACKER_DEBUG
+    runTracker(frame);
+#else
+    runTrackerNoDraw(frame);
+#endif
     
     if(m_stracker->isLost())
     {
@@ -507,8 +519,8 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     printf("\nFSM_PROC_DTRACK\n");
     std::vector<TrackingObject> detRet;
 #if TRACKER_DEBUG
-    auto detimg = frame.clone();
-    runDetector(detimg, detRet);
+    // auto detimg = frame.clone();
+    runDetector(frame, detRet);
     runTracker(frame);
 #else
     runDetectorNoDraw(frame, detRet);
@@ -596,7 +608,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
                 cv::line(frame, rectPoints[i], rectPoints[(i+1) % 4], cv::Scalar(255, 255, 255), 2);
             }
 
-            cv::circle(frame, m_stracker->centerPt(), 2, cv::Scalar(0,255,255), 2);
+            // cv::circle(frame, m_stracker->centerPt(), 2, cv::Scalar(0,255,255), 2);
 
             lastId = m_frameInfo.m_tracks[0][minIdx].m_ID.m_val;
             m_trackObj = m_frameInfo.m_tracks[0][minIdx];
@@ -726,11 +738,15 @@ void realtracker::runTracker(cv::Mat &frame)
     cv::Rect kcfResult, templateRet;
     // cv::Point ScreenCenter = cv::Point(960,540);
     kcfResult = m_stracker->update(frame);
+
+    cv::circle(frame, m_stracker->centerPt(), 2, cv::Scalar(0,255,255), 2);
+
+    // m_stracker->updateTP(frame);
     // rectangle(frame, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(255,255,255), 3, 8 );
     // double kcfDist = getDistance(cv::Point(kcfResult.tl().x + m_stracker->m_GateSize/2, kcfResult.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
-    // templateRet = m_stracker->updateTP(frame);
+    templateRet = m_stracker->updateTP(frame);
     // double templateDist = getDistance(cv::Point(templateRet.tl().x + m_stracker->m_GateSize/2, templateRet.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
-    // rectangle(frame, cv::Point(templateRet.x, templateRet.y ), cv::Point( templateRet.x+templateRet.width, templateRet.y+templateRet.height), cv::Scalar(255,255,255), 2, 8 );
+    rectangle(frame, cv::Point(templateRet.x, templateRet.y ), cv::Point( templateRet.x+templateRet.width, templateRet.y+templateRet.height), cv::Scalar(20,100,200), 2, 8 );
     // printf("stracker rect, kcfdist:%f, templatedist:%f\n", kcfDist, templateDist);
     // std::cout<<result<<std::endl;
 
@@ -755,8 +771,9 @@ void realtracker::runTracker(cv::Mat &frame)
 void realtracker::runTrackerNoDraw(cv::Mat &frame)
 {
     // printf("realtracker::runTracker\n");
-    cv::Rect result;
-    result = m_stracker->update(frame);
+    // cv::Rect result;
+    // result = m_stracker->update(frame);
+    m_stracker->update(frame);
 
 }
 
@@ -771,11 +788,12 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
 {
     printf("realtracker::runDetector\n");
     std::vector<bbox_t> boxs;
-    cv::Mat finalDet;
+    cv::Mat finalDet, rawdet;
+    rawdet = frame.clone();
     
-    m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
+    m_frameInfo.m_frames[0].GetMatBGRWrite() = rawdet;
     // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
-    m_detector->process(frame, boxs);
+    m_detector->process(rawdet, boxs);
     for(int i=0;i<boxs.size();i++)
     {
         // printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", boxs[i].x, boxs[i].y, boxs[i].w, boxs[i].h, boxs[i].prob, boxs[i].obj_id);
@@ -791,7 +809,7 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
         }
     }
     
-    cv::imshow("rawDet", frame);
+    cv::imshow("rawDet", rawdet);
     // detret = detFrame.clone();
     m_frameInfo.CleanRegions();
 
@@ -821,7 +839,7 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
 }
 void realtracker::runDetectorNoDraw(cv::Mat &frame, std::vector<TrackingObject> &detRet)
 {
-    printf("realtracker::runDetector\n");
+    printf("realtracker::runDetectorNoDraw\n");
     std::vector<bbox_t> boxs;
     m_frameInfo.m_frames[0].GetMatBGRWrite() = frame;
     // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();

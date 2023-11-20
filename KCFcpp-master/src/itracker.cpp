@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 0 
+#define TRACKER_DEBUG 1
 
 
 static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
@@ -52,8 +52,16 @@ itracker::~itracker()
 
 // }
 
-void itracker::init(const cv::Rect &roi, cv::Mat image)
+void itracker::init(cv::Rect &roi, cv::Mat image)
 {
+    if(roi.x < 0)
+        roi.x = 0;
+    if(roi.x + roi.width > image.cols)
+        roi.x = image.cols - roi.width - 1;
+    if(roi.y < 0)
+        roi.y = 0;
+    if(roi.y + roi.height > image.rows)
+        roi.y = image.rows - roi.height - 1;
     m_oriPatch = image(roi).clone();
     // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
     // cv::imwrite("oripatch.png", m_oriPatch);
@@ -99,6 +107,7 @@ cv::Rect itracker::updateTP(cv::Mat image)
     double maxVal,minVal;
     cv::Point minLoc,maxLoc;
     minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
+    
     // rectangle(image,cv::Rect(maxLoc.x,maxLoc.y,m_GateSize, m_GateSize),cv::Scalar(135,32,156),2);
 
     m_centerPt.x = m_centerPt.x - m_templateSearchOffset + maxLoc.x + m_GateSize/2;
@@ -196,7 +205,7 @@ cv::Rect itracker::update(cv::Mat image)
     }
     while(lastSt != st && !m_isLost);
 
-    // m_isLost = false;
+    m_isLost = false;
     
 
     lastPeakVal = peakVal;
