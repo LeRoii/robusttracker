@@ -193,6 +193,7 @@ void genTrackerSettings(TrackerSettings &settings)
     float m_fps = 25;
     // settings.SetDistance(tracking::DistJaccard);
     settings.SetDistance(tracking::DistCenters);
+    // settings.SetDistance(tracking::DistFeatureCos);
     settings.m_kalmanType = tracking::KalmanLinear;
     settings.m_filterGoal = tracking::FilterCenter;
     settings.m_lostTrackType = tracking::TrackCSRT; // Use KCF tracker for collisions resolving. Used if m_filterGoal == tracking::FilterRect
@@ -217,8 +218,6 @@ void genTrackerSettings(TrackerSettings &settings)
         settings.m_maximumAllowedSkippedFrames = cvRound(10 * m_fps); // Maximum allowed skipped frames
         settings.m_maxTraceLength = cvRound(4 * m_fps);              // Maximum trace length
     }
-    // settings.SetDistance(tracking::DistJaccard);
-    settings.SetDistance(tracking::DistCenters);
 
 }
 
