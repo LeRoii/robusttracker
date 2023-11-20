@@ -9,7 +9,7 @@ public:
     itracker();
     ~itracker();
 
-    void init(const cv::Rect &roi, cv::Mat image);
+    void init(cv::Rect &roi, cv::Mat image);
     void init(const cv::Point &pt, cv::Mat image);
     cv::Rect update(cv::Mat image);
     void reset();

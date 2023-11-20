@@ -36,6 +36,7 @@ public:
     void reset();
     void setFrameScale(double s);
     void setGateSize(int s);
+    void setIrFrame(bool ir);
 
 private:
     void fsmUpdate(cv::Mat &frame);
@@ -64,6 +65,8 @@ private:
 
     cv::Rect m_strackerRet;
     int m_trackerOffsetLimit;
+
+    bool m_irFrame;
 
 };
 

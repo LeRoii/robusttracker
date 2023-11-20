@@ -19,4 +19,4 @@ visStreamAdd: "rtspsrc location=rtsp://192.168.3.119:554/stream0 latency=0 ! rtp
 # engine: "/space/model/visdrone-8s-2c-1011.engine"
 # videopath: "/space/data/pl/IMG_3576.MOV"
 engine: "/home/nx/model/vis-8s-2c.engine"
-videopath: "/home/nx/data/IMG_3575.MOV"
+videopath: "/home/nx/data/ir_far.mp4"

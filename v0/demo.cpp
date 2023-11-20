@@ -267,14 +267,14 @@ void SerialTransUp2Down()
                 printf("heart beat 14 from up serial\n\n");
                  continue;
             }
-
+#if DEBUG_SERIAL
             printf("Up2Down output:\n");
             for(int i=0; i< outLen ;i++)
             {
                 printf("[%02X]", output[i]);
             }
             printf("\n");
-
+#endif
             VL_ParseSerialData(output);
             OnceSendFromDownToUp(output);
 
@@ -757,11 +757,10 @@ std::queue<cv::Mat> m_queue;
 cv::Mat rcFrame;
 void SaveRecordVideo()
 {
-    while (1) {
+    while (!quit) {
         std::unique_lock<std::mutex> lock(m_mtx);
-        while(m_queue.empty()) {
-            conVar.wait(lock);
-        }
+        conVar.wait(lock);
+
         while (!m_queue.empty()) {
             cv::Mat mat = m_queue.front().clone();
             if (writer != nullptr) {
@@ -769,8 +768,11 @@ void SaveRecordVideo()
                 m_queue.pop();
             }
         }
-        writer->release();
-        writer = nullptr;
+
+        if (!isRecording) {
+            writer->release();
+            writer = nullptr;
+        }
     }
 }
 
@@ -881,8 +883,8 @@ int main()
     std::thread tcpDown2UpTh = std::thread(TCPTransDown2Up);
     tcpDown2UpTh.detach();
 //*******************************tcp end*************************
-
-    YAML::Node config = YAML::LoadFile("../config.yaml");
+    std::string cfgpath = "/etc/jetsoncfg/pl/config.yaml";
+    YAML::Node config = YAML::LoadFile(cfgpath);
     std::string engine = config["engine"].as<std::string>();
     realtracker *rtracker = new realtracker(engine);
 
@@ -892,6 +894,7 @@ int main()
     cv::Mat dispFrame, trackFrame, detFrame;
     cv::Mat oriIrImg, viImg, irImg;
     std::vector<TrackingObject> detRet;
+    // std::vector<bbox_t> detRet;
 
     stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
@@ -899,14 +902,15 @@ int main()
 
     int pipPosX, pipPosY;
 
-    Camera *cam = CreateCamera("../config.yaml");
+    Camera *cam = CreateCamera(cfgpath);
 
     if(cam != nullptr) {
         cam->Init();
         // QueryDeviceModelSendToDown();
         // QueryOSDSettingSendToDown();
+        printf("camera init success\n");
     } else {
-        printf("camera inti failed\n");
+        printf("camera init failed\n");
         return 0;
     }
 
@@ -917,7 +921,11 @@ int main()
         return 0;
     }
 
+#if DEBUG_SERIAL
     rtracker->runDetector(viImg, detRet);
+#else
+    rtracker->runDetectorNoDraw(viImg, detRet);
+#endif
 
     int irImgW = viImg.cols;
     int irImgH = viImg.rows;
@@ -970,30 +978,34 @@ int main()
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
         // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
 
-        switch(stSysStatus.enDispMode)
-        {
-            case Vision:    //0x01
-                frame = viImg;
-                break;
-            case Ir:        //0x02
-                frame = irImg;
+		switch(stSysStatus.enDispMode)
+		{
+			case Vision:    //0x01
+				frame = viImg;
+                rtracker->setIrFrame(false);
+				break;
+			case Ir:        //0x02
+				frame = irImg;
                 trackerStatus[4] |= 0x01;   //0000 0001
-                break;
-            case VisIrPip:  //0x03
-                cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
-                oriIrImg.copyTo(viImg(cv::Rect(viImgW-480, 0, 480, 360)));
-                frame = viImg;
-                break;
-            case IrVisPip:  //0x04
-                cv::resize(viImg, viImg, cv::Size(480, 360));
-                viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
-                frame = irImg;
+                rtracker->setIrFrame(true);
+				break;
+			case VisIrPip:  //0x03
+				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
+				oriIrImg.copyTo(viImg(cv::Rect(viImgW-480, 0, 480, 360)));
+				frame = viImg;
+                rtracker->setIrFrame(false);
+				break;
+			case IrVisPip:  //0x04
+				cv::resize(viImg, viImg, cv::Size(480, 360));
+				viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
+				frame = irImg;
                 // frame = viImg;
-                break;
-            default:
-                frame = viImg;
-                break;
-        }
+                rtracker->setIrFrame(true);
+				break;
+			default:
+				frame = viImg;
+				break;
+		}
 
         rcFrame = frame.clone();
 
@@ -1023,9 +1035,13 @@ int main()
                 TrackerMissDistanceResultFeedbackToDown(trackerStatus);
             }
         } else if (stSysStatus.detOn) {
+#if DEBUG_SERIAL
             rtracker->runDetector(frame, detRet);
-            if(stSysStatus.detRetOutput)
-                DetectorResultFeedbackToUp(detRet);
+#else
+            rtracker->runDetectorNoDraw(frame, detRet);
+#endif
+            // if(stSysStatus.detRetOutput)
+            //     DetectorResultFeedbackToUp(detRet);
         }
 
         // 在界面上绘制OSD
@@ -1059,20 +1075,20 @@ int main()
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             isNeedTakePhoto = true;
         } else if ((stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_START && !isRecording) || isNeedRecording) {
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             if (!m_queue.empty()) {
-                isNeedRecording = true;
                 printf("wait recording video\n");
+                isNeedRecording = true;
             } else {
                 isNeedRecording = false;
                 printf("start recording video\n");
-                stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
-                std::string currTimeStr = CreateDirAndReturnCurrTimeStr("videos_recorded");
-                std::string saveVideoFileName = "videos_recorded/" + currTimeStr + ".mp4";
+                std::string currTimeStr = CreateDirAndReturnCurrTimeStr("/home/nx/videos_recorded");
+                std::string saveVideoFileName = "/home/nx/videos_recorded/" + currTimeStr + ".mp4";
                 if (writer == nullptr) {
                     writer = new cv::VideoWriter();
                 }
                 writer->open(saveVideoFileName, cv::VideoWriter::fourcc('M', 'P', '4', 'V'),
-                15,
+                25,
                 cv::Size(1280,720),
                 true);
                 if (writer->isOpened()) {
@@ -1086,6 +1102,7 @@ int main()
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             printf("recording end\n");
             isRecording = false;
+            conVar.notify_all();
         }
 
         // spdlog::debug("before resize Elapsed {}", sw);
@@ -1097,7 +1114,6 @@ int main()
             cv::resize(rcFrame, rcFrame, cv::Size(1280,720), cv::INTER_NEAREST);
             // *writer << rcFrame;
             // *writer << dispFrame;
-
             m_queue.push(rcFrame);
             conVar.notify_all();
         }

@@ -1,7 +1,7 @@
 #include "realtracker.h"
 #include <arpa/inet.h>
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
 void DrawFilledRect(cv::Mat& frame, const cv::Rect& rect, cv::Scalar cl, int alpha)
 {
@@ -345,6 +345,9 @@ realtracker::realtracker(std::string enginepath):m_frameInfo()
     m_frameScale = 1.f;
 
     m_trackerOffsetLimit = 150;
+
+    m_irFrame = false;
+
 }
 
 realtracker::~realtracker()
@@ -360,7 +363,7 @@ inline double getDistance (cv::Point point1, cv::Point point2)
 
 void realtracker::init(const cv::Rect &roi, cv::Mat image)
 {
-    m_stracker->init(roi, image);
+    // m_stracker->init(roi, image);
 }
 
 void realtracker::init(const cv::Point &pt, cv::Mat image)
@@ -370,6 +373,14 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
     cv::Point iniPt = cv::Point{(int)x, (int)y};
 
     printf("realtracker::init x:%d,y:%d, ptx:%d, pty:%d\n", iniPt.x, iniPt.y, pt.x, pt.y);
+
+    m_stracker->init(iniPt, image);
+
+    if(m_irFrame)
+    {
+        m_state = EN_TRACKER_FSM::STRACK;
+        return;
+    }
 
     std::vector<TrackingObject> detRet;
 #if TRACKER_DEBUG
@@ -400,7 +411,17 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
         {
             
             m_state = EN_TRACKER_FSM::DTRACK;
-            m_initTarget = image(m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect());
+            cv::Rect roi = m_frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect();
+            if(roi.x < 0)
+                roi.x = 0;
+            if(roi.x + roi.width > image.cols)
+                roi.x = image.cols - roi.width - 1;
+            if(roi.y < 0)
+                roi.y = 0;
+            if(roi.y + roi.height > image.rows)
+                roi.y = image.rows - roi.height - 1;
+
+            m_initTarget = image(roi);
 #if TRACKER_DEBUG
             printf("\n\ninit pt with det\n");
             cv::imwrite("initdet.png", m_initTarget);
@@ -410,7 +431,7 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
         }
     }
 
-    m_stracker->init(iniPt, image);
+    
 
 }
 
@@ -438,12 +459,20 @@ int intersectionArea(cv::Rect r1, cv::Rect r2)
 
 void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
 {
-    printf("\nFSM_PROC_STRACK\n");
+    printf("\n FSM_PROC_STRACK\n");
     lastId = -1;
     std::vector<TrackingObject> detRet;
     runTracker(frame);
-    auto detimg = frame.clone();
-    runDetector(detimg, detRet);
+    if(!m_irFrame)
+    {
+        auto detimg = frame.clone();
+#if TRACKER_DEBUG
+        runDetector(detimg, detRet);
+#else
+        runDetectorNoDraw(detimg, detRet);
+#endif
+    }
+    
     if(m_stracker->isLost())
     {
         printf("STRACK lost\n\n");
@@ -451,6 +480,11 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
     }
     else
     {
+        if(m_irFrame)
+        {
+            m_state = EN_TRACKER_FSM::STRACK;
+            return;
+        }
         for(int i=0; i< m_frameInfo.m_tracks[0].size(); ++i)
         {
             cv::Rect brect = m_frameInfo.m_tracks[0][i].m_rrect.boundingRect();
@@ -625,7 +659,6 @@ void realtracker::fsmUpdate(cv::Mat &frame)
 EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus)
 {
     printf("realtracker::update start\n");
-    static cv::Point lastPt{0,0};
 
     fsmUpdate(frame);
     detRet = m_frameInfo.m_tracks[0];
@@ -673,7 +706,10 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
         memcpy(trackerStatus, &x, 2);
         memcpy(trackerStatus+2, &y, 2);
 
-        lastPt = m_stracker->centerPt();
+        if(m_state == EN_TRACKER_FSM::STRACK)
+        {
+            rectangle(frame, cv::Point(m_strackerRet.x, m_strackerRet.y ), cv::Point( m_strackerRet.x+m_strackerRet.width, m_strackerRet.y+m_strackerRet.height), cv::Scalar(255,255,255), 3, 8 );
+        }
     }
     else if(m_state == EN_TRACKER_FSM::SEARCH)
     {
@@ -695,7 +731,7 @@ void realtracker::runTracker(cv::Mat &frame)
     cv::Rect kcfResult, templateRet;
     // cv::Point ScreenCenter = cv::Point(960,540);
     kcfResult = m_stracker->update(frame);
-    rectangle(frame, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(255,255,255), 3, 8 );
+    // rectangle(frame, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(255,255,255), 3, 8 );
     // double kcfDist = getDistance(cv::Point(kcfResult.tl().x + m_stracker->m_GateSize/2, kcfResult.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
     // templateRet = m_stracker->updateTP(frame);
     // double templateDist = getDistance(cv::Point(templateRet.tl().x + m_stracker->m_GateSize/2, templateRet.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
@@ -790,7 +826,7 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
 }
 void realtracker::runDetectorNoDraw(cv::Mat &frame, std::vector<TrackingObject> &detRet)
 {
-    printf("realtracker::runDetector\n");
+    printf("realtracker::runDetectorNoDraw\n");
     std::vector<bbox_t> boxs;
     m_frameInfo.m_frames[0].GetMatBGRWrite() = frame;
     // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
@@ -849,4 +885,9 @@ void realtracker::setFrameScale(double s)
 void realtracker::setGateSize(int s)
 {
     m_stracker->setGateSize(s);
+}
+
+void realtracker::setIrFrame(bool ir)
+{
+    m_irFrame = ir;
 }

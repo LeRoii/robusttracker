@@ -52,8 +52,16 @@ itracker::~itracker()
 
 // }
 
-void itracker::init(const cv::Rect &roi, cv::Mat image)
+void itracker::init(cv::Rect &roi, cv::Mat image)
 {
+    if(roi.x < 0)
+        roi.x = 0;
+    if(roi.x + roi.width > image.cols)
+        roi.x = image.cols - roi.width - 1;
+    if(roi.y < 0)
+        roi.y = 0;
+    if(roi.y + roi.height > image.rows)
+        roi.y = image.rows - roi.height - 1;
     m_oriPatch = image(roi).clone();
     // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
     // cv::imwrite("oripatch.png", m_oriPatch);
