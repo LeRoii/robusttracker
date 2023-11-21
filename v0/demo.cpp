@@ -472,9 +472,14 @@ void TCPTransUp2Down()
     // 接收上位机消息，并作为客户端向吊舱转发消息
     sockfd = socket(AF_INET, SOCK_STREAM, 0);                    // 1、创建接收上位机消息套接字
     
+    std::string cfgpath = "/etc/jetsoncfg/pl/config.yaml";
+    YAML::Node config = YAML::LoadFile(cfgpath);
+    const std::string upToNxIp = config["upToNxIp"].as<std::string>();
+    uint16_t upToNxPort = config["upToNxPort"].as<uint16_t>();
+    printf("upToNxIp:%s upToNxPort:%d\n", upToNxIp.c_str(), upToNxPort);
     struct sockaddr_in serveraddr;
-    serveraddr.sin_addr.s_addr = inet_addr("192.168.5.178");
-    serveraddr.sin_port = htons(9999);
+    serveraddr.sin_addr.s_addr = inet_addr(upToNxIp.c_str());
+    serveraddr.sin_port = htons(upToNxPort);
     serveraddr.sin_family = AF_INET;
     bind(sockfd, (struct sockaddr *)&serveraddr,sizeof(serveraddr)); // 2、绑定套接字
  
@@ -857,25 +862,49 @@ int main()
     serialThDown2Up.detach();
 //*******************************serial end*************************
 
+    std::string cfgpath = "/etc/jetsoncfg/pl/config.yaml";
+    YAML::Node config = YAML::LoadFile(cfgpath);
+
 //*******************************tcp socket*************************
     /* 与上位机tcp客户端连接，作为服务器端接收上位机发的tcp消息 */
     /* 作为客户端与吊舱服务器端建立连接，首先创建客户端套接字并绑定 */
     clientSocketfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    const std::string downToNXIp = config["downToNXIp"].as<std::string>();
+    uint16_t downToNXPort = config["downToNXPort"].as<uint16_t>();
+    printf("downToNXIp:%s downToNXPort:%d\n", downToNXIp.c_str(), downToNXPort);
     struct sockaddr_in clientaddr;
     clientaddr.sin_family = AF_INET;
-    clientaddr.sin_port = htons(9999); //目标端口和IP
-    inet_pton(AF_INET, "192.168.2.178", &clientaddr.sin_addr.s_addr);
+    clientaddr.sin_port = htons(downToNXPort); //目标端口和IP
+    
+    inet_pton(AF_INET, downToNXIp.c_str(), &clientaddr.sin_addr.s_addr);
     bind(clientSocketfd, (struct sockaddr *)&clientaddr, sizeof(clientaddr));
 
     // 与吊舱服务器端建立连接
     struct sockaddr_in serveraddrPod;
+
+    const std::string podIp = config["podIp"].as<std::string>();
+    uint16_t podPort = config["podPort"].as<uint16_t>();
+    printf("podIp:%s podPort:%d\n", podIp.c_str(), podPort);
     serveraddrPod.sin_family  = AF_INET;
-    serveraddrPod.sin_port = htons(2000); // 为当前进程添加的端口号为2000
-    inet_pton(AF_INET, "192.168.2.119", &serveraddrPod.sin_addr.s_addr);
-    if(connect(clientSocketfd, (struct sockaddr *)&serveraddrPod, sizeof(serveraddrPod)) < 0) {
-        printf("TCPTrans connect error\n");
-    } else {
-        printf("TCPTrans connect ok\n");
+    serveraddrPod.sin_port = htons(podPort); // 为当前进程添加的端口号为2000
+    
+    inet_pton(AF_INET, podIp.c_str(), &serveraddrPod.sin_addr.s_addr);
+
+    int connectTime = 0;
+    while(1) {
+        if(connect(clientSocketfd, (struct sockaddr *)&serveraddrPod, sizeof(serveraddrPod)) < 0) {
+            printf("TCPTrans connect error\n");
+            connectTime++;
+            usleep(500000); // 500ms
+            if (connectTime > 20) {
+                printf("TCPTrans connect timeout\n");
+                break;
+            }
+        } else {
+            printf("TCPTrans connect success\n");
+            break;
+        }
     }
 
     std::thread tcpUp2DownTh = std::thread(TCPTransUp2Down);
@@ -883,8 +912,6 @@ int main()
     std::thread tcpDown2UpTh = std::thread(TCPTransDown2Up);
     tcpDown2UpTh.detach();
 //*******************************tcp end*************************
-    std::string cfgpath = "/etc/jetsoncfg/pl/config.yaml";
-    YAML::Node config = YAML::LoadFile(cfgpath);
     std::string engine = config["engine"].as<std::string>();
     realtracker *rtracker = new realtracker(engine);
 
