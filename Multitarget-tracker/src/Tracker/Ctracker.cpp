@@ -630,6 +630,30 @@ void CTracker::CreateDistaceMatrix(const regions_t& regions,
 ///
 void CTracker::CalcEmbeddins(std::vector<RegionEmbedding>& regionEmbeddings, const regions_t& regions, cv::UMat currFrame) const
 {
+    auto Clamp = [](int& v, int& size, int hi) -> int
+    {
+        int res = 0;
+        if (v < 0)
+        {
+            res = v;
+            v = 0;
+            return res;
+        }
+        else if (v + size > hi - 1)
+        {
+            res = v;
+            v = hi - 1 - size;
+            if (v < 0)
+            {
+                size += v;
+                v = 0;
+            }
+            res -= v;
+            return res;
+        }
+        return res;
+    };
+		
     if (!regions.empty())
     {
         regionEmbeddings.resize(regions.size());
@@ -650,8 +674,10 @@ void CTracker::CalcEmbeddins(std::vector<RegionEmbedding>& regionEmbeddings, con
                         ranges.push_back(255);
                         channels.push_back(i);
                     }
-
-                    std::vector<cv::UMat> regROI = { currFrame(regions[j].m_brect) };
+                    cv::Rect roi = regions[j].m_brect;
+                    Clamp(roi.x, roi.width, currFrame.cols);
+		            Clamp(roi.y, roi.height, currFrame.rows);
+                    std::vector<cv::UMat> regROI = { currFrame(roi) };
                     cv::calcHist(regROI, channels, cv::Mat(), regionEmbeddings[j].m_hist, histSize, ranges, false);
                     cv::normalize(regionEmbeddings[j].m_hist, regionEmbeddings[j].m_hist, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
             }
