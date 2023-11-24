@@ -42,12 +42,13 @@ public:
 
     std::deque<cv::Point> m_trace;
     cv::Mat m_hist;
+    float m_velo[2];
 
-    private:
+private:
     inline void calcVelo();
 
     std::deque<std::pair<int,int>> m_veloBuf;
-    float m_velo[2];
+    
 
     cv::Rect m_lastPos;
 

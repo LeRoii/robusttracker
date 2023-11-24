@@ -451,7 +451,7 @@ bool trackObj::isLost()
     }
     else
     {
-        return m_lostCnt > 15;
+        return m_lostCnt > 25;
     }
 }
 
@@ -723,13 +723,13 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
 
         cv::Point center{detRet[i].x + detRet[i].w/2, detRet[i].y + detRet[i].h/2};
         cv::line(frame, center, m_trackObj.center(), cv::Scalar(255, 105, 180), 2);
-        cv::putText(frame, std::to_string(res), center, cv::FONT_HERSHEY_COMPLEX, 0.5, cv::Scalar(0, 255, 255), 1, 8, 0);
+        cv::putText(frame, std::to_string(res), center, cv::FONT_HERSHEY_COMPLEX, 0.8, cv::Scalar(0, 255, 255), 1, 8, 0);
     }
     //calculate hist end
 
     printf("realtracker::FSM_PROC_DTRACK minIdx = %d, dist:%f\n", minIdx, minDist);
     // if((minIdx != -1 && minDist < 70) || findLast)
-    double minDistThres = m_trackObj.m_lostCnt > 3 ? 50.0 : 15.0;
+    double minDistThres = m_trackObj.m_lostCnt > 10 ? 50.0 : 15.0;
     if((minDist < minDistThres))
     {
         // cv::Rect closestRect{detRet[minIdx].x, detRet[minIdx].y, detRet[minIdx].w, detRet[minIdx].h};
@@ -757,7 +757,8 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     }
 
     cv::rectangle(frame, m_trackObj.m_rect, cv::Scalar(255, 255, 255), 2);
-    printf("m_trackObj age:%d, lostcnt:%d, trace size:%d\n", m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size());
+    printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n", 
+        m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
     // std::cout<<m_trackObj.m_rect<<std::endl;
 
     m_state = EN_TRACKER_FSM::DTRACK;
