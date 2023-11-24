@@ -776,7 +776,7 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
 {
     printf("realtracker::runDetector\n");
     std::vector<bbox_t> boxs;
-    cv::Mat finalDet;
+    
     
     m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
     // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
@@ -795,8 +795,9 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
             }
         }
     }
-    
+#if TRACKER_DEBUG
     cv::imshow("rawDet", frame);
+#endif
     // detret = detFrame.clone();
     m_frameInfo.CleanRegions();
 
@@ -819,11 +820,20 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<TrackingObject> &detRe
     detRet = m_frameInfo.m_tracks[0];
 
     DrawData(m_frameInfo.m_frames[0].GetMatBGR(), m_frameInfo.m_tracks[0], m_frameInfo.m_frameInds[0], 0);
-    // frame = frameInfo.m_frames[0].GetMatBGR().clone();
-    finalDet = m_frameInfo.m_frames[0].GetMatBGR();
+    
+    
 
+#if TRACKER_DEBUG
+    cv::Mat finalDet;
+    finalDet = m_frameInfo.m_frames[0].GetMatBGR();
     cv::imshow("finaldet", finalDet);
+#else
+    // frame = frameInfo.m_frames[0].GetMatBGR().clone();
+    frame = m_frameInfo.m_frames[0].GetMatBGR();
+#endif
 }
+
+
 void realtracker::runDetectorNoDraw(cv::Mat &frame, std::vector<TrackingObject> &detRet)
 {
     printf("realtracker::runDetectorNoDraw\n");

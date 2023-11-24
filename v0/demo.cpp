@@ -892,25 +892,25 @@ int main()
     inet_pton(AF_INET, podIp.c_str(), &serveraddrPod.sin_addr.s_addr);
 
     int connectTime = 0;
-    while(1) {
-        if(connect(clientSocketfd, (struct sockaddr *)&serveraddrPod, sizeof(serveraddrPod)) < 0) {
-            printf("TCPTrans connect error\n");
-            connectTime++;
-            usleep(500000); // 500ms
-            if (connectTime > 20) {
-                printf("TCPTrans connect timeout\n");
-                break;
-            }
-        } else {
-            printf("TCPTrans connect success\n");
-            break;
-        }
-    }
+    // while(1) {
+    //     if(connect(clientSocketfd, (struct sockaddr *)&serveraddrPod, sizeof(serveraddrPod)) < 0) {
+    //         printf("TCPTrans connect error\n");
+    //         connectTime++;
+    //         usleep(5000000); // 5s
+    //         if (connectTime > 4) {
+    //             printf("TCPTrans connect timeout\n");
+    //             break;
+    //         }
+    //     } else {
+    //         printf("TCPTrans connect success\n");
+    //         break;
+    //     }
+    // }
 
-    std::thread tcpUp2DownTh = std::thread(TCPTransUp2Down);
-    tcpUp2DownTh.detach();
-    std::thread tcpDown2UpTh = std::thread(TCPTransDown2Up);
-    tcpDown2UpTh.detach();
+    // std::thread tcpUp2DownTh = std::thread(TCPTransUp2Down);
+    // tcpUp2DownTh.detach();
+    // std::thread tcpDown2UpTh = std::thread(TCPTransDown2Up);
+    // tcpDown2UpTh.detach();
 //*******************************tcp end*************************
     std::string engine = config["engine"].as<std::string>();
     realtracker *rtracker = new realtracker(engine);
@@ -1062,11 +1062,9 @@ int main()
                 TrackerMissDistanceResultFeedbackToDown(trackerStatus);
             }
         } else if (stSysStatus.detOn) {
-#if DEBUG_SERIAL
+
             rtracker->runDetector(frame, detRet);
-#else
-            rtracker->runDetectorNoDraw(frame, detRet);
-#endif
+
             // if(stSysStatus.detRetOutput)
             //     DetectorResultFeedbackToUp(detRet);
         }
