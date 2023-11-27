@@ -28,6 +28,7 @@ public:
 
     cv::Point center();
     void update(const bbox_t &box);
+    void update(const cv::Rect &box);
     void updateWithoutDet();
     bool isLost();
 
@@ -43,6 +44,12 @@ public:
     std::deque<cv::Point> m_trace;
     cv::Mat m_hist;
     float m_velo[2];
+
+    bool m_strackerLost;
+    bool m_dtrackerLost;
+
+    cv::Rect m_strackerRet;
+    cv::Rect m_dtrackerRet;
 
 private:
     inline void calcVelo();
