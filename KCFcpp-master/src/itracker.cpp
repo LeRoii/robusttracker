@@ -146,13 +146,13 @@ cv::Rect itracker::update(cv::Mat image)
     // double ssim = cv::compareSSIM(m_oriPatch, retPatch);
 
     double sim = calculateHistogramSimilarity(m_oriPatch, retPatch);
-    if(sim > 0.99f)
+    if(sim > 0.8f)
         simFailCnt++;
     else
         simFailCnt = 0;
 
 #if TRACKER_DEBUG 
-    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f\n", sim, peakVal, peakVal - lastPeakVal);
+    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f, simFailCnt:%d\n", sim, peakVal, peakVal - lastPeakVal, simFailCnt);
 #endif
     float peakDif = peakVal - lastPeakVal;
     
@@ -171,14 +171,17 @@ cv::Rect itracker::update(cv::Mat image)
                     printf("\n\n-----------------ffffffallEdgePv = %f\n", fallEdgePv);
 #endif
                 }
-                if(simFailCnt > 3)
+                if(simFailCnt > 2)
                 {
                     st = 2;
+#if TRACKER_DEBUG
+                    printf("stracker state------->2\n");
+#endif
                 }
                 
                 break;
             case 1:
-                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > 3)
+                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > 2)
                 {
                     st = 2;
                 }
@@ -194,7 +197,7 @@ cv::Rect itracker::update(cv::Mat image)
                 printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
 #endif
                 
-                if(bottomCnt > 10 || simFailCnt > 3)
+                if(bottomCnt > 10 || simFailCnt > 2)
                 {
                     m_isLost = true;
                     fallEdgePv = 0;

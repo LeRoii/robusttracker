@@ -1,5 +1,6 @@
 #include "realtracker.h"
 #include <arpa/inet.h>
+#include "spdlog/spdlog.h"
 
 #define TRACKER_DEBUG 1
 
@@ -602,10 +603,9 @@ int intersectionArea(cv::Rect r1, cv::Rect r2)
 void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
 {
     printf("\nFSM_PROC_STRACK\n");
-    lastId = -1;
     std::vector<bbox_t> detRet;
-    runTracker(frame);
     auto detimg = frame.clone();
+    runTracker(frame);
     runDetector(detimg, detRet);
     if(m_stracker->isLost())
     {
@@ -620,15 +620,24 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
             cv::Rect strackerRect = cv::Rect(m_stracker->centerPt().x - m_stracker->m_GateSize/2, m_stracker->centerPt().y - m_stracker->m_GateSize, m_stracker->m_GateSize, m_stracker->m_GateSize);
             int area = intersectionArea(brect, strackerRect);
             // printf("STRACK dist:%d\n", area);
+
+            
             if(area > 0)
             {
+
+                double sim = calculateHistogramSimilarity(frame(brect), frame(strackerRect));
+                printf("FSM_PROC_STRACK sim:%f\n", sim);
                 m_state = EN_TRACKER_FSM::DTRACK;
                 // m_trackCls = m_frameInfo.m_tracks[0][i].m_type;
                 // lastId = m_frameInfo.m_tracks[0][i].m_ID.m_val;
 
                 m_trackObj.init(detRet[i],frame);
 
-                printf("STRACK to DTRACK, id:%d\n", lastId);
+                printf("STRACK to DTRACK\n");
+#if TRACKER_DEBUG
+                rectangle(frame, brect, cv::Scalar(0,255,255), 3, 8 );
+#endif
+
 
                 return;
 
@@ -756,7 +765,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     }
     else
     {
-        printf("mtracker lost, minIdx == 0\n");
+        spdlog::debug("mtracker find nearest failed, presque perdu");
         if(m_trackObj.isLost())
         {
             m_dtrackerLost = true;
@@ -772,41 +781,16 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     }
 
     cv::Rect finalRect;
-    // if(!m_strackerLost && !m_dtrackerLost)
-    // {
-    //     cv::Point center = cv::Point{m_strackerRet.x + m_strackerRet.width/2, m_strackerRet.y + m_strackerRet.height/2};
-    //     int ret = m_dtrackerRet.contains(center);
-    //     printf("dtracker contains stracker:%d\n", ret);
-
-    //     finalRect = m_dtrackerRet;
-    // }
-    // else if(m_strackerLost && !m_dtrackerLost)
-    // {
-    //     m_stracker->reset();
-    //     m_stracker->init(cv::Point(m_dtrackerRet.x + m_dtrackerRet.width/2, m_dtrackerRet.y + m_dtrackerRet.height/2));
-
-    //     finalRect = m_dtrackerRet;
-    // }
-    // else if(!m_strackerLost && m_dtrackerLost)
-    // {
-    //     finalRect.x = m_strackerRet.x - m_trackObj.width/2;
-    //     finalRect.y = m_strackerRet.y - m_trackObj.height/2;
-    //     finalR.width = m_trackObj.width;
-    //     finalR.height = m_trackObj.height;
-    // }
-    // else
-    // {
-    //     m_trackObj.updateWithoutDet();
-    // }
-
     if(m_strackerLost && m_dtrackerLost)
     {
+        spdlog::debug("all tracker lost");
         m_trackObj.updateWithoutDet();
     }
     else
     {
         if(m_strackerLost && !m_dtrackerLost)
         {
+            spdlog::debug("s tracker lost, reset stracker");
             m_stracker->reset();
             m_stracker->init(cv::Point(m_dtrackerRet.x + m_dtrackerRet.width/2, m_dtrackerRet.y + m_dtrackerRet.height/2), frame);
 
@@ -814,6 +798,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         }
         else if(!m_strackerLost && m_dtrackerLost)
         {
+            spdlog::debug("dtracker lost");
             finalRect.x = m_strackerRet.x - m_trackObj.m_rect.width/2;
             finalRect.y = m_strackerRet.y - m_trackObj.m_rect.height/2;
             finalRect.width = m_trackObj.m_rect.width;
@@ -821,11 +806,12 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         }
         else
         {
+            spdlog::debug("all tracker good");
             cv::Point center = cv::Point{m_strackerRet.x + m_strackerRet.width/2, m_strackerRet.y + m_strackerRet.height/2};
             int ret = m_dtrackerRet.contains(center);
 
-            m_stracker->reset();
-            m_stracker->init(cv::Point(m_dtrackerRet.x + m_dtrackerRet.width/2, m_dtrackerRet.y + m_dtrackerRet.height/2), frame);
+            // m_stracker->reset();
+            // m_stracker->init(cv::Point(m_dtrackerRet.x + m_dtrackerRet.width/2, m_dtrackerRet.y + m_dtrackerRet.height/2), frame);
 
 
             finalRect = m_dtrackerRet;
@@ -944,7 +930,11 @@ void realtracker::runTracker(cv::Mat &frame)
     cv::Rect kcfResult, templateRet;
     // cv::Point ScreenCenter = cv::Point(960,540);
     kcfResult = m_stracker->update(frame);
-    rectangle(frame, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(145,79,59), 3, 8 );
+#if TRACKER_DEBUG
+    cv::Mat strakerRet = frame.clone(); 
+    rectangle(strakerRet, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(145,79,59), 3, 8 );
+    cv::imshow("strakerRet", strakerRet);
+#endif
     // double kcfDist = getDistance(cv::Point(kcfResult.tl().x + m_stracker->m_GateSize/2, kcfResult.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
     // templateRet = m_stracker->updateTP(frame);
     // double templateDist = getDistance(cv::Point(templateRet.tl().x + m_stracker->m_GateSize/2, templateRet.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
