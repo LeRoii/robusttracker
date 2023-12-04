@@ -28,12 +28,11 @@ public:
 
     cv::Point center();
     void update(const bbox_t &box);
-    void update(const cv::Rect &box);
+    void update(cv::Mat img, const cv::Rect &box);
     void updateWithoutDet();
     bool isLost();
-
-
-
+    void predict();
+    
     cv::Rect m_rect;
     float m_prob;
     int m_cls;
@@ -50,6 +49,7 @@ public:
 
     cv::Rect m_strackerRet;
     cv::Rect m_dtrackerRet;
+    cv::Mat m_patch;
 
 private:
     inline void calcVelo();
@@ -58,6 +58,7 @@ private:
     
 
     cv::Rect m_lastPos;
+    
 
 };
 
