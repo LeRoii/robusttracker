@@ -391,6 +391,88 @@ cv::Mat CalcHist(cv::Mat img, cv::Rect box)
 
 }
 
+double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
+{
+    // printf("realtracker::calculateSSIM start\n");
+    // std::cout<<"img1 :"<<img1.size()<<std::endl;
+    // std::cout<<"img2 :"<<img2.size()<<std::endl;
+    cv::Mat img1, img2;
+
+    cv::Size targetSize(std::min(imgg1.cols, imgg2.cols), std::min(imgg1.rows, imgg2.rows));
+    cv::resize(imgg1, img1, targetSize);
+    cv::resize(imgg2, img2, targetSize);
+
+    // printf("realtracker::calculateSSIM\n");
+
+    // 分离通道
+    std::vector<cv::Mat> channels1, channels2;
+    cv::split(img1, channels1);
+    cv::split(img2, channels2);
+
+    double ssim = 0.0;
+
+    // 计算每个通道的SSIM
+    for (int i = 0; i < 3; ++i) {
+        // 转换为double类型
+        channels1[i].convertTo(channels1[i], CV_64F);
+        channels2[i].convertTo(channels2[i], CV_64F);
+
+        // 计算均值
+        double mean1 = cv::mean(channels1[i])[0];
+        double mean2 = cv::mean(channels2[i])[0];
+
+        // 计算方差
+        cv::Mat var1, var2;
+        cv::multiply(channels1[i] - mean1, channels1[i] - mean1, var1);
+        cv::multiply(channels2[i] - mean2, channels2[i] - mean2, var2);
+        double var1_scalar = cv::mean(var1)[0];
+        double var2_scalar = cv::mean(var2)[0];
+
+        // 计算协方差
+        cv::Mat covar;
+        cv::multiply(channels1[i] - mean1, channels2[i] - mean2, covar);
+        double covar_scalar = cv::mean(covar)[0];
+
+        // 计算SSIM
+        double c1 = 0.01 * 255 * 0.01 * 255;
+        double c2 = 0.03 * 255 * 0.03 * 255;
+        double channel_ssim = (2 * mean1 * mean2 + c1) * (2 * covar_scalar + c2) / ((mean1 * mean1 + mean2 * mean2 + c1) * (var1_scalar + var2_scalar + c2));
+
+        // 累加每个通道的SSIM
+        ssim += channel_ssim;
+    }
+
+    // 求取均值
+    ssim /= 3.0;
+
+    return ssim;
+}
+
+int Clamp(int& v, int& size, int hi)
+{
+    int res = 0;
+    if (v < 0)
+    {
+        res = v;
+        v = 0;
+        return res;
+    }
+    else if (v + size > hi - 1)
+    {
+        res = v;
+        v = hi - 1 - size;
+        if (v < 0)
+        {
+            size += v;
+            v = 0;
+        }
+        res -= v;
+        return res;
+    }
+    return res;
+};
+
+
 void trackObj::init(const bbox_t &box, cv::Mat frame)
 {
     m_rect = cv::Rect{box.x, box.y, box.w, box.h};
@@ -502,13 +584,15 @@ void trackObj::update(cv::Mat img, const cv::Rect &box)
     printf("velo x:%f, velo y:%f\n", m_velo[0], m_velo[1]);
     m_lastPos = m_rect;
 
-    m_patch = img(box).clone();
+    Clamp(m_rect.x, m_rect.width, img.cols);
+    Clamp(m_rect.y, m_rect.height, img.rows);
+    m_patch = img(m_rect).clone();
 #if TRACKER_DEBUG
     std::cout<<"patch size:"<<m_patch.size()<<std::endl;
-    cv::imwrite("patch.png", m_patch);
+    // cv::imwrite("patch.png", m_patch);
 #endif
 
-    m_hist = CalcHist(img, box);
+    // m_hist = CalcHist(img, box);
 }
 
 void trackObj::updateWithoutDet()
@@ -717,6 +801,32 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
     }
 }
 
+// auto Clamp = [](int& v, int& size, int hi) -> int
+// int Clamp(int& v, int& size, int hi)
+// {
+//     int res = 0;
+//     if (v < 0)
+//     {
+//         res = v;
+//         v = 0;
+//         return res;
+//     }
+//     else if (v + size > hi - 1)
+//     {
+//         res = v;
+//         v = hi - 1 - size;
+//         if (v < 0)
+//         {
+//             size += v;
+//             v = 0;
+//         }
+//         res -= v;
+//         return res;
+//     }
+//     return res;
+// };
+
+
 void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
 {
     printf("\nFSM_PROC_DTRACK\n");
@@ -743,29 +853,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     double minDist = 10000.f;
     bool findLast = false;
 
-    auto Clamp = [](int& v, int& size, int hi) -> int
-    {
-        int res = 0;
-        if (v < 0)
-        {
-            res = v;
-            v = 0;
-            return res;
-        }
-        else if (v + size > hi - 1)
-        {
-            res = v;
-            v = hi - 1 - size;
-            if (v < 0)
-            {
-                size += v;
-                v = 0;
-            }
-            res -= v;
-            return res;
-        }
-        return res;
-    };
+    
 
     // auto trackObj = m_trackObj;
     
@@ -782,8 +870,10 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     std::sort(detRet.begin(), detRet.end(), cmpDist);
 
     cv::Point center{detRet.front().x + detRet.front().w/2, detRet.front().y + detRet.front().h/2};
-    // minDist = getDistance(m_trackObj.center(), center);
-    minDist = 1.01;
+    minDist = getDistance(m_trackObj.center(), center);
+    cv::Rect closestSSIMRect;
+    double maxSSIM = 0;
+    // minDist = 0.01;
 #if TRACKER_DEBUG
     // calculate hist start
     {
@@ -791,37 +881,44 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     std::vector<cv::Mat> detHists; 
     detHists.resize(histCalCnt);
     cv::Scalar colormap[3] = {{0,255,0},{255,0,0},{0,0,255}};
+    int closestSSIMIdx = -1;
+    
+    
     for(int i=0;i<histCalCnt; ++i)
     {
-        int bins = 64;
-        std::vector<int> histSize;
-        std::vector<float> ranges;
-        std::vector<int> channels;
+        // int bins = 64;
+        // std::vector<int> histSize;
+        // std::vector<float> ranges;
+        // std::vector<int> channels;
 
-        for (int j = 0, stop = frame.channels(); j < stop; ++j)
-        {
-            histSize.push_back(bins);
-            ranges.push_back(0);
-            ranges.push_back(255);
-            channels.push_back(j);
-        }
+        // for (int j = 0, stop = frame.channels(); j < stop; ++j)
+        // {
+        //     histSize.push_back(bins);
+        //     ranges.push_back(0);
+        //     ranges.push_back(255);
+        //     channels.push_back(j);
+        // }
+
+        // printf("realtracker::calculate ssim\n");
         cv::Rect roi = cv::Rect{detRet[i].x,detRet[i].y,detRet[i].w,detRet[i].h};
         Clamp(roi.x, roi.width, frame.cols);
         Clamp(roi.y, roi.height, frame.rows);
-        std::vector<cv::Mat> regROI = { frame(roi) };
-        cv::calcHist(regROI, channels, cv::Mat(), detHists[i], histSize, ranges, false);
-        cv::normalize(detHists[i], detHists[i], 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+        // std::vector<cv::Mat> regROI = { frame(roi) };
+        // cv::calcHist(regROI, channels, cv::Mat(), detHists[i], histSize, ranges, false);
+        // cv::normalize(detHists[i], detHists[i], 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
 
-        double res = cv::compareHist(detHists[i], m_trackObj.m_hist, cv::HISTCMP_BHATTACHARYYA);
+        // double res = cv::compareHist(detHists[i], m_trackObj.m_hist, cv::HISTCMP_BHATTACHARYYA);
+        double res = calculateSSIM(frame(roi), m_trackObj.m_patch);
 
         cv::Point center{detRet[i].x + detRet[i].w/2, detRet[i].y + detRet[i].h/2};
         cv::line(debugimg, center, m_trackObj.center(), colormap[i], 2);
         cv::putText(debugimg, std::to_string(res), center, cv::FONT_HERSHEY_COMPLEX, 0.8, colormap[i], 1, 8, 0);
 
-        if(res < minDist)
+        if(res > maxSSIM)
         {
-            minDist = res;
-            m_dtrackerRet = roi;
+            maxSSIM = res;
+            closestSSIMIdx = i;
+            closestSSIMRect = roi;
         }
     }
     //calculate hist end
@@ -832,14 +929,15 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     // if((minIdx != -1 && minDist < 70) || findLast)
     double minDistThres = m_trackObj.m_lostCnt > 10 ? 50.0 : 15.0;
     cv::Rect derRect = cv::Rect{detRet.front().x, detRet.front().y, detRet.front().w, detRet.front().h};
-
+    Clamp(derRect.x, derRect.width, frame.cols);
+    Clamp(derRect.y, derRect.height, frame.rows);
 
 #if TRACKER_DEBUG
     cv::rectangle(debugimg, m_trackObj.m_rect, cv::Scalar(0, 0, 0), 2);
     cv::rectangle(debugimg, derRect, cv::Scalar(255, 0, 127), 2);
     cv::imwrite("detrect.png", frame(derRect));
-    // cv::imwrite("patch.png", m_trackObj.m_patch);
-    cv::imwrite("m_trackObj.m_rect.png", frame(m_trackObj.m_rect));
+    cv::imwrite("patch.png", m_trackObj.m_patch);
+    // cv::imwrite("m_trackObj.m_rect.png", frame(m_trackObj.m_rect));
 
     // double sim = calculateHistogramSimilarity(frame(m_trackObj.m_rect), frame(derRect));
     // printf("FSM_PROC_DTRACKdddddddddddddddddddddd sim:%f\n", sim);
@@ -856,10 +954,18 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     // std::cout<<"m_trackObj.m_patch:"<<derRect<<std::endl;
 
 #endif
-
+    // minDistThres = 0.2;
     if((minDist < minDistThres))
+    // if((minDist > minDistThres))
     {
-        // cv::Rect closestRect{detRet[minIdx].x, detRet[minIdx].y, detRet[minIdx].w, detRet[minIdx].h};
+        m_dtrackerRet = derRect;
+        int area = intersectionArea(closestSSIMRect, derRect);
+        if(area == 0 && maxSSIM > 0.8)
+        {
+            spdlog::debug("DTRACKER switch due to SSIM");
+            m_dtrackerRet = closestSSIMRect;
+        }
+        // cv::Rect lcosestRect{detRet[minIdx].x, detRet[minIdx].y, detRet[minIdx].w, detRet[minIdx].h};
         // double sim = calculateHistogramSimilarity(frame(closestRect), m_initTarget);
         // printf("sim:%f\n", sim);
         // for(auto &pt:m_trackObj.m_trace)
@@ -868,51 +974,59 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         // }
         // m_trackObj.update(detRet.front());
         
-        double sim = calculateHistogramSimilarity(m_trackObj.m_patch, frame(derRect));
+        // double sim = calculateHistogramSimilarity(m_trackObj.m_patch, frame(derRect));
         // cv::Rect finalDetRect = derRect;
-        printf("FSM_PROC_DTRACK sim:%f\n", sim);
-        if(sim > 0.9)
-        {
-            int histCalCnt = detRet.size() > 3 ? 3 : detRet.size();
-            double newSim;
-            int idx = 0;
+        // printf("FSM_PROC_DTRACK sim:%f\n", sim);
+        // if(sim > 0.9)
+        // {
+        //     int histCalCnt = detRet.size() > 3 ? 3 : detRet.size();
+        //     double newSim;
+        //     int idx = 0;
             
-            for(int i=1;i<histCalCnt;++i)
-            {
-                cv::Rect detRect = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
-                newSim = calculateHistogramSimilarity(m_trackObj.m_patch, frame(detRect));
-                if(newSim < sim)
-                {
-                    sim = newSim;
-                    // finalDetRect = detRect;
-                    idx = i;
-                }
-                printf("i=%d, sim:%f\n", i, newSim);
-            }
-        }
+        //     for(int i=1;i<histCalCnt;++i)
+        //     {
+        //         cv::Rect detRect = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
+        //         newSim = calculateHistogramSimilarity(m_trackObj.m_patch, frame(detRect));
+        //         if(newSim < sim)
+        //         {
+        //             sim = newSim;
+        //             // finalDetRect = detRect;
+        //             idx = i;
+        //         }
+        //         printf("i=%d, sim:%f\n", i, newSim);
+        //     }
+        // }
         // printf("finale idx=%d\n", idx);
 
         // m_dtrackerRet = finalDetRect;//cv::Rect{detRet.front().x, detRet.front().y, detRet.front().w, detRet.front().h};
     }
     else
     {
-        spdlog::debug("mtracker find nearest failed, presque perdu");
-        int histCalCnt = detRet.size() > 3 ? 3 : detRet.size();
-        double minSim = 1;
-        int idx = 0;
-        
-        for(int i=0;i<histCalCnt;++i)
+        spdlog::debug("mtracker find nearest failed, find by feature");
+        if(maxSSIM > 0.6)
         {
-            cv::Rect detRect = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
-            double sim = calculateHistogramSimilarity(m_trackObj.m_patch, frame(detRect));
-            if(sim < minSim)
-            {
-                m_dtrackerRet = detRect;
-                minSim = sim;
-                // idx = i;
-            }
-            printf("i=%d, sim:%f\n", i, sim);
+            m_dtrackerRet = closestSSIMRect;
         }
+        else
+        {
+            m_dtrackerLost = true;
+        }
+        // int histCalCnt = detRet.size() > 3 ? 3 : detRet.size();
+        // double minSim = 1;
+        // int idx = 0;
+        
+        // for(int i=0;i<histCalCnt;++i)
+        // {
+        //     cv::Rect detRect = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
+        //     double sim = calculateHistogramSimilarity(m_trackObj.m_patch, frame(detRect));
+        //     if(sim < minSim)
+        //     {
+        //         m_dtrackerRet = detRect;
+        //         minSim = sim;
+        //         // idx = i;
+        //     }
+        //     printf("i=%d, sim:%f\n", i, sim);
+        // }
 
         // m_dtrackerRet = finalDetRect;
 
@@ -968,9 +1082,9 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
             printf("dtracker contains stracker:%d\n", ret);
 
         }
-
-        double sim = calculateHistogramSimilarity(frame(m_trackObj.m_rect), frame(finalRect));
-        printf("FSM_PROC_DTRACK sim:%f\n", sim);
+        printf("FSM_PROC_DTRACK calculateHistogramSimilarity\n");
+        // double sim = calculateHistogramSimilarity(frame(m_trackObj.m_rect), frame(finalRect));
+        // printf("FSM_PROC_DTRACK sim:%f\n", sim);
         m_trackObj.update(frame, finalRect);
     }
 
