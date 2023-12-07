@@ -24,13 +24,15 @@ public:
     trackObj() = default;
     ~trackObj() = default;
 
-    void init(const bbox_t &box);
+    void init(const bbox_t &box, cv::Mat frame);
 
     cv::Point center();
     void update(const bbox_t &box);
+    void update(cv::Mat img, const cv::Rect &box, double s);
     void updateWithoutDet();
     bool isLost();
-
+    void predict();
+    
     cv::Rect m_rect;
     float m_prob;
     int m_cls;
@@ -39,6 +41,24 @@ public:
     int m_lostCnt;
 
     std::deque<cv::Point> m_trace;
+    cv::Mat m_hist;
+    float m_velo[2];
+
+    bool m_strackerLost;
+    bool m_dtrackerLost;
+
+    cv::Rect m_strackerRet;
+    cv::Rect m_dtrackerRet;
+    cv::Mat m_patch;
+
+private:
+    inline void calcVelo();
+
+    std::deque<std::pair<int,int>> m_veloBuf;
+    
+
+    cv::Rect m_lastPos;
+    
 
 };
 
@@ -69,6 +89,7 @@ private:
     void FSM_PROC_STRACK(cv::Mat &frame);
     void FSM_PROC_DTRACK(cv::Mat &frame);
     void FSM_PROC_SEARCH(cv::Mat &frame);
+    
 
     itracker *m_stracker;
     idetector *m_detector;
@@ -91,6 +112,10 @@ private:
 
     cv::Rect m_strackerRet;
     int m_trackerOffsetLimit;
+
+    bool m_dtrackerLost;
+    bool m_strackerLost;
+    
 
 };
 

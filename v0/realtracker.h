@@ -28,7 +28,7 @@ public:
 
     cv::Point center();
     void update(const bbox_t &box);
-    void update(cv::Mat img, const cv::Rect &box);
+    void update(cv::Mat img, const cv::Rect &box, double s);
     void updateWithoutDet();
     bool isLost();
     void predict();
@@ -112,6 +112,9 @@ private:
 
     cv::Rect m_strackerRet;
     int m_trackerOffsetLimit;
+
+    bool m_dtrackerLost;
+    bool m_strackerLost;
     
 
 };
