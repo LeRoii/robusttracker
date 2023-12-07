@@ -51,6 +51,8 @@ public:
     cv::Rect m_dtrackerRet;
     cv::Mat m_patch;
 
+    cv::Rect m_initRect;
+
 private:
     inline void calcVelo();
 
@@ -75,6 +77,7 @@ public:
     void runDetector(cv::Mat &frame);
     void runDetector(cv::Mat &frame, std::vector<bbox_t> &detRet);
     void runDetectorNoDraw(cv::Mat &frame, std::vector<bbox_t> &detRet);
+    void runDetectorOut(cv::Mat &frame, std::vector<bbox_t> &detRet);
     void runTracker(cv::Mat &frame);
     void runTrackerNoDraw(cv::Mat &frame);
     // int update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
@@ -83,6 +86,7 @@ public:
     void reset();
     void setFrameScale(double s);
     void setGateSize(int s);
+    void setIrFrame(bool ir);
 
 private:
     void fsmUpdate(cv::Mat &frame);
@@ -115,6 +119,8 @@ private:
 
     bool m_dtrackerLost;
     bool m_strackerLost;
+
+    bool m_irFrame;
     
 
 };
