@@ -2,7 +2,7 @@
 #include <arpa/inet.h>
 #include "spdlog/spdlog.h"
 
-#define TRACKER_DEBUG 0
+#define TRACKER_DEBUG 1
 
 void DrawFilledRect(cv::Mat& frame, const cv::Rect& rect, cv::Scalar cl, int alpha)
 {
@@ -544,7 +544,7 @@ void trackObj::update(const bbox_t &box)
     m_age++;
     m_lostCnt = 0;
 
-    if(m_veloBuf.size() > 1)
+    if(m_veloBuf.size() > 5)
         m_veloBuf.pop_front();
     m_veloBuf.emplace_back(std::pair<int,int>{box.x - m_lastPos.x, box.y - m_lastPos.y});
 
@@ -578,13 +578,17 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
         m_trace.pop_front();
     m_trace.emplace_back(cv::Point(box.x+box.width/2, box.y + box.height/2));
     m_age++;
+    
+    if(m_lostCnt == 0)
+    {
+        if(m_veloBuf.size() > 10)
+            m_veloBuf.pop_front();
+        m_veloBuf.emplace_back(std::pair<int,int>{box.x - m_lastPos.x, box.y - m_lastPos.y});
+
+        calcVelo();
+    }
+
     m_lostCnt = 0;
-
-    if(m_veloBuf.size() > 1)
-        m_veloBuf.pop_front();
-    m_veloBuf.emplace_back(std::pair<int,int>{box.x - m_lastPos.x, box.y - m_lastPos.y});
-
-    calcVelo();
     std::cout<<"box:"<<box<<std::endl;
     std::cout<<"m_lastPos:"<<m_lastPos<<std::endl;
     printf("inst velo x:%d, inst velo y:%d\n", m_veloBuf.back().first, m_veloBuf.back().second);
@@ -633,6 +637,14 @@ bool trackObj::isLost()
     {
         return m_lostCnt > 25;
     }
+}
+
+static cv::Mat safeCrop(cv::Mat img, cv::Rect roi)
+{
+    Clamp(roi.x, roi.width, img.cols);
+    Clamp(roi.y, roi.height, img.rows);
+
+    return img(roi);
 }
 
 
@@ -810,17 +822,30 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
         }
         for(int i=0; i< detRet.size(); ++i)
         {
+            if(detRet[i].w < 32 && detRet[i].h < 32)
+                continue;
             cv::Rect brect = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
             cv::Rect strackerRect = cv::Rect(m_stracker->centerPt().x - m_stracker->m_GateSize/2, m_stracker->centerPt().y - m_stracker->m_GateSize, m_stracker->m_GateSize, m_stracker->m_GateSize);
             int area = intersectionArea(brect, strackerRect);
             // printf("STRACK dist:%d\n", area);
 
+            //is inside
+            if(brect.contains(m_stracker->centerPt()))
+            {
+                m_state = EN_TRACKER_FSM::DTRACK;
+                m_trackObj.init(detRet[i],frame);
+                printf("STRACK to DTRACK\n");
+#if TRACKER_DEBUG
+                rectangle(frame, brect, cv::Scalar(0,255,255), 3, 8 );
+#endif
+                return;
+            }
             
             if(area > 0)
             {
-
+                
                 double sim = calculateHistogramSimilarity(frame(brect), frame(strackerRect));
-                printf("FSM_PROC_STRACK sim:%f\n", sim);
+                // printf("FSM_PROC_STRACK sim:%f\n", sim);
                 if(sim > 0.5)
                 	break;
                 m_state = EN_TRACKER_FSM::DTRACK;
@@ -833,8 +858,6 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
 #if TRACKER_DEBUG
                 rectangle(frame, brect, cv::Scalar(0,255,255), 3, 8 );
 #endif
-
-
                 return;
 
             }
@@ -879,10 +902,10 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     auto detimg = frame.clone();
     auto debugimg = frame.clone();
     runDetector(detimg, detRet);
-    runTracker(frame);
+    runTracker(frame, false);
 #else
     runDetectorNoDraw(frame, detRet);
-    runTrackerNoDraw(frame);
+    runTrackerNoDraw(frame, false);
 #endif
     m_trackObj.predict();
 
@@ -942,21 +965,84 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         double dist1 = getDistance(m_trackObj.center(), center1);
         cv::Point center2{box2.x + box2.w/2, box2.y + box2.h/2};
         double dist2 = getDistance(m_trackObj.center(), center2);
+        if(box1.obj_id != 1)
+            dist1 = 1000;
+        if(box2.obj_id != 1)
+            dist2 = 1000;
 
         return dist1 < dist2;
     };
 
     std::sort(detRet.begin(), detRet.end(), cmpDist);
-    printf("detRet size :%d\n", detRet.size());
+
+    
 
     cv::Point center{detRet.front().x + detRet.front().w/2, detRet.front().y + detRet.front().h/2};
     minDist = getDistance(m_trackObj.center(), center);
     cv::Rect closestSSIMRect;
-    int areaDif = m_trackObj.m_initRect.width - detRet.front().w + m_trackObj.m_initRect.height - detRet.front().h;
+    // int areaDif = m_trackObj.m_initRect.width - detRet.front().w + m_trackObj.m_initRect.height - detRet.front().h;
+    int areaDif = m_trackObj.m_rect.width - detRet.front().w + m_trackObj.m_rect.height - detRet.front().h;
     areaDif = abs(areaDif);
     double maxSSIM = 0;
     // minDist = 0.01;
 #if TRACKER_DEBUG
+
+    // cv::Ptr<cv::SIFT> detector = cv::SIFT::create(20);
+    // std::vector<cv::KeyPoint> keypoints1, keypoints2;
+    // cv::Rect siftRoi = cv::Rect(m_trackObj.m_rect.x-100,m_trackObj.m_rect.y-100,150,150);
+    // cv::Mat framePatch = safeCrop(frame,siftRoi);
+    // detector->detect(m_trackObj.m_patch, keypoints1);
+    // detector->detect(framePatch, keypoints2);
+
+    // // cv::drawKeypoints(m_trackObj.m_patch, keypoints1, m_trackObj.m_patch);
+    // // cv::imshow("drawsrc", m_trackObj.m_patch);
+    // // cv::drawKeypoints(frame(siftRoi), keypoints2, frame(siftRoi));
+    // // cv::imshow("drawsrc2", frame(siftRoi));
+
+    // cv::Mat dstSIFT, dstSIFT2;
+    // cv::Ptr<cv::SiftDescriptorExtractor> descriptor = cv::SiftDescriptorExtractor::create();
+    // descriptor->compute(m_trackObj.m_patch, keypoints1, dstSIFT);
+    // descriptor->compute(framePatch, keypoints2, dstSIFT2);
+
+    // //进行BFMatch暴力匹配
+    // cv::BFMatcher matcher(cv::NORM_L2);
+    // //定义匹配结果变量
+    // std::vector<cv::DMatch> matches;
+    // //实现描述符之间的匹配
+    // matcher.match(dstSIFT, dstSIFT2, matches);
+    
+    
+    // //定义向量距离的最大值与最小值
+    // double max_dist = 0;
+    // double min_dist = 1000;
+    // for (int i = 1; i < dstSIFT.rows; ++i)
+    // {
+    //     //通过循环更新距离，距离越小越匹配
+    //     double dist = matches[i].distance;
+    //     if (dist > max_dist)
+    //     max_dist = dist;
+    //     if (dist < min_dist)
+    //     min_dist = dist;
+    // }
+    // // cout << "min_dist=" << min_dist << endl;
+    // // cout << "max_dist=" << max_dist << endl;
+    // //匹配结果筛选    
+    // std::vector<cv::DMatch> goodMatches;
+    // for (int i = 0; i < matches.size(); ++i)
+    // {
+    //     double dist = matches[i].distance;
+    //     if (dist < 2 * min_dist)
+    //     goodMatches.push_back(matches[i]);
+    // }
+    // std::cout << "goodMatches:" << goodMatches.size() << std::endl;
+
+    // cv::Mat result;
+    // //匹配特征点天蓝色，单一特征点颜色随机
+    // cv::drawMatches(m_trackObj.m_patch, keypoints1, framePatch, keypoints2, goodMatches, result, 
+    //     cv::Scalar(255, 255, 0), cv::Scalar::all(-1));
+    // cv::imshow("Result", result);
+
+
     // calculate hist start
     {
     int histCalCnt = detRet.size() > 3 ? 3 : detRet.size();
@@ -1010,13 +1096,25 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     printf("realtracker::FSM_PROC_DTRACK dist:%f, areaDif:%d\n", minDist, areaDif);
     // if((minIdx != -1 && minDist < 70) || findLast)
     double minDistThres = m_trackObj.m_lostCnt > 10 ? 50.0 : 15.0;
-    if(m_dtrackerLost)
+    double areaDifThres = 25.0f;
+    
+    if(m_dtrackerLost && m_strackerLost)
+    {
+        minDistThres = std::max(70.0, minDistThres);
+        areaDifThres = 60;
+    }
+    else if(m_dtrackerLost)
+    {
         minDistThres = std::max(50.0, minDistThres);
+        areaDifThres = 50;
+    }
 
     printf("minDistThres:%f\n", minDistThres);
     cv::Rect derRect = cv::Rect{detRet.front().x, detRet.front().y, detRet.front().w, detRet.front().h};
     Clamp(derRect.x, derRect.width, frame.cols);
     Clamp(derRect.y, derRect.height, frame.rows);
+
+    std::cout<<"closest detRet:"<<derRect<<std::endl;
 
 #if TRACKER_DEBUG
     cv::rectangle(debugimg, m_trackObj.m_rect, cv::Scalar(0, 0, 0), 2);
@@ -1041,8 +1139,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
 
 #endif
 
-    cv::rectangle(frame, derRect, cv::Scalar(255, 0, 127), 2);
-    if((minDist < minDistThres) && areaDif < 25)
+    if((minDist < minDistThres) && areaDif < areaDifThres)
     {
         m_dtrackerRet = derRect;
         int area = intersectionArea(closestSSIMRect, derRect);
@@ -1057,7 +1154,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     else
     {
         spdlog::debug("mtracker find nearest failed, find by feature");
-        if(maxSSIM > 0.8)
+        if(maxSSIM > 0.6)
         {
             m_dtrackerRet = closestSSIMRect;
             m_dtrackerLost = false;
@@ -1079,13 +1176,18 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     {
         if(m_strackerLost && !m_dtrackerLost)
         {
-            spdlog::debug("s tracker lost, reset stracker");
-            m_stracker->reset();
-            m_stracker->init(cv::Point(m_dtrackerRet.x + m_dtrackerRet.width/2, m_dtrackerRet.y + m_dtrackerRet.height/2), frame);
-
+            static int strackerWait = 0;
+            spdlog::debug("s tracker lost");
             finalRect = m_dtrackerRet;
-
             color = cv::Scalar(0,255,255);
+            m_stracker->reset();
+            if(strackerWait++ > 5)
+            {
+                spdlog::debug("s tracker restart");
+                m_stracker->init(cv::Point(m_dtrackerRet.x + m_dtrackerRet.width/2, m_dtrackerRet.y + m_dtrackerRet.height/2), frame);
+                strackerWait = 0;
+            }
+            
         }
         else if(!m_strackerLost && m_dtrackerLost)
         {
@@ -1132,6 +1234,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     cv::imshow("debugImg", debugimg);
 #endif
     
+    cv::rectangle(frame, derRect, cv::Scalar(255, 0, 127), 2);
     cv::rectangle(frame, m_trackObj.m_rect, color, 2);
     printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n", 
         m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
@@ -1232,12 +1335,12 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<bbox_t> &detRet, 
 
 }
 
-void realtracker::runTracker(cv::Mat &frame)
+void realtracker::runTracker(cv::Mat &frame, bool alone)
 {
     // printf("realtracker::runTracker\n");
     cv::Rect kcfResult, templateRet;
     // cv::Point ScreenCenter = cv::Point(960,540);
-    kcfResult = m_stracker->update(frame);
+    kcfResult = m_stracker->update(frame, alone);
 #if TRACKER_DEBUG
     cv::Mat strakerRet = frame.clone(); 
     rectangle(strakerRet, cv::Point(kcfResult.x, kcfResult.y ), cv::Point( kcfResult.x+kcfResult.width, kcfResult.y+kcfResult.height), cv::Scalar(145,79,59), 3, 8 );
@@ -1268,11 +1371,11 @@ void realtracker::runTracker(cv::Mat &frame)
     // m_strackerRet = (kcfDist > templateDist ? templateRet : kcfResult);
 
 }
-void realtracker::runTrackerNoDraw(cv::Mat &frame)
+void realtracker::runTrackerNoDraw(cv::Mat &frame, bool alone)
 {
     // printf("realtracker::runTracker\n");
     // cv::Rect result;
-    m_strackerRet = m_stracker->update(frame);
+    m_strackerRet = m_stracker->update(frame, alone);
 
 }
 

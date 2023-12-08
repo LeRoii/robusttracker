@@ -78,8 +78,8 @@ public:
     void runDetector(cv::Mat &frame, std::vector<bbox_t> &detRet);
     void runDetectorNoDraw(cv::Mat &frame, std::vector<bbox_t> &detRet);
     void runDetectorOut(cv::Mat &frame, std::vector<bbox_t> &detRet);
-    void runTracker(cv::Mat &frame);
-    void runTrackerNoDraw(cv::Mat &frame);
+    void runTracker(cv::Mat &frame, bool alone = true);
+    void runTrackerNoDraw(cv::Mat &frame, bool alone = true);
     // int update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
     EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
     EN_TRACKER_FSM update(cv::Mat &frame, std::vector<bbox_t> &detRet, uint8_t *trackerStatus);
