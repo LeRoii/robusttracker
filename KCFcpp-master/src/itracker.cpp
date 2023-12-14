@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
 static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
 {
@@ -205,8 +205,11 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     // cv::cvtColor(retPatch, retPatch, cv::COLOR_BGR2GRAY);
 
     // double ssim = cv::compareSSIM(m_oriPatch, retPatch);
+
+#if TRACKER_DEBUG
     cv::imshow("ori", m_oriPatch);
     cv::imshow("retppr", retPatch);
+#endif
 
     static double lastSim = 0.0f;
     double sim = calculateSSIM(m_oriPatch, retPatch);

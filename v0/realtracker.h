@@ -121,7 +121,10 @@ private:
     bool m_strackerLost;
 
     bool m_irFrame;
-    
+
+    double minDistThres;
+    double areaDifThres;
+    int m_dtrackerLostCnt;
 
 };
 
