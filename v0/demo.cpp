@@ -920,8 +920,8 @@ int main()
 
     cv::Mat dispFrame, trackFrame, detFrame;
     cv::Mat oriIrImg, viImg, irImg;
-    std::vector<TrackingObject> detRet;
-    // std::vector<bbox_t> detRet;
+    // std::vector<TrackingObject> detRet;
+    std::vector<bbox_t> detRet;
 
     stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
@@ -1063,7 +1063,7 @@ int main()
             }
         } else if (stSysStatus.detOn) {
 
-            rtracker->runDetector(frame, detRet);
+            rtracker->runDetectorOut(frame, detRet);
 
             // if(stSysStatus.detRetOutput)
             //     DetectorResultFeedbackToUp(detRet);
