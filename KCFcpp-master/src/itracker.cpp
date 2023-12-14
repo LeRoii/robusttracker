@@ -3,8 +3,64 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
+static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
+{
+    // printf("realtracker::calculateSSIM start\n");
+    // std::cout<<"img1 :"<<img1.size()<<std::endl;
+    // std::cout<<"img2 :"<<img2.size()<<std::endl;
+    cv::Mat img1, img2;
+
+    cv::Size targetSize(std::min(imgg1.cols, imgg2.cols), std::min(imgg1.rows, imgg2.rows));
+    cv::resize(imgg1, img1, targetSize);
+    cv::resize(imgg2, img2, targetSize);
+
+    // printf("realtracker::calculateSSIM\n");
+
+    // 分离通道
+    std::vector<cv::Mat> channels1, channels2;
+    cv::split(img1, channels1);
+    cv::split(img2, channels2);
+
+    double ssim = 0.0;
+
+    // 计算每个通道的SSIM
+    for (int i = 0; i < 3; ++i) {
+        // 转换为double类型
+        channels1[i].convertTo(channels1[i], CV_64F);
+        channels2[i].convertTo(channels2[i], CV_64F);
+
+        // 计算均值
+        double mean1 = cv::mean(channels1[i])[0];
+        double mean2 = cv::mean(channels2[i])[0];
+
+        // 计算方差
+        cv::Mat var1, var2;
+        cv::multiply(channels1[i] - mean1, channels1[i] - mean1, var1);
+        cv::multiply(channels2[i] - mean2, channels2[i] - mean2, var2);
+        double var1_scalar = cv::mean(var1)[0];
+        double var2_scalar = cv::mean(var2)[0];
+
+        // 计算协方差
+        cv::Mat covar;
+        cv::multiply(channels1[i] - mean1, channels2[i] - mean2, covar);
+        double covar_scalar = cv::mean(covar)[0];
+
+        // 计算SSIM
+        double c1 = 0.01 * 255 * 0.01 * 255;
+        double c2 = 0.03 * 255 * 0.03 * 255;
+        double channel_ssim = (2 * mean1 * mean2 + c1) * (2 * covar_scalar + c2) / ((mean1 * mean1 + mean2 * mean2 + c1) * (var1_scalar + var2_scalar + c2));
+
+        // 累加每个通道的SSIM
+        ssim += channel_ssim;
+    }
+
+    // 求取均值
+    ssim /= 3.0;
+
+    return ssim;
+}
 
 static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
     cv::Mat hsvImage1, hsvImage2;
@@ -28,7 +84,7 @@ static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat&
     return similarity;
 }
 
-itracker::itracker():m_isLost(false)
+itracker::itracker():m_isLost(true),m_init(false)
 {
     bool HOG = false;
     bool FIXEDWINDOW = false;
@@ -87,6 +143,9 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
     trackerPtr->init(roi, image);
     m_centerPt = pt;
 
+    m_init = true;
+    m_isLost = false;
+
 }
 
 cv::Rect itracker::updateTP(cv::Mat image)
@@ -107,6 +166,7 @@ cv::Rect itracker::updateTP(cv::Mat image)
     double maxVal,minVal;
     cv::Point minLoc,maxLoc;
     minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
+    
     // rectangle(image,cv::Rect(maxLoc.x,maxLoc.y,m_GateSize, m_GateSize),cv::Scalar(135,32,156),2);
 
     m_centerPt.x = m_centerPt.x - m_templateSearchOffset + maxLoc.x + m_GateSize/2;
@@ -116,8 +176,10 @@ cv::Rect itracker::updateTP(cv::Mat image)
 
 }
 
-cv::Rect itracker::update(cv::Mat image)
+cv::Rect itracker::update(cv::Mat image, bool alone)
 {
+    if(!m_init)
+        return cv::Rect();
     static int st = 0;
     static float fallEdgePv = 0;
     static int bottomCnt = 0;
@@ -144,14 +206,35 @@ cv::Rect itracker::update(cv::Mat image)
 
     // double ssim = cv::compareSSIM(m_oriPatch, retPatch);
 
-    double sim = calculateHistogramSimilarity(m_oriPatch, retPatch);
-    if(sim > 0.99f)
+#if TRACKER_DEBUG
+    cv::imshow("ori", m_oriPatch);
+    cv::imshow("retppr", retPatch);
+#endif
+
+    static double lastSim = 0.0f;
+    double sim = calculateSSIM(m_oriPatch, retPatch);
+    int simFailedCntThres = alone ? 5 : 3;
+
+    double simDif = sim - lastSim;
+
+    lastSim = sim;
+    if(sim > 0.75)
+        m_oriPatch = retPatch.clone();
+    // if(sim > 0.8f)
+    if(sim < 0.3f)
         simFailCnt++;
     else
         simFailCnt = 0;
+    
+    if(!alone && sim < 0.5f)
+        m_isLost = true;
+
+    
+
 
 #if TRACKER_DEBUG 
-    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f\n", sim, peakVal, peakVal - lastPeakVal);
+    printf("simDif:%f\n", simDif);
+    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f, simFailCnt:%d\n", sim, peakVal, peakVal - lastPeakVal, simFailCnt);
 #endif
     float peakDif = peakVal - lastPeakVal;
     
@@ -170,10 +253,17 @@ cv::Rect itracker::update(cv::Mat image)
                     printf("\n\n-----------------ffffffallEdgePv = %f\n", fallEdgePv);
 #endif
                 }
+                if(simFailCnt > simFailedCntThres)
+                {
+                    st = 2;
+#if TRACKER_DEBUG
+                    printf("stracker state------->2\n");
+#endif
+                }
                 
                 break;
             case 1:
-                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > 3)
+                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > 2)
                 {
                     st = 2;
                 }
@@ -189,7 +279,7 @@ cv::Rect itracker::update(cv::Mat image)
                 printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
 #endif
                 
-                if(bottomCnt > 10 || simFailCnt > 3)
+                if(bottomCnt > 10 || simFailCnt > 2)
                 {
                     m_isLost = true;
                     fallEdgePv = 0;
@@ -204,7 +294,7 @@ cv::Rect itracker::update(cv::Mat image)
     }
     while(lastSt != st && !m_isLost);
 
-    m_isLost = false;
+    // m_isLost = false;
     
 
     lastPeakVal = peakVal;
@@ -231,6 +321,9 @@ void itracker::reset()
     m_isLost = false;
 
     trackerPtr = new KCFTracker(HOG, FIXEDWINDOW, MULTISCALE, LAB);
+
+    m_init = false;
+    m_isLost = true;
 }
 
 bool itracker::isLost()
