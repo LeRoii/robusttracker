@@ -1,7 +1,29 @@
 detection: 0
 track: 1
-engine: "/space/model/visdrone-8s-2c-1011.engine"
-videopath: "/space/data/pl/IMG_3572.MOV"
+# engine: "/space/model/visdrone-8s-2c-1011.engine"
+# videopath: "/space/data/pl/IMG_3572.MOV"
+# engine: "/home/nx/model/vis-8s-2c.engine"
+# videopath: "/home/nx/data/IMG_3573-ok.MOV"
+# videopath: "/home/nx/data/day_truck_track_lost.mp4"
+
+# videopath: "/home/nx/record_video/track_lost_video/click_blue_truck_track_lost.mp4"
+# videopath: "/home/nx/record_video/track_lost_video/click_car_away_from_cross_opposite_road_track_lost.mp4"
+# videopath: "/home/nx/record_video/ori/IMG_3567.MOV" #1
+# videopath: "/home/nx/record_video/ori/IMG_3569.MOV" #0
+# videopath: "/home/nx/record_video/ori/IMG_3570.MOV" #0
+# videopath: "/home/nx/record_video/ori/IMG_3571.MOV" #2
+# videopath: "/home/nx/record_video/ori/IMG_3572.MOV" #1
+# videopath: "/home/nx/record_video/ori/IMG_3573.MOV" #0
+# videopath: "/home/nx/record_video/ori/IMG_3574.MOV" #1
+# videopath: "/home/nx/record_video/ori/IMG_3575.MOV" #0
+# videopath: "/home/nx/record_video/ori/IMG_3576.MOV" #0
+# videopath: "/home/nx/record_video/ori/IMG_3577.MOV" #1
+# videopath: "/home/nx/record_video/ori/IMG_3578.MOV" #2
+# videopath: "/home/nx/record_video/ori/IMG_3579.MOV" #2
+# videopath: "/home/nx/record_video/ori/IMG_3580.MOV" #1
+# videopath: "/home/nx/record_video/ori/IMG_3581.MOV" #2
+# videopath: "/home/nx/record_video/ori/IMG_3582.MOV" #2
+videopath: "/home/nx/record_video/ori/IMG_3583.MOV" #2
 # engine: "/home/nx/model/vis-8s-2c.engine"
 # videopath: "/home/nx/data/IMG_3573-ok.MOV"
 # videopath: "/home/nx/data/day_truck_track_lost.mp4"
