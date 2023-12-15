@@ -577,16 +577,18 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 {
     printf("trackObj::update:\n");
     m_rect = box;
+    int sizeDif = abs(m_rect.width - m_lastPos.width) + abs(m_rect.height - m_lastPos.height);
 #if TRACKER_DEBUG
     std::cout<<"curPos:"<<m_rect<<std::endl;
     std::cout<<"m_lastPos:"<<m_lastPos<<std::endl;
+    printf("w diff:%d, h diff:%d\n", abs(m_rect.width - m_lastPos.width), abs(m_rect.height - m_lastPos.height));
 #endif
     if(m_trace.size() > 100)
         m_trace.pop_front();
     m_trace.emplace_back(cv::Point(box.x+box.width/2, box.y + box.height/2));
     m_age++;
     
-    if(m_lostCnt == 0)
+    if(m_lostCnt == 0 && sizeDif < 8)
     {
         if(m_veloBuf.size() > 10)
             m_veloBuf.pop_front();
@@ -986,10 +988,6 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
 
     std::sort(detRet.begin(), detRet.end(), cmpDist);
 
-    spdlog::debug("after sort");
-
-    
-
     cv::Point center{detRet.front().x + detRet.front().w/2, detRet.front().y + detRet.front().h/2};
     minDist = getDistance(m_trackObj.center(), center);
     cv::Rect closestSSIMRect;
@@ -1136,7 +1134,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         m_dtrackerLostCnt = 0;
     }
 
-    printf("minDistThres:%f\n", minDistThres);
+    spdlog::debug("minDistThres:{}, areaDifThres:{}", minDistThres, areaDifThres);
     cv::Rect derRect = cv::Rect{detRet.front().x, detRet.front().y, detRet.front().w, detRet.front().h};
     Clamp(derRect.x, derRect.width, frame.cols);
     Clamp(derRect.y, derRect.height, frame.rows);
@@ -1301,7 +1299,6 @@ void realtracker::fsmUpdate(cv::Mat &frame)
         default:
             break;
     }
-
     
 }
 
@@ -1321,10 +1318,10 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<bbox_t> &detRet, 
     memset(trackerStatus, 0, 9);
 
     // if(m_state == EN_TRACKER_FSM::STRACK || m_state == EN_TRACKER_FSM::DTRACK)
-    if(m_state == EN_TRACKER_FSM::DTRACK)
+    if(m_state == EN_TRACKER_FSM::DTRACK || m_state == EN_TRACKER_FSM::STRACK)
     {
         trackerStatus[4] |= 0x02;   //0000 0010
-        if(lastId != -1)
+        if(m_state == EN_TRACKER_FSM::DTRACK)
         {
             trackerStatus[4] |= 0x04;   //0000 0100
             cv::Rect bbox = m_trackObj.m_rect;
