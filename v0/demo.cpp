@@ -959,13 +959,13 @@ int main()
     int nFrames = 0;
 
     cv::Mat dispFrame, trackFrame, detFrame;
-    cv::Mat oriIrImg, viImg, irImg, pre_viImg, pre_oriIrImg, pre_frame;
+    cv::Mat oriIrImg, viImg, irImg;
     // std::vector<TrackingObject> detRet;
     std::vector<bbox_t> detRet;
 
     stSysStatus.enDispMode = Vision;
     stSysStatus.trackOn = false;
-    stSysStatus.detOn = false;
+    stSysStatus.detOn = true;
 
     int pipPosX, pipPosY;
 
@@ -985,8 +985,6 @@ int main()
     }
 
     cam->GetFrame(viImg, oriIrImg);
-    pre_viImg = viImg.clone();
-    pre_oriIrImg = oriIrImg.clone();
     if (oriIrImg.empty() || viImg.empty())
     {
         printf("input img empty, quit\n");
@@ -1054,7 +1052,6 @@ int main()
         {
         case Vision: // 0x01
             frame = viImg;
-            pre_frame = pre_viImg;
             rtracker->setIrFrame(false);
             break;
         case Ir: // 0x02
@@ -1081,18 +1078,6 @@ int main()
         }
 
         rcFrame = frame.clone();
-
-        // rtspWriterr << frame;
-        // continue;
-
-        // frame = cv::imread("/home/nx/data/123.PNG");
-        // stSysStatus.detOn = true;
-
-        // spdlog::debug("after cap img Elapsed {}", sw);
-
-        // trackFrame = frame.clone();
-        // detFrame = frame.clone();
-        // dispFrame = frame.clone();
 
         bool isNeedTakePhoto = false;
         if (stSysStatus.trackOn)
@@ -1127,26 +1112,26 @@ int main()
             if (stSysStatus.osdSet1Ctrl.enAttitudeAngleShow)
             {
                 // 绘制吊舱当前方位角度滚轴
-                PaintRollAngleAxis(pre_frame, stSysStatus.rollAngle);
+                PaintRollAngleAxis(frame, stSysStatus.rollAngle);
 
                 // 绘制吊舱当前俯仰角度滚轴
-                PaintPitchAngleAxis(pre_frame, stSysStatus.pitchAngle);
+                PaintPitchAngleAxis(frame, stSysStatus.pitchAngle);
             }
             stSysStatus.osdSet1Ctrl.enCrossShow = true;
             if (stSysStatus.osdSet1Ctrl.enCrossShow)
             {
                 // 绘制中心十字`
-                PaintCrossPattern(pre_frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
+                PaintCrossPattern(frame, stSysStatus.rollAngle, stSysStatus.pitchAngle);
             }
 
             // 绘制经纬度、海拔高度等坐标参数
-            PaintCoordinate(pre_frame);
+            PaintCoordinate(frame);
 
             // 绘制界面上其他参数
-            PaintViewPara(pre_frame);
+            PaintViewPara(frame);
 
             // 绘制脱靶量
-            PaintTrackerMissDistance(pre_frame);
+            PaintTrackerMissDistance(frame);
         }
 
         if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::SCREEN_SHOOT)
@@ -1197,7 +1182,7 @@ int main()
 
         // spdlog::debug("before resize Elapsed {}", sw);
 
-        cv::resize(pre_frame, dispFrame, cv::Size(1280, 720), cv::INTER_NEAREST);
+        cv::resize(frame, dispFrame, cv::Size(1280, 720), cv::INTER_NEAREST);
         // cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
 
         if (isRecording)
@@ -1221,7 +1206,6 @@ int main()
         // spdlog::debug("before rtsp Elapsed {}", sw);
         // encoder->process(dispFrame);
         rtspWriterr << dispFrame;
-        pre_viImg = frame;
 
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
