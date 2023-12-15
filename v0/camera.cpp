@@ -1,7 +1,7 @@
 #include "camera.h"
-#include "sdireader.h"
 #include "common.h"
 #include <yaml-cpp/yaml.h>
+#include "v4l2_capture.hpp"
 
 Camera* CreateCamera(const std::string cfgPath)
 {
@@ -10,13 +10,13 @@ Camera* CreateCamera(const std::string cfgPath)
 
     Camera *camPtr = nullptr;
 
-    if(camType == "sdi")
-    {
-        camPtr = new CameraSDI(cfgPath);
-    }
-    else if(camType == "eth")
+    if(camType == "eth")
     {
         camPtr = new CameraEth(cfgPath);
+    }
+    else if(camType == "mipi")
+    {
+        camPtr = new CameraMIPI(cfgPath);
     }
 
     return camPtr;
@@ -43,33 +43,6 @@ enCamType Camera::GetType()
 //*******************************Camera end*************************
 
 
-//*******************************CameraSDI Start*************************
-
-
-CameraSDI::CameraSDI(const std::string cfgPath):Camera(cfgPath, enCamType::SDI)
-{
-
-}
-
-int CameraSDI::Init()
-{
-    Sdireader_Init("/etc/jetsoncfg/NXConfig.ini");
-
-    return RET_OK;
-}
-
-void CameraSDI::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
-{
-    Sdireader_GetFrame(frame0, frame1);
-}
-
-CameraSDI::~CameraSDI()
-{
-
-}
-
-
-//*******************************CameraSDI end*************************
 
 
 
@@ -113,3 +86,70 @@ void CameraEth::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
 }
 
 //*******************************CameraEth end*************************
+
+
+//*******************************CameraMIPI Start*************************
+CameraMIPI::CameraMIPI(const std::string cfgPath):Camera(cfgPath, enCamType::MIPI)
+{
+    capture = new V4L2Capture("/dev/video11", 1920, 1080, 30);
+    
+}
+
+CameraMIPI::~CameraMIPI()
+{
+    delete capture;
+
+}
+
+int CameraMIPI::Init()
+{
+    if (!capture->openDevice())
+    {
+        return RET_ERR;
+    }
+    if (!capture->queryCapability())
+    {
+        return RET_ERR;
+    }
+
+    if (!capture->initDevice())
+    {
+        return RET_ERR;
+    }
+    if (!capture->mmap_v4l2_buffer())
+    {
+        return RET_ERR;
+    }
+    if (!capture->startCapture())
+    {
+        return RET_ERR;
+    }
+     return RET_OK;
+
+
+    // YAML::Node config = YAML::LoadFile(m_cfg);
+    // std::string mipiVisStreamAdd = config["mipiVisStreamAdd"].as<std::string>();
+
+
+    // m_viCap.open(mipiVisStreamAdd, cv::CAP_GSTREAMER);
+    // // m_irCap.open(irStreamAdd, cv::CAP_GSTREAMER);
+
+    // // if(!m_viCap.isOpened() || !m_irCap.isOpened())
+    // if(!m_viCap.isOpened())
+    // {
+    //     printf("mipi camera open failed\n");
+    //     return RET_ERR;
+    // }
+
+    // return RET_OK;
+}
+
+void CameraMIPI::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
+{
+    frame0 = capture->writeVideoFrame();
+    // m_irCap >> frame1;
+    // m_viCap >> frame0;
+    frame1 = frame0;
+}
+
+//*******************************CameraMIPI end*************************

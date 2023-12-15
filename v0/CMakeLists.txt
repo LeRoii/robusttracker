@@ -8,21 +8,22 @@ set(CMAKE_CXX_STANDARD 11)
 # set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_BUILD_TYPE Debug)
 
-set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
-enable_language(CUDA)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install)
+set(CMAKE_SKIP_INSTALL_RPATH FALSE)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-# include and link dirs of cuda and tensorrt, you need adapt them if yours are different
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   message("embed_platform on")
-  include_directories(/usr/local/cuda/targets/aarch64-linux/include)
-  link_directories(/usr/local/cuda/targets/aarch64-linux/lib)
 else()
   message("embed_platform off")
-  # cuda
-  include_directories(/usr/local/cuda/include)
-  link_directories(/usr/local/cuda/lib64)
 
 endif()
+
+include_directories( ${CMAKE_SOURCE_DIR}/include)
+#rga
+include_directories(/usr/include/rga)
+
 
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -42,7 +43,9 @@ set(APP_SRC
 
 add_executable(demo ${APP_SRC})
 
-target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
-target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection yaml-cpp)
+# target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
+target_link_libraries(demo ${OpenCV_LIBS} -ltracker ${RKNN_RT_LIB} ${RGA_LIB})
+target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection -lidetector)
+target_link_libraries(demo yaml-cpp)
 target_link_libraries(demo -pthread)
 target_link_libraries(demo spdlog::spdlog)

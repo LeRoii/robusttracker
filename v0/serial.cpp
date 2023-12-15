@@ -762,7 +762,7 @@ int Serial::openPort(int fd, int comport)
     if(comport == 1)
     {
         // devFile = "/dev/ttyTHS1";
-        fd = open("/dev/ttyTHS1", O_RDWR | O_NOCTTY | O_NDELAY);  
+        fd = open("/dev/ttyS0", O_RDWR | O_NOCTTY | O_NDELAY);  
     }
     //串口2，读取串口设备文件
     else if(comport == 2)
