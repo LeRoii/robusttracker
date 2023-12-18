@@ -936,7 +936,9 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         if(m_strackerLost)
         {
             m_trackObj.updateWithoutDet();
+#if TRACKER_DEBUG
             color = cv::Scalar(0,0,0);
+#endif
         }
         else
         {
@@ -944,7 +946,9 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
             finalRect.y = m_strackerRet.y + m_strackerRet.height/2 - m_trackObj.m_rect.height/2;
             finalRect.width = m_trackObj.m_rect.width;
             finalRect.height = m_trackObj.m_rect.height;
+#if TRACKER_DEBUG
             color = cv::Scalar(0,0,255);
+#endif
 
             m_trackObj.update(frame, finalRect, 0);
         }
@@ -997,7 +1001,6 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     double maxSSIM = 0;
     double maxSSIMDif = 0;
     // minDist = 0.01;
-#if TRACKER_DEBUG
 
     // cv::Ptr<cv::SIFT> detector = cv::SIFT::create(20);
     // std::vector<cv::KeyPoint> keypoints1, keypoints2;
@@ -1090,8 +1093,10 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         double res = calculateSSIM(frame(roi), m_trackObj.m_patch);
 
         cv::Point center{detRet[i].x + detRet[i].w/2, detRet[i].y + detRet[i].h/2};
+#if TRACKER_DEBUG
         cv::line(debugimg, center, m_trackObj.center(), colormap[i], 2);
         cv::putText(debugimg, std::to_string(res), center, cv::FONT_HERSHEY_COMPLEX, 0.8, colormap[i], 1, 8, 0);
+#endif
         if(res > maxSSIM)
         {
             maxSSIMDif = res - maxSSIM;
@@ -1102,7 +1107,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     }
     //calculate hist end
     }
-#endif
+
 
     printf("realtracker::FSM_PROC_DTRACK dist:%f, areaDif:%d\n", minDist, areaDif);
     // if((minIdx != -1 && minDist < 70) || findLast)
@@ -1271,9 +1276,10 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
 
 #if TRACKER_DEBUG
     cv::imshow("debugImg", debugimg);
+    cv::rectangle(frame, derRect, cv::Scalar(255, 0, 127), 2);
 #endif
     
-    cv::rectangle(frame, derRect, cv::Scalar(255, 0, 127), 2);
+    
     cv::rectangle(frame, m_trackObj.m_rect, color, 2);
     printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n", 
         m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
