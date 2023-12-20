@@ -19,16 +19,16 @@ struct buffer
     struct v4l2_plane *planes_buffer;
 };
 
-class V4L2Capture
+class V4L2Camera
 {
 public:
-    V4L2Capture(const char *device, int width, int height, int fps) : device_(device), width_(width), height_(height), fps_(fps)
+    V4L2Camera(const char *device, int width, int height, int fps) : device_(device), width_(width), height_(height), fps_(fps)
     {
-        file_fd_raw = fopen("raw.yuv", "wb+");
-        if (!file_fd_raw)
-        {
-            printf("open save_file: %s fail\n", "raw.yuv");
-        }
+        // file_fd_raw = fopen("raw.yuv", "wb+");
+        // if (!file_fd_raw)
+        // {
+        //     printf("open save_file: %s fail\n", "raw.yuv");
+        // }
         // memset(&modifiedYData, 0, sizeof(modifiedYData));
     }
 
@@ -218,7 +218,7 @@ public:
         return true;
     }
 
-    ~V4L2Capture()
+    ~V4L2Camera()
     {
         if (fd_ >= 0)
         {
@@ -236,7 +236,6 @@ private:
     struct v4l2_requestbuffers req;
     struct buffer *buffers;
     FILE *file_fd_raw;
-    // uint16_t modifiedYData[192 * 256];
 };
 
 #endif

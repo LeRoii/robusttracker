@@ -1,12 +1,10 @@
 #include "camera.h"
 #include "common.h"
 #include <yaml-cpp/yaml.h>
-#include "v4l2_capture.hpp"
 
-Camera* CreateCamera(const std::string cfgPath)
+Camera* CreateCamera(const std::string cfgPath,std::string camType)
 {
-    YAML::Node config = YAML::LoadFile(cfgPath);
-    std::string camType = config["inputVideoType"].as<std::string>();;
+    // YAML::Node config = YAML::LoadFile(cfgPath);
 
     Camera *camPtr = nullptr;
 
@@ -17,6 +15,10 @@ Camera* CreateCamera(const std::string cfgPath)
     else if(camType == "mipi")
     {
         camPtr = new CameraMIPI(cfgPath);
+    }
+    else if(camType == "usb")
+    {
+        camPtr = new CameraUSB(cfgPath);
     }
 
     return camPtr;
@@ -79,9 +81,8 @@ int CameraEth::Init()
     return RET_OK;
 }
 
-void CameraEth::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
+void CameraEth::GetFrame(cv::Mat &frame0)
 {
-    m_irCap >> frame1;
     m_viCap >> frame0;
 }
 
@@ -91,36 +92,36 @@ void CameraEth::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
 //*******************************CameraMIPI Start*************************
 CameraMIPI::CameraMIPI(const std::string cfgPath):Camera(cfgPath, enCamType::MIPI)
 {
-    capture = new V4L2Capture("/dev/video11", 1920, 1080, 30);
+    v4l2Camera = new V4L2Camera("/dev/video11", 1920, 1080, 30);
     
 }
 
 CameraMIPI::~CameraMIPI()
 {
-    delete capture;
+    delete v4l2Camera;
 
 }
 
 int CameraMIPI::Init()
 {
-    if (!capture->openDevice())
+    if (!v4l2Camera->openDevice())
     {
         return RET_ERR;
     }
-    if (!capture->queryCapability())
+    if (!v4l2Camera->queryCapability())
     {
         return RET_ERR;
     }
 
-    if (!capture->initDevice())
+    if (!v4l2Camera->initDevice())
     {
         return RET_ERR;
     }
-    if (!capture->mmap_v4l2_buffer())
+    if (!v4l2Camera->mmap_v4l2_buffer())
     {
         return RET_ERR;
     }
-    if (!capture->startCapture())
+    if (!v4l2Camera->startCapture())
     {
         return RET_ERR;
     }
@@ -144,12 +145,55 @@ int CameraMIPI::Init()
     // return RET_OK;
 }
 
-void CameraMIPI::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
+void CameraMIPI::GetFrame(cv::Mat &frame0)
 {
-    frame0 = capture->writeVideoFrame();
-    // m_irCap >> frame1;
-    // m_viCap >> frame0;
-    frame1 = frame0;
+    frame0 = v4l2Camera->writeVideoFrame();
 }
 
 //*******************************CameraMIPI end*************************
+
+//*******************************CameraUSB Start*************************
+CameraUSB::CameraUSB(const std::string cfgPath):Camera(cfgPath, enCamType::USB)
+{
+    usbCamera = new USBCamera("/dev/video20", 256, 192, 50);
+    
+}
+
+CameraUSB::~CameraUSB()
+{
+    delete usbCamera;
+
+}
+
+int CameraUSB::Init()
+{
+    if (!usbCamera->openDevice())
+    {
+        return RET_ERR;
+    }
+    if (!usbCamera->queryCapability())
+    {
+        return RET_ERR;
+    }
+
+    if (!usbCamera->initDevice())
+    {
+        return RET_ERR;
+    }
+    if (!usbCamera->mmap_v4l2_buffer())
+    {
+        return RET_ERR;
+    }
+    if (!usbCamera->startCapture())
+    {
+        return RET_ERR;
+    }
+     return RET_OK;
+}
+
+void CameraUSB::GetFrame(cv::Mat &frame0)
+{
+    frame0 = usbCamera->writeVideoFrame();
+}
+
+//*******************************CameraUSB end*************************

@@ -2,6 +2,7 @@ detection: 1
 track: 0
 
 inputVideoType: "mipi"
+inputIRVideoType: "USB"
 # inputVideoType: "eth"
 # irStreamAdd: "rtsp://192.168.168.119:554/stream1"
 # visStreamAdd: "rtsp://192.168.168.119:554/stream0"

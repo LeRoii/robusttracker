@@ -1485,7 +1485,7 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<bbox_t> &detRet)
 }
 void realtracker::runDetectorOut(cv::Mat &frame, std::vector<bbox_t> &detRet)
 {
-    printf("realtracker::runDetector\n");
+    // printf("realtracker::runDetector\n");
     std::vector<bbox_t> boxs;
     
     // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();

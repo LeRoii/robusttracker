@@ -790,7 +790,6 @@ static void QueryDeviceModelSendToDown()
 }
 
 bool isRecording = false;
-;
 cv::VideoWriter *writer = nullptr;
 
 std::mutex m_mtx;
@@ -802,11 +801,12 @@ void SaveRecordVideo()
 {
     while (!quit)
     {
-        std::unique_lock<std::mutex> lock(m_mtx);
-        conVar.wait(lock);
+        // std::unique_lock<std::mutex> lock(m_mtx);
+        // conVar.wait(lock);
 
         while (!m_queue.empty())
         {
+            std::lock_guard<std::mutex> lock(m_mtx);
             cv::Mat mat = m_queue.front().clone();
             if (writer != nullptr)
             {
@@ -814,8 +814,7 @@ void SaveRecordVideo()
                 m_queue.pop();
             }
         }
-
-        if (!isRecording)
+        if (!isRecording && writer != nullptr)
         {
             writer->release();
             writer = nullptr;
@@ -956,24 +955,26 @@ int main()
     realtracker *rtracker = new realtracker(engine);
 
     cv::Mat frame;
-    int nFrames = 0;
+    uint64_t nFrames = 0;
 
     cv::Mat dispFrame, trackFrame, detFrame;
-    cv::Mat oriIrImg, viImg, irImg;
+    cv::Mat oriIrImg, rgbImg, irImg;
     // std::vector<TrackingObject> detRet;
     std::vector<bbox_t> detRet;
 
-    stSysStatus.enDispMode = Vision;
+    stSysStatus.enDispMode = VisIrPip;
     stSysStatus.trackOn = false;
     stSysStatus.detOn = true;
 
     int pipPosX, pipPosY;
 
-    Camera *cam = CreateCamera(cfgpath);
+    Camera *visCam = CreateCamera(cfgpath, std::string("mipi"));
+    Camera *irCam = CreateCamera(cfgpath, std::string("usb"));
 
-    if (cam != nullptr)
+    if (visCam != nullptr)
     {
-        cam->Init();
+        visCam->Init();
+        irCam->Init();
         // QueryDeviceModelSendToDown();
         // QueryOSDSettingSendToDown();
         printf("camera init success\n");
@@ -984,21 +985,17 @@ int main()
         return 0;
     }
 
-    cam->GetFrame(viImg, oriIrImg);
-    if (oriIrImg.empty() || viImg.empty())
+    visCam->GetFrame(rgbImg);
+    irCam->GetFrame(oriIrImg);
+
+    if (oriIrImg.empty() || rgbImg.empty())
     {
         printf("input img empty, quit\n");
         return 0;
     }
 
-    // #if DEBUG_SERIAL
-    //     rtracker->runDetector(viImg, detRet);
-    // #else
-    //     rtracker->runDetectorNoDraw(viImg, detRet);
-    // #endif
-
-    int irImgW = viImg.cols;
-    int irImgH = viImg.rows;
+    int irImgW = rgbImg.cols;
+    int irImgH = rgbImg.rows;
 
     irImg = cv::Mat(irImgH, irImgW, CV_8UC3);
     irImg.setTo(0);
@@ -1006,11 +1003,11 @@ int main()
     int oriImgW = oriIrImg.cols;
     int oriImgH = oriIrImg.rows;
 
-    int viImgW = viImg.cols;
-    int viImgH = viImg.rows;
+    int viImgW = rgbImg.cols;
+    int viImgH = rgbImg.rows;
 
-    pipPosX = (viImg.cols - oriIrImg.cols) / 2;
-    pipPosY = (viImg.rows - oriIrImg.rows) / 2;
+    pipPosX = (rgbImg.cols - oriIrImg.cols) / 2;
+    pipPosY = (rgbImg.rows - oriIrImg.rows) / 2;
 
     rtracker->setFrameScale((double)viImgW / 1920);
 
@@ -1028,9 +1025,10 @@ int main()
         // usleep(1000000);
         // continue;
         spdlog::debug("=====nframe:{}======", nFrames);
-        cam->GetFrame(viImg, oriIrImg);
+        visCam->GetFrame(rgbImg);
+        irCam->GetFrame(oriIrImg);
 
-        if (oriIrImg.empty() || viImg.empty())
+        if (oriIrImg.empty() || rgbImg.empty())
         {
             printf("input img empty, quit\n");
         }
@@ -1040,18 +1038,18 @@ int main()
         cvtIrImg(oriIrImg, stSysStatus.enIrImgMode);
 
         // printf("oriIrImg w:%d, oriIrImg h:%d\n", oriIrImg.cols, oriIrImg.rows);
-        // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
+        // printf("rgbImg w:%d, rgbImg h:%d\n", rgbImg.cols, rgbImg.rows);
 
         irImg.setTo(0);
         oriIrImg.copyTo(irImg(cv::Rect(pipPosX, pipPosY, oriIrImg.cols, oriIrImg.rows)));
 
         // printf("irImg w:%d, irImg h:%d\n", irImg.cols, irImg.rows);
-        // printf("viImg w:%d, viImg h:%d\n", viImg.cols, viImg.rows);
+        // printf("rgbImg w:%d, rgbImg h:%d\n", rgbImg.cols, rgbImg.rows);
 
         switch (stSysStatus.enDispMode)
         {
         case Vision: // 0x01
-            frame = viImg;
+            frame = rgbImg;
             rtracker->setIrFrame(false);
             break;
         case Ir: // 0x02
@@ -1061,19 +1059,19 @@ int main()
             break;
         case VisIrPip: // 0x03
             cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
-            oriIrImg.copyTo(viImg(cv::Rect(viImgW - 480, 0, 480, 360)));
-            frame = viImg;
+            oriIrImg.copyTo(rgbImg(cv::Rect(viImgW - 480, 0, 480, 360)));
+            frame = rgbImg;
             rtracker->setIrFrame(false);
             break;
         case IrVisPip: // 0x04
-            cv::resize(viImg, viImg, cv::Size(480, 360));
-            viImg.copyTo(irImg(cv::Rect(irImgW - 480, 0, 480, 360)));
+            cv::resize(rgbImg, rgbImg, cv::Size(480, 360));
+            rgbImg.copyTo(irImg(cv::Rect(irImgW - 480, 0, 480, 360)));
             frame = irImg;
-            // frame = viImg;
+            // frame = rgbImg;
             rtracker->setIrFrame(true);
             break;
         default:
-            frame = viImg;
+            frame = rgbImg;
             break;
         }
 
@@ -1101,7 +1099,6 @@ int main()
         {
 
             rtracker->runDetectorOut(frame, detRet);
-
         }
 
         // 在界面上绘制OSD
@@ -1150,9 +1147,10 @@ int main()
             else
             {
                 isNeedRecording = false;
+                isRecording = true;
                 printf("start recording video\n");
                 std::string currTimeStr = CreateDirAndReturnCurrTimeStr("/home/rpdzkj/videos_recorded");
-                std::string saveVideoFileName = "/home/nx/videos_recorded/" + currTimeStr + ".mp4";
+                std::string saveVideoFileName = "/home/rpdzkj/videos_recorded/" + currTimeStr + ".mp4";
                 if (writer == nullptr)
                 {
                     writer = new cv::VideoWriter();
@@ -1164,7 +1162,6 @@ int main()
                 if (writer->isOpened())
                 {
                     printf("writer open success\n");
-                    isRecording = true;
                 }
                 else
                 {
@@ -1174,24 +1171,21 @@ int main()
         }
         else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_END && isRecording)
         {
+            cout << "33333333333333333333333" << endl;
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             printf("recording end\n");
             isRecording = false;
-            conVar.notify_all();
+            // conVar.notify_all();
         }
 
-        // spdlog::debug("before resize Elapsed {}", sw);
-
         cv::resize(frame, dispFrame, cv::Size(1280, 720), cv::INTER_NEAREST);
-        // cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
 
         if (isRecording)
         {
+            std::lock_guard<std::mutex> lock(m_mtx);
             cv::resize(rcFrame, rcFrame, cv::Size(1280, 720), cv::INTER_NEAREST);
-            // *writer << rcFrame;
-            // *writer << dispFrame;
             m_queue.push(rcFrame);
-            conVar.notify_all();
+            // conVar.notify_all();
         }
 
         if (isNeedTakePhoto)
@@ -1203,27 +1197,16 @@ int main()
         }
 
         nFrames++;
-        // spdlog::debug("before rtsp Elapsed {}", sw);
-        // encoder->process(dispFrame);
         rtspWriterr << dispFrame;
-
-        // cv::imshow("det", detret);
-        // cv::imwrite("1.png", frame);
-        // cv::imshow("show", dispFrame);
-        // cv::waitKey(30);
-        // usleep(25000);
-
-        // spdlog::debug("before cal aveg Elapsed {}", sw);
-
-        // std::chrono::duration<double> dd =  sw.elapsed();
 
         fpsCalculater.emplace_back(sw.elapsed().count());
         if (fpsCalculater.size() > 30)
             fpsCalculater.pop_front();
         double meanValue = accumulate(begin(fpsCalculater), end(fpsCalculater), 0.0) / fpsCalculater.size(); // 求均值
 
-        spdlog::debug("one frame Elapsed {}", meanValue);
+        // spdlog::debug("one frame Elapsed {}", meanValue);
     }
-    writer->release();
+    delete visCam;
+    delete irCam;
     return 0;
 }
