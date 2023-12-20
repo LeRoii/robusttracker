@@ -3,8 +3,6 @@
 
 #include "idetector.h"
 #include "itracker.h"
-#include "multitracker.h"
-#include <mtracking/Ctracker.h>
 #include <opencv2/opencv.hpp>
 
 
@@ -81,7 +79,7 @@ public:
     void runTracker(cv::Mat &frame, bool alone = true);
     void runTrackerNoDraw(cv::Mat &frame, bool alone = true);
     // int update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
-    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
+    // EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
     EN_TRACKER_FSM update(cv::Mat &frame, std::vector<bbox_t> &detRet, uint8_t *trackerStatus);
     void reset();
     void setFrameScale(double s);
@@ -97,9 +95,9 @@ private:
 
     itracker *m_stracker;
     idetector *m_detector;
-    FrameInfo m_frameInfo;
-    std::unique_ptr<BaseTracker> m_mtracker;
-    regions_t m_regions;
+    // FrameInfo m_frameInfo;
+    // std::unique_ptr<BaseTracker> m_mtracker;
+    // regions_t m_regions;
     float m_fps;
     cv::Point m_kcfRet;
     // int m_GateSize;
