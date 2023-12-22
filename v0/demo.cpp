@@ -1,4 +1,4 @@
-#include "multitracker.h"
+
 #include <unistd.h>
 #include <signal.h>
 // #include "jetsonEncoder.h"
@@ -594,97 +594,97 @@ static void cvtIrImg(cv::Mat &img, EN_IRIMG_MODE mode)
 }
 
 // AI识别结果向上位机反馈
-static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
-{
-    ST_F3_CONFIG f3Cfg = {0};
-    f3Cfg.targetSum = dets.size();
-    f3Cfg.totalPacketNum = f3Cfg.targetSum / 4; // 每个帧包最多只能放4个目标，超过4个目标需要分包向上位机发送
-    if ((f3Cfg.targetSum % 4) > 0)
-    {
-        f3Cfg.totalPacketNum += 1;
-    }
+// static void DetectorResultFeedbackToUp(vector<TrackingObject> &dets)
+// {
+//     ST_F3_CONFIG f3Cfg = {0};
+//     f3Cfg.targetSum = dets.size();
+//     f3Cfg.totalPacketNum = f3Cfg.targetSum / 4; // 每个帧包最多只能放4个目标，超过4个目标需要分包向上位机发送
+//     if ((f3Cfg.targetSum % 4) > 0)
+//     {
+//         f3Cfg.totalPacketNum += 1;
+//     }
 
-    for (int i = 0; i < f3Cfg.totalPacketNum; i++)
-    {
-        f3Cfg.currPacketId = i;
-        int currPacketTargetNum = 4;
-        if (f3Cfg.totalPacketNum - i == 1)
-        {
-            currPacketTargetNum = f3Cfg.targetSum % 4;
-        }
-        uint8_t sendBuf[1024] = {0};
-        int sendBufLen = 5 + 8 + currPacketTargetNum * 13 + 1; // 帧头5字节,F3目标总体信息占8字节,每个目标具体信息占13字节,最后1个字节为checksum
+//     for (int i = 0; i < f3Cfg.totalPacketNum; i++)
+//     {
+//         f3Cfg.currPacketId = i;
+//         int currPacketTargetNum = 4;
+//         if (f3Cfg.totalPacketNum - i == 1)
+//         {
+//             currPacketTargetNum = f3Cfg.targetSum % 4;
+//         }
+//         uint8_t sendBuf[1024] = {0};
+//         int sendBufLen = 5 + 8 + currPacketTargetNum * 13 + 1; // 帧头5字节,F3目标总体信息占8字节,每个目标具体信息占13字节,最后1个字节为checksum
 
-        sendBuf[0] = 0x55;
-        sendBuf[1] = 0xAA;
-        sendBuf[2] = 0xDC;
-        sendBuf[3] = ((i + 1) << 6) ^ (2 + currPacketTargetNum * 13 + 1);
-        sendBuf[4] = 0xF3;
-        sendBuf[5] = f3Cfg.targetSum;
-        sendBuf[6] = f3Cfg.totalPacketNum;
-        sendBuf[7] = f3Cfg.currPacketId;
-        sendBuf[8] = 0;
-        sendBuf[9] = 0;
-        sendBuf[10] = 0;
-        sendBuf[11] = 0;
-        sendBuf[12] = 0;
-        int pos = 13;
-        for (int j = 0; j < currPacketTargetNum; j++)
-        {
-            f3Cfg.targetInfo[i + j].targetType = (dets[i + j].m_type == 1) ? 0 : 1; // 目标类型与向上位机传递的目标类型相反，且目前只有0，1 人、车两种
-            memcpy(&f3Cfg.targetInfo[i + j].targetId, &dets[i + j].m_ID, 2);
-            // f3Cfg.targetInfo[i + j].targetId = (uint16_t)dets[i + j].m_ID;
-            f3Cfg.targetInfo[i + j].targetAzimuthCoordinate = dets[i + j].m_rrect.boundingRect().x;
-            f3Cfg.targetInfo[i + j].targetPitchCoordinate = dets[i + j].m_rrect.boundingRect().y;
-            f3Cfg.targetInfo[i + j].targetLength = dets[i + j].m_rrect.boundingRect().width;
-            f3Cfg.targetInfo[i + j].targetWidth = dets[i + j].m_rrect.boundingRect().height;
-            f3Cfg.targetInfo[i + j].targetDetectionConfidence = dets[i + j].m_confidence * 10000;
+//         sendBuf[0] = 0x55;
+//         sendBuf[1] = 0xAA;
+//         sendBuf[2] = 0xDC;
+//         sendBuf[3] = ((i + 1) << 6) ^ (2 + currPacketTargetNum * 13 + 1);
+//         sendBuf[4] = 0xF3;
+//         sendBuf[5] = f3Cfg.targetSum;
+//         sendBuf[6] = f3Cfg.totalPacketNum;
+//         sendBuf[7] = f3Cfg.currPacketId;
+//         sendBuf[8] = 0;
+//         sendBuf[9] = 0;
+//         sendBuf[10] = 0;
+//         sendBuf[11] = 0;
+//         sendBuf[12] = 0;
+//         int pos = 13;
+//         for (int j = 0; j < currPacketTargetNum; j++)
+//         {
+//             f3Cfg.targetInfo[i + j].targetType = (dets[i + j].m_type == 1) ? 0 : 1; // 目标类型与向上位机传递的目标类型相反，且目前只有0，1 人、车两种
+//             memcpy(&f3Cfg.targetInfo[i + j].targetId, &dets[i + j].m_ID, 2);
+//             // f3Cfg.targetInfo[i + j].targetId = (uint16_t)dets[i + j].m_ID;
+//             f3Cfg.targetInfo[i + j].targetAzimuthCoordinate = dets[i + j].m_rrect.boundingRect().x;
+//             f3Cfg.targetInfo[i + j].targetPitchCoordinate = dets[i + j].m_rrect.boundingRect().y;
+//             f3Cfg.targetInfo[i + j].targetLength = dets[i + j].m_rrect.boundingRect().width;
+//             f3Cfg.targetInfo[i + j].targetWidth = dets[i + j].m_rrect.boundingRect().height;
+//             f3Cfg.targetInfo[i + j].targetDetectionConfidence = dets[i + j].m_confidence * 10000;
 
-            f3Cfg.targetInfo[i + j].targetId = ntohs(f3Cfg.targetInfo[i + j].targetId);
-            f3Cfg.targetInfo[i + j].targetAzimuthCoordinate = ntohs(f3Cfg.targetInfo[i + j].targetAzimuthCoordinate);
-            f3Cfg.targetInfo[i + j].targetPitchCoordinate = ntohs(f3Cfg.targetInfo[i + j].targetPitchCoordinate);
-            f3Cfg.targetInfo[i + j].targetLength = ntohs(f3Cfg.targetInfo[i + j].targetLength);
-            f3Cfg.targetInfo[i + j].targetWidth = ntohs(f3Cfg.targetInfo[i + j].targetWidth);
-            f3Cfg.targetInfo[i + j].targetDetectionConfidence = ntohs(f3Cfg.targetInfo[i + j].targetDetectionConfidence);
+//             f3Cfg.targetInfo[i + j].targetId = ntohs(f3Cfg.targetInfo[i + j].targetId);
+//             f3Cfg.targetInfo[i + j].targetAzimuthCoordinate = ntohs(f3Cfg.targetInfo[i + j].targetAzimuthCoordinate);
+//             f3Cfg.targetInfo[i + j].targetPitchCoordinate = ntohs(f3Cfg.targetInfo[i + j].targetPitchCoordinate);
+//             f3Cfg.targetInfo[i + j].targetLength = ntohs(f3Cfg.targetInfo[i + j].targetLength);
+//             f3Cfg.targetInfo[i + j].targetWidth = ntohs(f3Cfg.targetInfo[i + j].targetWidth);
+//             f3Cfg.targetInfo[i + j].targetDetectionConfidence = ntohs(f3Cfg.targetInfo[i + j].targetDetectionConfidence);
 
-            sendBuf[pos++] = f3Cfg.targetInfo[i + j].targetType;
-            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetId, 2);
-            pos += 2;
-            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetAzimuthCoordinate, 2);
-            pos += 2;
-            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetPitchCoordinate, 2);
-            pos += 2;
-            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetLength, 2);
-            pos += 2;
-            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetWidth, 2);
-            pos += 2;
-            memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetDetectionConfidence, 2);
-            pos += 2;
-        }
-        sendBuf[pos] = viewlink_protocal_checksum(sendBuf);
-        sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
-        printf("detector down send to up:%d\n", sendBufLen);
-#if DEBUG_SERIAL
-        for (auto x : dets)
-        {
-            printf("[%d] ", x.m_type);
-            printf("[%zu] ", x.m_ID.ID2Module(1000));
-            printf("[%d] ", x.m_rrect.boundingRect().x);
-            printf("[%d] ", x.m_rrect.boundingRect().y);
-            printf("[%d] ", x.m_rrect.boundingRect().width);
-            printf("[%d] ", x.m_rrect.boundingRect().height);
-            printf("[%f] ", x.m_confidence);
-        }
-        printf("\npos=%d\n", pos);
-        for (int l = 0; l <= pos; l++)
-        {
-            printf("[%02x] ", sendBuf[l]);
-        }
-        printf("\n");
-#endif
-    }
-    printf("DetectorResultFeedbackToUp end\n");
-}
+//             sendBuf[pos++] = f3Cfg.targetInfo[i + j].targetType;
+//             memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetId, 2);
+//             pos += 2;
+//             memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetAzimuthCoordinate, 2);
+//             pos += 2;
+//             memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetPitchCoordinate, 2);
+//             pos += 2;
+//             memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetLength, 2);
+//             pos += 2;
+//             memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetWidth, 2);
+//             pos += 2;
+//             memcpy(&sendBuf[pos], &f3Cfg.targetInfo[i + j].targetDetectionConfidence, 2);
+//             pos += 2;
+//         }
+//         sendBuf[pos] = viewlink_protocal_checksum(sendBuf);
+//         sendBufLen = serialUp.serial_send(sendBuf, sendBufLen);
+//         printf("detector down send to up:%d\n", sendBufLen);
+// #if DEBUG_SERIAL
+//         for (auto x : dets)
+//         {
+//             printf("[%d] ", x.m_type);
+//             printf("[%zu] ", x.m_ID.ID2Module(1000));
+//             printf("[%d] ", x.m_rrect.boundingRect().x);
+//             printf("[%d] ", x.m_rrect.boundingRect().y);
+//             printf("[%d] ", x.m_rrect.boundingRect().width);
+//             printf("[%d] ", x.m_rrect.boundingRect().height);
+//             printf("[%f] ", x.m_confidence);
+//         }
+//         printf("\npos=%d\n", pos);
+//         for (int l = 0; l <= pos; l++)
+//         {
+//             printf("[%02x] ", sendBuf[l]);
+//         }
+//         printf("\n");
+// #endif
+//     }
+//     printf("DetectorResultFeedbackToUp end\n");
+// }
 
 bool tempFlag = true;
 // 跟踪脱靶量向上位机反馈
@@ -871,7 +871,7 @@ int main()
     // }
 
     cv::VideoWriter rtspWriterr;
-    // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=2048 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 15, cv::Size(1280, 720), true);
+    // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! x264enc speed-preset=ultrafast bitrate=2048 key-int-max=" + std::to_string(15 * 2) + " ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=main ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     // rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! omxh264enc bitrate=8000000 control-rate=2 ! video/x-h264,profile=baseline ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
     rtspWriterr.open("appsrc ! videoconvert ! video/x-raw,format=I420 ! mpph264enc ! video/x-h264 ! rtspclientsink location=rtsp://localhost:8553/stream", cv::CAP_GSTREAMER, 0, 30, cv::Size(1280, 720), true);
