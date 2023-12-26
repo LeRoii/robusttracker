@@ -59,6 +59,8 @@ public:
 
     int ProcessSerialData(uint8_t *inputBUf, int inputLen, uint8_t *OutputBuf, int &outputLen);
     int bufLen = 0;
+    //关闭串口
+    int closePort(int fd);
 
 private:
     int openPort(int fd, int comport);
@@ -66,8 +68,7 @@ private:
     int readDataTty(int fd, uint8_t *rcv_buf, int TimeOut, int Len);
     int sendDataTty(int fd, uint8_t *send_buf, int Len);
     
-    //关闭串口
-    int closePort(int fd);
+    
 
     
     //使用C++11标准类thread创建线程，注意需要gcc版本支持c++11

@@ -325,14 +325,18 @@ static void VL_ParseSerialData_A1C1E1(uint8_t* buf)
             case OneHundredAndTwentyEightSquareBigTemplates:
                 stSysStatus.trackerGateSize = 128;
                 break;
-            default:
+            case SmallMidBigAdaptiveTemplates:
                 stSysStatus.trackerGateSize = 32;
+                break;
+            default:
+                // printf("use default\n");
+                // stSysStatus.trackerGateSize = 32;
                 break;
         }
     }
-    // printf("laserCmd:%d, enOpCmd1Para:%d, enOpCmd1:%d, enDispMode%d, \n", 
+    // printf("laserCmd:%d, enOpCmd1Para:%d, enOpCmd1:%d, enDispMode%d, stA1C1E1Cfg.e1Config.enBaseOpMode:%#x\n", 
     // stA1C1E1Cfg.c1Config.laserCmd, stA1C1E1Cfg.c1Config.enOpCmd1Para, stA1C1E1Cfg.c1Config.enOpCmd1,\
-    // stA1C1E1Cfg.c1Config.enDispMode);
+    // stA1C1E1Cfg.c1Config.enDispMode, stA1C1E1Cfg.e1Config.enBaseOpMode);
     if(stA1C1E1Cfg.c1Config.enDispMode != 0)
         stSysStatus.enDispMode = (EN_DISP_MODE)stA1C1E1Cfg.c1Config.enDispMode;
 
@@ -762,7 +766,7 @@ int Serial::openPort(int fd, int comport)
     if(comport == 1)
     {
         // devFile = "/dev/ttyTHS1";
-        fd = open("/dev/ttyTHS1", O_RDWR | O_NOCTTY | O_NDELAY);  
+        fd = open("/dev/ttyTHS0", O_RDWR | O_NOCTTY | O_NDELAY);  
     }
     //串口2，读取串口设备文件
     else if(comport == 2)
@@ -1096,7 +1100,7 @@ const int Serial::GetStatus() const
 //关闭串口
 int Serial::closePort(int fd)
 {
-    close(fd);
+    close(fdSerial);
 
     return 0;
 }

@@ -18,6 +18,12 @@
 #include <numeric>
 #include <queue>
 
+int saveImgImfoCnt = 0;
+std::string savePicFileName;
+std::string recordings[3] = {"Recording.","Recording..","Recording..."};
+int recordingCnt = 0;
+int recordingIdx = 0;
+
 static std::vector<std::vector<uint8_t>> CmdNeedProcess = 
 {
     {0x55, 0xAA, 0xDC, 0x11, 0x30, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x81, 0x00, 0x00, 0x00, 0xAC},//EO(热像白热)
@@ -393,6 +399,15 @@ void SerialTransDown2Up()
 #endif
             retLen = serialUp.serial_send(buffRcvData_servo, retLen);
             printf("down send to up:%d\n", retLen);
+            if(retLen == -1)
+            {
+                printf("reset serial down 2 up\n");
+                serialUp.closePort(1);
+                serialUp.set_serial(1);
+                serialDown.closePort(1);
+                serialDown.set_serial(2);
+
+            }
             int aa = 5;
             while (aa--) {
             int rr = serialDown.ProcessSerialData(buffRcvData_servo, retLen, output, outLen);
@@ -868,30 +883,30 @@ int main()
 //*******************************tcp socket*************************
     /* 与上位机tcp客户端连接，作为服务器端接收上位机发的tcp消息 */
     /* 作为客户端与吊舱服务器端建立连接，首先创建客户端套接字并绑定 */
-    clientSocketfd = socket(AF_INET, SOCK_STREAM, 0);
+    // clientSocketfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    const std::string downToNXIp = config["downToNXIp"].as<std::string>();
-    uint16_t downToNXPort = config["downToNXPort"].as<uint16_t>();
-    printf("downToNXIp:%s downToNXPort:%d\n", downToNXIp.c_str(), downToNXPort);
-    struct sockaddr_in clientaddr;
-    clientaddr.sin_family = AF_INET;
-    clientaddr.sin_port = htons(downToNXPort); //目标端口和IP
+    // const std::string downToNXIp = config["downToNXIp"].as<std::string>();
+    // uint16_t downToNXPort = config["downToNXPort"].as<uint16_t>();
+    // printf("downToNXIp:%s downToNXPort:%d\n", downToNXIp.c_str(), downToNXPort);
+    // struct sockaddr_in clientaddr;
+    // clientaddr.sin_family = AF_INET;
+    // clientaddr.sin_port = htons(downToNXPort); //目标端口和IP
     
-    inet_pton(AF_INET, downToNXIp.c_str(), &clientaddr.sin_addr.s_addr);
-    bind(clientSocketfd, (struct sockaddr *)&clientaddr, sizeof(clientaddr));
+    // inet_pton(AF_INET, downToNXIp.c_str(), &clientaddr.sin_addr.s_addr);
+    // bind(clientSocketfd, (struct sockaddr *)&clientaddr, sizeof(clientaddr));
 
-    // 与吊舱服务器端建立连接
-    struct sockaddr_in serveraddrPod;
+    // // 与吊舱服务器端建立连接
+    // struct sockaddr_in serveraddrPod;
 
-    const std::string podIp = config["podIp"].as<std::string>();
-    uint16_t podPort = config["podPort"].as<uint16_t>();
-    printf("podIp:%s podPort:%d\n", podIp.c_str(), podPort);
-    serveraddrPod.sin_family  = AF_INET;
-    serveraddrPod.sin_port = htons(podPort); // 为当前进程添加的端口号为2000
+    // const std::string podIp = config["podIp"].as<std::string>();
+    // uint16_t podPort = config["podPort"].as<uint16_t>();
+    // printf("podIp:%s podPort:%d\n", podIp.c_str(), podPort);
+    // serveraddrPod.sin_family  = AF_INET;
+    // serveraddrPod.sin_port = htons(podPort); // 为当前进程添加的端口号为2000
     
-    inet_pton(AF_INET, podIp.c_str(), &serveraddrPod.sin_addr.s_addr);
+    // inet_pton(AF_INET, podIp.c_str(), &serveraddrPod.sin_addr.s_addr);
 
-    int connectTime = 0;
+    // int connectTime = 0;
     // while(1) {
     //     if(connect(clientSocketfd, (struct sockaddr *)&serveraddrPod, sizeof(serveraddrPod)) < 0) {
     //         printf("TCPTrans connect error\n");
@@ -947,6 +962,8 @@ int main()
         printf("input img empty, quit\n");
         return 0;
     }
+
+    
 
 #if DEBUG_SERIAL
     rtracker->runDetector(viImg, detRet);
@@ -1017,14 +1034,14 @@ int main()
                 rtracker->setIrFrame(true);
 				break;
 			case VisIrPip:  //0x03
-				cv::resize(oriIrImg, oriIrImg, cv::Size(480, 360));
-				oriIrImg.copyTo(viImg(cv::Rect(viImgW-480, 0, 480, 360)));
+				cv::resize(oriIrImg, oriIrImg, cv::Size(640, 512));
+				oriIrImg.copyTo(viImg(cv::Rect(viImgW-640, 0, 640, 512)));
 				frame = viImg;
                 rtracker->setIrFrame(false);
 				break;
 			case IrVisPip:  //0x04
-				cv::resize(viImg, viImg, cv::Size(480, 360));
-				viImg.copyTo(irImg(cv::Rect(irImgW-480, 0, 480, 360)));
+				cv::resize(viImg, viImg, cv::Size(640, 512));
+				viImg.copyTo(irImg(cv::Rect(irImgW-640, 0, 640, 512)));
 				frame = irImg;
                 // frame = viImg;
                 rtracker->setIrFrame(true);
@@ -1060,6 +1077,10 @@ int main()
                 rtracker->update(frame, detRet, trackerStatus);
                 spdlog::debug("tracker status:{}", trackerStatus[4]);
                 TrackerMissDistanceResultFeedbackToDown(trackerStatus);
+                if(trackerStatus[4] == 0)
+                {
+                    stSysStatus.trackOn = false;
+                }
             }
         } else if (stSysStatus.detOn) {
 
@@ -1126,6 +1147,7 @@ int main()
         } else if (stSysStatus.enScreenOpMode == EN_SCREEN_OP_MODE::RECORDING_END && isRecording) {
             stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_NONE;
             printf("recording end\n");
+            recordingCnt = 0;
             isRecording = false;
             conVar.notify_all();
         }
@@ -1136,6 +1158,13 @@ int main()
         // cv::resize(frame, dispFrame, cv::Size(1920,1080), cv::INTER_NEAREST);
 
         if (isRecording) {
+            recordingCnt++;
+            if(recordingCnt > 30)
+            {
+                recordingIdx++;
+                recordingCnt = 0;
+            }
+            cv::putText(dispFrame, recordings[recordingIdx%3], cv::Point(40,520), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,255,0),2, cv::LINE_AA);
             cv::resize(rcFrame, rcFrame, cv::Size(1280,720), cv::INTER_NEAREST);
             // *writer << rcFrame;
             // *writer << dispFrame;
@@ -1144,10 +1173,20 @@ int main()
         }
 
         if (isNeedTakePhoto) {
-            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("photos");
-            std::string savePicFileName = "photos/" + currTimeStr + ".png";
+            std::string currTimeStr = CreateDirAndReturnCurrTimeStr("/home/nx/videos_recorded/photos");
+            savePicFileName = "photos/" + currTimeStr + ".png";
             cv::imwrite(savePicFileName, frame);
+            saveImgImfoCnt = 30;
+
+            
             isNeedTakePhoto = false;
+        }
+
+        if(saveImgImfoCnt > 0)
+        {
+            cv::putText(dispFrame, "save img to path:"+ savePicFileName, cv::Point(40,500), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0,255,0),2, cv::LINE_AA);
+            printf("saveImgImfoCnt:%d\n", saveImgImfoCnt);
+            saveImgImfoCnt--;
         }
 
         nFrames++;
@@ -1158,7 +1197,7 @@ int main()
         // cv::imshow("det", detret);
         // cv::imwrite("1.png", frame);
         // cv::imshow("show", dispFrame);
-        // cv::waitKey(30);
+        // cv::waitKey(1);
         // usleep(25000);
 
         // spdlog::debug("before cal aveg Elapsed {}", sw);
@@ -1175,3 +1214,4 @@ int main()
     writer->release();
     return 0;
 }
+

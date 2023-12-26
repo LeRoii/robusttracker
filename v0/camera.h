@@ -38,6 +38,10 @@ public:
     virtual int Init();
     virtual void GetFrame(cv::Mat &frame0, cv::Mat &frame1);
 
+private:
+    bool m_usb;
+    cv::VideoCapture m_viCap;
+
 };
 
 class CameraEth : public Camera
@@ -52,6 +56,19 @@ public:
 private:
     cv::VideoCapture m_viCap;
     cv::VideoCapture m_irCap;
+};
+
+class CameraUsb : public Camera
+{
+public:
+    CameraUsb(const std::string cfgPath);
+    virtual ~CameraUsb();
+    virtual int Init();
+    virtual void GetFrame(cv::Mat &frame0, cv::Mat &frame1);
+
+private:
+    cv::VideoCapture m_viCap;
+
 };
 
 Camera* CreateCamera(const std::string cfgPath);

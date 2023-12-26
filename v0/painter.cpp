@@ -364,7 +364,8 @@ static void PaintDegMinSec(cv::Mat &frame0, int x, int y, const double inputAngl
         }
     }
     ConvertLatitudeAndLongitudeUnits(abs(inputAngle), &degrees, &minutes, &seconds);
-    std::string currDeg = ConvertDegreesNum2Str(degrees, 'd') + "deg " + ConvertDegreesNum2Str(minutes, 'm') + "'" + ConvertDegreesNum2Str(seconds, 's') + "''";
+    // std::string currDeg = ConvertDegreesNum2Str(degrees, 'd') + "deg " + ConvertDegreesNum2Str(minutes, 'm') + "'" + ConvertDegreesNum2Str(seconds, 's') + "''";
+    std::string currDeg = ConvertDegreesNum2Str(degrees, 'd') + " " + ConvertDegreesNum2Str(minutes, 'm') + "'" + ConvertDegreesNum2Str(seconds, 's') + "''";
     cv::putText(frame0, currDeg, cv::Point(x + 20, y), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
 }
 

@@ -18,6 +18,10 @@ Camera* CreateCamera(const std::string cfgPath)
     {
         camPtr = new CameraEth(cfgPath);
     }
+    else if(camType == "sdiusb")
+    {
+        camPtr = new CameraSDI(cfgPath);
+    }
 
     return camPtr;
     
@@ -46,14 +50,33 @@ enCamType Camera::GetType()
 //*******************************CameraSDI Start*************************
 
 
-CameraSDI::CameraSDI(const std::string cfgPath):Camera(cfgPath, enCamType::SDI)
+CameraSDI::CameraSDI(const std::string cfgPath):Camera(cfgPath, enCamType::SDI),m_usb(false)
 {
+    YAML::Node config = YAML::LoadFile(cfgPath);
+    std::string camType = config["inputVideoType"].as<std::string>();;
 
+    Camera *camPtr = nullptr;
+
+    if(camType == "sdiusb")
+    {
+        m_usb = true;
+        
+    }
 }
 
 int CameraSDI::Init()
 {
     Sdireader_Init("/etc/jetsoncfg/NXConfig.ini");
+
+    if(m_usb)
+    {
+        m_viCap.open("/dev/video0");
+        if(!m_viCap.isOpened())
+        {
+            printf("usb camera open failed\n");
+            return RET_ERR;
+        }
+    }
 
     return RET_OK;
 }
@@ -61,6 +84,10 @@ int CameraSDI::Init()
 void CameraSDI::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
 {
     Sdireader_GetFrame(frame0, frame1);
+    if(m_usb)
+    {
+        m_viCap >> frame1;
+    }
 }
 
 CameraSDI::~CameraSDI()
@@ -113,3 +140,43 @@ void CameraEth::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
 }
 
 //*******************************CameraEth end*************************
+
+//*******************************CameraUsb Start*************************
+
+CameraUsb::CameraUsb(const std::string cfgPath):Camera(cfgPath, enCamType::ETH)
+{
+
+}
+
+CameraUsb::~CameraUsb()
+{
+
+}
+
+int CameraUsb::Init()
+{
+    YAML::Node config = YAML::LoadFile(m_cfg);
+    std::string irStreamAdd = config["irStreamAdd"].as<std::string>();
+    std::string visStreamAdd = config["visStreamAdd"].as<std::string>();
+
+    // m_viCap.open(visStreamAdd);
+    // m_irCap.open(irStreamAdd);
+
+    m_viCap.open("/dev/video0");
+
+    if(!m_viCap.isOpened())
+    {
+        printf("usb camera open failed\n");
+        return RET_ERR;
+    }
+
+    return RET_OK;
+}
+
+void CameraUsb::GetFrame(cv::Mat &frame0, cv::Mat &frame1)
+{
+    // m_irCap >> frame1;
+    m_viCap >> frame0;
+}
+
+//*******************************CameraUsb end*************************

@@ -125,6 +125,7 @@ private:
     double minDistThres;
     double areaDifThres;
     int m_dtrackerLostCnt;
+    int osdw;
 
 };
 
