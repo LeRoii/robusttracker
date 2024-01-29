@@ -29,6 +29,7 @@ public:
     void init();
     void process(cv::Mat& img);
     void process(cv::Mat& img, std::vector<bbox_t>& boxs);
+    void processNoDraw(cv::Mat& img, std::vector<bbox_t>& boxs);
 
 private:
     std::string engine_name;

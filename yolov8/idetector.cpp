@@ -141,11 +141,50 @@ void idetector::process(cv::Mat& img)
         batch_process(res_batch, decode_ptr_host, img_batch.size(), bbox_element, img_batch);
     }
     // Draw bounding boxes
-    // draw_bbox(img_batch, res_batch);
+    draw_bbox(img_batch, res_batch);
 
 }
 
 void idetector::process(cv::Mat& img, std::vector<bbox_t>& boxs)
+{
+    std::vector<cv::Mat> img_batch;
+    img_batch.push_back(img);
+
+    // Preprocess
+    cuda_batch_preprocess(img_batch, device_buffers[0], kInputW, kInputH, stream);
+    // Run inference
+    infer(*context, stream, (void **)device_buffers, output_buffer_host, kBatchSize, decode_ptr_host, decode_ptr_device, model_bboxes, cuda_post_process);
+    std::vector<std::vector<Detection>> res_batch;
+    if (cuda_post_process == "c") {
+        // NMS
+        batch_nms(res_batch, output_buffer_host, img_batch.size(), kOutputSize, kConfThresh, kNmsThresh);
+    } else if (cuda_post_process == "g") {
+        //Process gpu decode and nms results
+        batch_process(res_batch, decode_ptr_host, img_batch.size(), bbox_element, img_batch);
+    }
+    // Draw bounding boxes
+    draw_bbox(img_batch, res_batch);
+
+    boxs.clear();
+    for(auto& res:res_batch[0])
+    {
+        cv::Rect r = get_rect(img, res.bbox);
+        bbox_t box;
+        box.x = r.x;
+        box.y = r.y;
+        box.w = r.width;
+        box.h = r.height;
+        box.prob = res.conf;
+        box.obj_id = res.class_id;
+
+        // printf("idetector res-->res.bbox[0]:%f,res.bbox[1]:%f,res.bbox[2]:%f,res.bbox[3]:%f\n", res.bbox[0],res.bbox[1],res.bbox[2],res.bbox[3]);
+        // printf("idetector box-->box.x:%d,box.y:%d,box.w:%d,box.h:%d\n", box.x,box.y,box.w,box.h);
+
+        boxs.emplace_back(box);
+    }
+
+}
+void idetector::processNoDraw(cv::Mat& img, std::vector<bbox_t>& boxs)
 {
     std::vector<cv::Mat> img_batch;
     img_batch.push_back(img);
