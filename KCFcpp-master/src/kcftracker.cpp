@@ -95,7 +95,7 @@ KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
     // Parameters equal in all cases
     lambda = 0.0001;
     // padding = 2.5; 
-    padding = 3.5; 
+    padding = 5; 
     //output_sigma_factor = 0.1;
     output_sigma_factor = 0.125;
 
@@ -580,4 +580,10 @@ float KCFTracker::subPixelPeak(float left, float center, float right)
         return 0;
     
     return 0.5 * (right - left) / divisor;
+}
+
+
+void KCFTracker::setRoi(cv::Rect roi)
+{
+    _roi = roi;
 }

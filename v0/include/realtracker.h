@@ -3,8 +3,9 @@
 
 #include "idetector.h"
 #include "itracker.h"
+#include "multitracker.h"
+#include <mtracking/Ctracker.h>
 #include <opencv2/opencv.hpp>
-
 
 enum class EN_TRACKER_FSM
 {
@@ -13,6 +14,7 @@ enum class EN_TRACKER_FSM
     STRACK = 2,
     DTRACK = 3,
     SEARCH = 4,
+    SSEARCH = 5,
 
 };
 
@@ -30,7 +32,7 @@ public:
     void updateWithoutDet();
     bool isLost();
     void predict();
-    
+
     cv::Rect m_rect;
     float m_prob;
     int m_cls;
@@ -54,20 +56,15 @@ public:
 private:
     inline void calcVelo();
 
-    std::deque<std::pair<int,int>> m_veloBuf;
-    
+    std::deque<std::pair<int, int>> m_veloBuf;
 
     cv::Rect m_lastPos;
-    
-
 };
-
-
 
 class realtracker
 {
 public:
-    realtracker(std::string enginepath);
+    realtracker(std::string enginepath, std::string irEnginepath);
     ~realtracker();
 
     void init(const cv::Rect &roi, cv::Mat image);
@@ -79,8 +76,8 @@ public:
     void runTracker(cv::Mat &frame, bool alone = true);
     void runTrackerNoDraw(cv::Mat &frame, bool alone = true);
     // int update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
-    // EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
-    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<bbox_t> &detRet, uint8_t *trackerStatus);
+    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
+    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<bbox_t> &detRet, uint8_t *trackerStatus,int &x_,int &y_);
     void reset();
     void setFrameScale(double s);
     void setGateSize(int s);
@@ -91,13 +88,14 @@ private:
     void FSM_PROC_STRACK(cv::Mat &frame);
     void FSM_PROC_DTRACK(cv::Mat &frame);
     void FSM_PROC_SEARCH(cv::Mat &frame);
-    
+    void FSM_PROC_SSEARCH(cv::Mat &frame);
 
     itracker *m_stracker;
     idetector *m_detector;
-    // FrameInfo m_frameInfo;
-    // std::unique_ptr<BaseTracker> m_mtracker;
-    // regions_t m_regions;
+    idetector *m_irDetector;
+    FrameInfo m_frameInfo;
+    std::unique_ptr<BaseTracker> m_mtracker;
+    regions_t m_regions;
     float m_fps;
     cv::Point m_kcfRet;
     // int m_GateSize;
@@ -123,7 +121,9 @@ private:
     double minDistThres;
     double areaDifThres;
     int m_dtrackerLostCnt;
-
+    int osdw;
+    int m_strackerfailedCnt;
+    int m_ssearchCnt;
 };
 
 #endif

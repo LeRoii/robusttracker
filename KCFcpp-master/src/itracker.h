@@ -13,12 +13,16 @@ public:
     void init(const cv::Point &pt, cv::Mat image);
     cv::Rect update(cv::Mat image, bool alone = true);
     void reset();
-    bool isLost();
+    bool& isLost();
     cv::Point centerPt();
     void setGateSize(int s);
     cv::Rect updateTP(cv::Mat image);
     int m_GateSize;
     void resetTemplate(cv::Mat &img);
+    int roix,roiy;
+    int m_tmplSz;
+    cv::Rect getTmplRect();
+    void setRoi(cv::Rect roi);
 
 private:
     bool m_isLost;

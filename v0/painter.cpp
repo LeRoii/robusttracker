@@ -3,7 +3,6 @@
 #include <sstream>
 #include <cmath>
 #include<arpa/inet.h>
-#include "serial.h"
 #include "common.h"
 #include <chrono>
 #include <sys/vfs.h>
@@ -317,13 +316,13 @@ static std::string ConvertDegreesNum2Str(double num, const char type)
     } else {
         if (num == 0) {
             oss <<std::setw(1)<<std::setfill('0')<<num;
-            oss<<setiosflags(ios::fixed)<<std::setprecision(2)<<num;
+            oss<<std::setiosflags(std::ios::fixed)<<std::setprecision(2)<<num;
         } else if (ceil(num) == floor(num) && num != 0 && num < 10) {
             char strNum[64];
             sprintf(strNum, "%d%.2f\n", (int)num / 10, num);
             oss<<strNum;
         } else {
-            oss<<setiosflags(ios::fixed)<<std::setprecision(2)<<num;
+            oss<<std::setiosflags(std::ios::fixed)<<std::setprecision(2)<<num;
         }
         
     }
@@ -335,7 +334,7 @@ static std::string ConvertDegreesNum2Str(double num, const char type)
 std::string ConvertMetersNum2Str(double num)
 {
     std::ostringstream oss;
-    oss<<setiosflags(ios::fixed)<<std::setprecision(3)<<num;
+    oss<<std::setiosflags(std::ios::fixed)<<std::setprecision(3)<<num;
     std::string str(oss.str());
     return str;
 }
@@ -401,7 +400,7 @@ void PaintCoordinate(cv::Mat &frame0)
 std::string ConvertTimesNum2Str(double num)
 {
     std::ostringstream oss;
-    oss<<setiosflags(ios::fixed)<<std::setprecision(1)<<num;
+    oss<<std::setiosflags(std::ios::fixed)<<std::setprecision(1)<<num;
     std::string str(oss.str());
     return str;
 }
@@ -474,17 +473,18 @@ void PaintViewPara(cv::Mat &frame0)
     // if (!stSysStatus.isTSeriesDevice && !stSysStatus.osdSet2Ctrl.enGPSIsMGRS) {
     //     return;
     // }
-    struct statfs diskInfo;
-    statfs("/", &diskInfo);
-    unsigned long long totalBlocks = diskInfo.f_bsize;  
-    unsigned long long totalSize = totalBlocks * diskInfo.f_blocks;  
-    uint32_t mbTotalsize = totalSize>>20;  
-    unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;  
-    uint32_t mbFreedisk = freeDisk>>20;
-    uint32_t recordVideoTime = mbFreedisk / 1.5;
-    std::string sdCardState = "No SD Card";
-    if (recordVideoTime > 0) {
-        sdCardState = "SD Card remain " + Convert(recordVideoTime) + " MB";
+    struct statfs stat;
+    statfs("/", &stat);
+    // unsigned long long totalBlocks = diskInfo.f_bsize;  
+    // unsigned long long totalSize = totalBlocks * diskInfo.f_blocks;  
+    // uint32_t mbTotalsize = totalSize>>20;  
+    // unsigned long long freeDisk = diskInfo.f_bavail*totalBlocks;  
+    // uint32_t mbFreedisk = freeDisk>>20;
+    // uint32_t recordVideoTime = mbFreedisk / 1.5;
+    unsigned long long free_space = stat.f_bsize * stat.f_bavail;
+    std::string sdCardState;
+    if (free_space > 0) {
+        sdCardState = "SD Card remain " + Convert(free_space>>20) + " MB";
     }
     cv::putText(frame0, sdCardState, cv::Point(x, y + 200), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
 }

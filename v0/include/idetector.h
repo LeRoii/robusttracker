@@ -12,7 +12,7 @@
 class idetector
 {
 public:
-    explicit idetector(char *enginepath,int thread_num);
+    explicit idetector(char *enginepath, int thread_num, int obj_class_num);
     ~idetector();
     void init();
     // void process(cv::Mat &img);
@@ -21,7 +21,7 @@ public:
 
 private:
     modelInference *model_inference;
-    char * model_path;
+    char *model_path;
     int frames_index;
     int thread_num;
     std::vector<modelInference *> dets;
@@ -29,8 +29,7 @@ private:
     dpool::ThreadPool pool;
     struct timeval time;
     long tmpTime, lopTime;
-
-
+    int obj_class_num;
 };
 
 #endif

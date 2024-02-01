@@ -388,6 +388,9 @@ enum EN_DATA_FRAME_TYPE
     HeartBeat14 = 7,
     CtrlSdCmd = 8,
     HeartBeat12 = 9,
+    FrameE2 = 10,
+    Status42 = 11,
+    IPInq = 12,
 };
 
 enum EN_ONCE_SEND_DOWN_TO_UP_TYPE
@@ -465,6 +468,9 @@ struct ST_SYS_STATUS
     OSD_SET2_CTRL osdSet2Ctrl;
     bool isTSeriesDevice;
     double osdFontSize;
+    //相机变焦参数
+    bool isOSDopen;
+
     int16_t trackMissDistance[2];
 
     ST_SYS_STATUS():trackOn(false), trackerInited(false), trackerGateSize(32),

@@ -22,22 +22,23 @@ endif()
 
 include_directories( ${CMAKE_SOURCE_DIR}/include)
 #rga
-include_directories(/usr/include/rga)
+include_directories(/usr/include/rga
+                    /usr/local/include/)
 
 
 find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-find_package(MTTracking REQUIRED)
+
 
 find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
 
 set(APP_SRC 
   ${PROJECT_SOURCE_DIR}/demo.cpp
-  ${PROJECT_SOURCE_DIR}/painter.cpp
-  ${PROJECT_SOURCE_DIR}/serial.cpp 
+  #${PROJECT_SOURCE_DIR}/painter.cpp
   ${PROJECT_SOURCE_DIR}/camera.cpp  
+  #${PROJECT_SOURCE_DIR}/serialport.cpp
   ${PROJECT_SOURCE_DIR}/realtracker.cpp
   )
 
@@ -45,7 +46,7 @@ add_executable(demo ${APP_SRC})
 
 # target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
 target_link_libraries(demo ${OpenCV_LIBS} -ltracker ${RKNN_RT_LIB} ${RGA_LIB})
-target_link_libraries(demo -lidetector)
+target_link_libraries(demo -lidetector -lGuideSCUSB2 -lusb-1.0 -lm)
 target_link_libraries(demo yaml-cpp)
 target_link_libraries(demo -pthread)
 target_link_libraries(demo spdlog::spdlog)

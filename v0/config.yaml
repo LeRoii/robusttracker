@@ -1,8 +1,10 @@
-detection: 1
-track: 0
+detection: 0
+track: 1
 
 inputVideoType: "mipi"
 inputIRVideoType: "USB"
+visi_dev: "/dev/video0"
+ir_dev: "/dev/video11"
 # inputVideoType: "eth"
 # irStreamAdd: "rtsp://192.168.168.119:554/stream1"
 # visStreamAdd: "rtsp://192.168.168.119:554/stream0"
@@ -19,8 +21,14 @@ visStreamAdd: "rtspsrc location=rtsp://192.168.3.119:554/stream0 latency=0 ! rtp
 mipiVisStreamAdd: "v4l2src device=/dev/video11 ! video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 ! videoconvert ! appsink"
 # engine: "/space/model/visdrone-8s-2c-1011.engine"
 # videopath: "/space/data/pl/IMG_3576.MOV"
-engine: "/home/rpdzkj/code/object_detection_project/install/model/RK3588/yolox_RK3588_i8.rknn"
-videopath: "/home/nx/data/ir_far.mp4"
+engine: "/home/rpdzkj/code/robusttracker/v0/model/yolox_RK3588_i8.rknn"
+irengine: "/home/rpdzkj/code/robusttracker/v0/model/IR.rknn"
+# videopath: "/home/rpdzkj/oriVideo/IMG_3569.MOV" #0
+# videopath: "/home/rpdzkj/oriVideo/IMG_3571.MOV" #0
+# videopath: "/home/rpdzkj/oriVideo/IMG_3573.MOV" #0
+# videopath: "/home/rpdzkj/oriVideo/IMG_3575.MOV" #2
+# videopath: "/home/rpdzkj/videos_recorded/2023-03-02-21-22-50.mp4" #2
+videopath: "/home/rpdzkj/videos_recorded/2024-02-01-16-56-09.mp4" #2
 
 podIp: "192.168.2.119"
 podPort: "2000"
