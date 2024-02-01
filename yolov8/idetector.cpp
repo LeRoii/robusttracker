@@ -6,7 +6,7 @@
 #include "postprocess.h"
 #include "cuda_utils.h"
 #include "logging.h"
-
+#include <fstream>
 const int kOutputSize = kMaxNumOutputBbox * sizeof(Detection) / sizeof(float) + 1;
 Logger gLogger;
 
