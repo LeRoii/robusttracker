@@ -3,8 +3,9 @@
 #include "spdlog/spdlog.h"
 
 #include "spdlog/stopwatch.h"
+#include <unistd.h>
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
 spdlog::stopwatch sw;
 
@@ -470,6 +471,12 @@ int Clamp(int &v, int &size, int hi)
     return res;
 };
 
+
+inline static int newCeil(float i)
+{
+    return i >= 0 ? (int)ceil(i) : -(int)ceil(-i);
+}
+
 static inline void offsetLimitInc(int &lmt)
 {
     static int cnt = 0;
@@ -615,6 +622,10 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
         printf("inst velo x:%d, inst velo y:%d\n", m_veloBuf.back().first, m_veloBuf.back().second);
     // std::cout<<"patch size:"<<m_patch.size()<<std::endl;
     // cv::imwrite("patch.png", m_patch);
+    cv::Point sp = cv::Point(m_rect.x+m_rect.width/2, m_rect.y+m_rect.height/2);
+    cv::Point ep = cv::Point(sp.x+m_velo[0]*80, sp.y+m_velo[1]*80);
+    cv::line(img, sp,ep,cv::Scalar(0,255,0), 2);
+
 #endif
 
     // m_hist = CalcHist(img, box);
@@ -622,15 +633,16 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 
 void trackObj::updateWithoutDet()
 {
-    m_rect.x += (int)ceil(m_velo[0]);
-    m_rect.y += (int)ceil(m_velo[1]);
+    m_rect.x += (int)newCeil(m_velo[0]);
+    m_rect.y += (int)newCeil(m_velo[1]);
     m_lostCnt++;
+
 }
 
 void trackObj::predict()
 {
-    m_rect.x += (int)ceil(m_velo[0]);
-    m_rect.y += (int)ceil(m_velo[1]);
+    m_rect.x += (int)newCeil(m_velo[0]);
+    m_rect.y += (int)newCeil(m_velo[1]);
 }
 
 bool trackObj::isLost()
@@ -827,7 +839,7 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
     }
     else
     {
-        m_strackerfailedCnt = 0;
+        // m_strackerfailedCnt = 0;
         rectangle(frame, m_strackerRet, cv::Scalar(255, 255, 255), 3, 8);
         m_state = EN_TRACKER_FSM::STRACK;
         m_trackObj.update(frame, m_strackerRet, 0.8);
@@ -975,7 +987,14 @@ void realtracker::FSM_PROC_SSEARCH(cv::Mat &frame)
     printf("\nFSM_PROC_SSEARCH\n");
     if(m_ssearchCnt++ < 35)
     {
+#if TRACKER_DEBUG
+        spdlog::debug("velo x:{}, velo y:{}",m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
+        cv::Point sp = cv::Point(m_trackObj.m_rect.x+m_trackObj.m_rect.width/2, m_trackObj.m_rect.y+m_trackObj.m_rect.height/2);
+        cv::Point ep = cv::Point(sp.x+m_trackObj.m_velo[0]*80, sp.y+m_trackObj.m_velo[1]*80);
+        cv::line(frame, sp,ep,cv::Scalar(0,255,0), 2);
+#endif
         m_trackObj.updateWithoutDet();
+        usleep(8000);
         m_stracker->setRoi(m_trackObj.m_rect);
         rectangle(frame, m_trackObj.m_rect, cv::Scalar(0, 255, 255), 3, 8);
         m_state = EN_TRACKER_FSM::SSEARCH;
@@ -1109,6 +1128,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
             // }
 
             cv::Rect roi = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
+
             Clamp(roi.x, roi.width, frame.cols);
             Clamp(roi.y, roi.height, frame.rows);
             // std::vector<cv::Mat> regROI = { frame(roi) };
@@ -1123,6 +1143,13 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
             cv::line(debugimg, center, m_trackObj.center(), colormap[i], 2);
             cv::putText(debugimg, std::to_string(res), center, cv::FONT_HERSHEY_COMPLEX, 0.8, colormap[i], 1, 8, 0);
 #endif
+            if(getDistance(m_trackObj.center(), center) > 100)
+            {
+                spdlog::debug("ssim obj too far, continue");
+                continue;
+            }
+                
+
             if (res > maxSSIM)
             {
                 maxSSIMDif = res - maxSSIM;
@@ -1341,6 +1368,8 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<bbox_t> &detRet, 
 {
     printf("realtracker::update start\n");
 
+    sw.reset();
+
     fsmUpdate(frame);
     // detRet = m_frameInfo.m_tracks[0];
 
@@ -1412,6 +1441,8 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<bbox_t> &detRet, 
         memcpy(trackerStatus, &x, 2);
         memcpy(trackerStatus + 2, &y, 2);
     }
+
+    spdlog::debug("realtracker::update Elapsed {}", sw);
 
     return m_state;
 }
