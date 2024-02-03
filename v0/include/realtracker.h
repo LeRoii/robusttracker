@@ -43,6 +43,7 @@ public:
     std::deque<cv::Point> m_trace;
     cv::Mat m_hist;
     float m_velo[2];
+    float m_acc[2];
 
     bool m_strackerLost;
     bool m_dtrackerLost;
@@ -52,6 +53,8 @@ public:
     cv::Mat m_patch;
 
     cv::Rect m_initRect;
+
+    float rx,ry;
 
 private:
     inline void calcVelo();

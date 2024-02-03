@@ -545,8 +545,29 @@ inline void trackObj::calcVelo()
         sumx += velo.first;
         sumy += velo.second;
     }
+
+    // float accsumx, accsumy;
+    // accsumx = accsumy = 0.0f;
+
+    // for(int i=0;i<m_veloBuf.size();i++)
+    // {
+    //     sumx += m_veloBuf[i].first;
+    //     sumy += m_veloBuf[i].second;
+
+    //     if(i<m_veloBuf.size()-1)
+    //     {
+    //         accsumx += m_veloBuf[i+1].first - m_veloBuf[i].first;
+    //         accsumy += m_veloBuf[i+1].second - m_veloBuf[i].second;
+    //     }
+        
+    // }
     m_velo[0] = sumx / m_veloBuf.size();
     m_velo[1] = sumy / m_veloBuf.size();
+
+    // m_acc[0] = accsumx / (m_veloBuf.size()-1);
+    // m_acc[1] = accsumy / (m_veloBuf.size()-1);
+
+    // spdlog::debug("accsum x:{}, accsum y:{}, m_accx:{}, m_accy:{}",accsumx, accsumy, m_acc[0], m_acc[1]);
 }
 
 void trackObj::update(const bbox_t &box)
@@ -590,6 +611,8 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 {
     printf("trackObj::update:\n");
     m_rect = box;
+    rx = m_rect.x;
+    ry = m_rect.y;
     int sizeDif = abs(m_rect.width - m_lastPos.width) + abs(m_rect.height - m_lastPos.height);
 #if TRACKER_DEBUG
     std::cout << "curPos:" << m_rect << std::endl;
@@ -633,8 +656,15 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 
 void trackObj::updateWithoutDet()
 {
-    m_rect.x += (int)newCeil(m_velo[0]);
-    m_rect.y += (int)newCeil(m_velo[1]);
+    // static float rx,ry;
+    rx = m_rect.x + m_velo[0] + m_acc[0];
+    ry = m_rect.y + m_velo[1] + m_acc[1];
+    // m_rect.x += (int)newCeil(m_velo[0]);
+    // m_rect.y += (int)newCeil(m_velo[1]);
+
+    m_rect.x  = (int)round(rx);
+    m_rect.y  = (int)round(ry);
+
     m_lostCnt++;
 
 }
@@ -832,7 +862,7 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
         rectangle(frame, m_trackObj.m_rect, cv::Scalar(0, 255, 255), 3, 8);
         m_strackerfailedCnt++;
         printf("STRACK lost m_strackerfailedCnt:%d\n", m_strackerfailedCnt);
-        if(m_strackerfailedCnt < 3)
+        if(m_strackerfailedCnt < 6)
             m_state = EN_TRACKER_FSM::SSEARCH;
         else
             m_state = EN_TRACKER_FSM::SEARCH;
@@ -845,8 +875,12 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
         m_trackObj.update(frame, m_strackerRet, 0.8);
     }
 
-    printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
-           m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
+    // printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
+    //        m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
+
+    printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f, acc x:%f, acc y:%f\n",
+           m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1],
+           m_trackObj.m_acc[0], m_trackObj.m_acc[1]);
 
     return;
 
@@ -1610,7 +1644,7 @@ void realtracker::setGateSize(int s)
 {
     // m_stracker->setGateSize(s);
     osdw = s;
-    m_stracker->setGateSize(s);
+    m_stracker->setGateSize(32);
 }
 
 void realtracker::setIrFrame(bool ir)
