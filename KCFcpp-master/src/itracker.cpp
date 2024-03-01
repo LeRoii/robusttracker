@@ -225,15 +225,16 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
 
     static double lastSim = 0.0f;
     double sim = calculateSSIM(m_oriPatch, retPatch);
-    int simFailedCntThres = alone ? 3 : 2;
+    int simFailedCntThres = alone ? 5 : 3;
 
     double simDif = sim - lastSim;
 
     lastSim = sim;
-    if(sim > 0.75)
+    if(sim > 0.75 || peakVal > 1.0f)
         m_oriPatch = retPatch.clone();
     // if(sim > 0.8f)
-    if(sim < 0.3f)
+    // if(sim < 0.3f && peakVal < 1.0f)
+    if(sim < 0.5f && peakVal < 1.0f)
         simFailCnt++;
     else
         simFailCnt = 0;
