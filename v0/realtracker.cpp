@@ -546,65 +546,9 @@ inline void trackObj::calcVelo()
         sumy += velo.second;
     }
 
-    // float accsumx, accsumy;
-    // accsumx = accsumy = 0.0f;
-
-    // for(int i=0;i<m_veloBuf.size();i++)
-    // {
-    //     sumx += m_veloBuf[i].first;
-    //     sumy += m_veloBuf[i].second;
-
-    //     if(i<m_veloBuf.size()-1)
-    //     {
-    //         accsumx += m_veloBuf[i+1].first - m_veloBuf[i].first;
-    //         accsumy += m_veloBuf[i+1].second - m_veloBuf[i].second;
-    //     }
-        
-    // }
     m_velo[0] = sumx / m_veloBuf.size();
     m_velo[1] = sumy / m_veloBuf.size();
 
-    // m_acc[0] = accsumx / (m_veloBuf.size()-1);
-    // m_acc[1] = accsumy / (m_veloBuf.size()-1);
-
-    // spdlog::debug("accsum x:{}, accsum y:{}, m_accx:{}, m_accy:{}",accsumx, accsumy, m_acc[0], m_acc[1]);
-}
-
-void trackObj::update(const bbox_t &box)
-{
-#if 0
-    printf("trackObj::update:\n");
-    m_rect = cv::Rect{box.x, box.y, box.w, box.h};
-    std::cout<<m_rect<<std::endl;
-    if(m_trace.size() > 100)
-        m_trace.pop_front();
-    m_trace.emplace_back(cv::Point(box.x+box.w/2, box.y + box.h/2));
-    m_age++;
-    m_lostCnt = 0;
-
-    if(m_veloBuf.size() > 5)
-        m_veloBuf.pop_front();
-    m_veloBuf.emplace_back(std::pair<int,int>{box.x - m_lastPos.x, box.y - m_lastPos.y});
-
-    calcVelo();
-    printf("velo x:%f, velo y:%f\n", m_velo[0], m_velo[1]);
-    m_lastPos = m_rect;
-
-    // cv::Vec4f lines;//存放拟合后的直线
-    // std::vector<cv::Point2f>point;//待检测是否存在直线的所有点
-    // //将所有点存放在vector中，用于输入函数中
-    // for(auto &pt:m_trace){
-    //     point.push_back(static_cast<cv::Point2f>(pt));
-    // }
-    // double param=0;//距离模型中的数值参数C
-    // double reps=0.01;//坐标原点与直线之间的距离
-    // double aeps=0.01;//角度精度
-    // cv::fitLine(point,lines,cv::DIST_L1,0,0.01,0.01);
-    // double k=lines[1]/lines[0];//直线斜率
-    // std::cout<<"直线斜率: "<<k<<std::endl;
-    // cout<<"直线上一点坐标x: "<<lines[2]<<",y: "<<lines[3]<<endl;
-    // cout<<"直线解析式: y="<<k<<"(x-"<<lines[2]<<")+"<<lines[3]<<endl;
-#endif
 }
 
 void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
@@ -624,11 +568,19 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
     m_trace.emplace_back(cv::Point(box.x + box.width / 2, box.y + box.height / 2));
     m_age++;
 
+    static int imgX = img.cols/2;
+    static int imgy = img.rows/2;
+
+
     if (m_lostCnt == 0 && sizeDif < 8)
     {
         if (m_veloBuf.size() > 10)
             m_veloBuf.pop_front();
+
+        int16_t x = center().x - imgX;
+        int16_t y = center().y - imgy;
         m_veloBuf.emplace_back(std::pair<int, int>{box.x - m_lastPos.x, box.y - m_lastPos.y});
+        // m_veloBuf.emplace_back(std::pair<int, int>{x, y});
 
         calcVelo();
     }
@@ -657,13 +609,13 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 void trackObj::updateWithoutDet()
 {
     // static float rx,ry;
-    rx = m_rect.x + m_velo[0] + m_acc[0];
-    ry = m_rect.y + m_velo[1] + m_acc[1];
-    // m_rect.x += (int)newCeil(m_velo[0]);
-    // m_rect.y += (int)newCeil(m_velo[1]);
+    // rx = m_rect.x + m_velo[0];
+    // ry = m_rect.y + m_velo[1];
+    m_rect.x += (int)newCeil(m_velo[0]);
+    m_rect.y += (int)newCeil(m_velo[1]);
 
-    m_rect.x  = (int)round(rx);
-    m_rect.y  = (int)round(ry);
+    // m_rect.x  = (int)round(rx);
+    // m_rect.y  = (int)round(ry);
 
     m_lostCnt++;
 
@@ -710,22 +662,21 @@ realtracker::realtracker(std::string enginepath, std::string irEnginepath) : m_f
     m_detector = new idetector(const_cast<char *>(enginepath.c_str()), 1, 12);
     m_detector->init();
 
-    m_irDetector = new idetector(const_cast<char *>(irEnginepath.c_str()), 3, 5);
+    m_irDetector = new idetector(const_cast<char *>(irEnginepath.c_str()), 3, 7);
     m_irDetector->init();
 
     m_fps = 25;
-    cv::Mat tmp = cv::Mat(720, 1280, CV_8UC3);
-    m_frameInfo.m_frames.resize(m_frameInfo.m_batchSize);
-    m_frameInfo.m_frameInds.resize(m_frameInfo.m_batchSize);
-    m_frameInfo.m_frames[0].GetMatBGRWrite() = tmp;
-    // cv::UMat umatFrame = frameInfo.m_frames[0].GetUMatBGR();
+    // cv::Mat tmp = cv::Mat(720, 1280, CV_8UC3);
+    // m_frameInfo.m_frames.resize(m_frameInfo.m_batchSize);
+    // m_frameInfo.m_frameInds.resize(m_frameInfo.m_batchSize);
+    // m_frameInfo.m_frames[0].GetMatBGRWrite() = tmp;
+    // // cv::UMat umatFrame = frameInfo.m_frames[0].GetUMatBGR();
 
-    // std::unique_ptr<BaseTracker> mtracker;
-    TrackerSettings settings;
-    genTrackerSettings(settings);
+    // TrackerSettings settings;
+    // genTrackerSettings(settings);
     // m_mtracker = BaseTracker::CreateTracker(settings);
-    m_frameInfo.CleanRegions();
-    m_frameInfo.CleanTracks();
+    // m_frameInfo.CleanRegions();
+    // m_frameInfo.CleanTracks();
 
     m_state = EN_TRACKER_FSM::LOST;
     m_frameScale = 1.f;
@@ -739,6 +690,9 @@ realtracker::realtracker(std::string enginepath, std::string irEnginepath) : m_f
 
     m_dtrackerLostCnt = 0;
     osdw = 32;
+
+    m_imgCenterX = (m_frameScale == 1 ? 960 : 640);
+    m_imgCenterY = (m_frameScale == 1 ? 540 : 360);
 }
 
 realtracker::~realtracker()
@@ -757,27 +711,28 @@ void realtracker::init(const cv::Rect &roi, cv::Mat image)
 void realtracker::init(const cv::Point &pt, cv::Mat image)
 {
     m_trackerOffsetLimit = 130;
-    double x = (double)pt.x * m_frameScale;
-    double y = (double)pt.y * m_frameScale;
-    cv::Point iniPt = cv::Point{(int)x, (int)y};
+    // double x = (double)pt.x * m_frameScale;
+    // double y = (double)pt.y * m_frameScale;
+    // cv::Point iniPt = cv::Point{(int)x, (int)y};
+    cv::Point iniPt = pt;
 
-    m_stracker->init(iniPt, image);
+    m_stracker->init(pt, image);
     m_strackerfailedCnt = 0;
     m_ssearchCnt = 0;
 
-    if (m_irFrame)
-    {
-        m_trackerOffsetLimit = 20;
-        bbox_t initBox;
-        initBox.x = m_stracker->roix;
-        initBox.y = m_stracker->roiy;
-        initBox.w = initBox.h = m_stracker->m_GateSize;
-        m_trackObj.init(initBox, image);
-        m_state = EN_TRACKER_FSM::STRACK;
-        return;
-    }
+    // if (m_irFrame)
+    // {
+    //     m_trackerOffsetLimit = 20;
+    //     bbox_t initBox;
+    //     initBox.x = m_stracker->roix;
+    //     initBox.y = m_stracker->roiy;
+    //     initBox.w = initBox.h = m_stracker->m_GateSize;
+    //     m_trackObj.init(initBox, image);
+    //     m_state = EN_TRACKER_FSM::STRACK;
+    //     return;
+    // }
 
-    spdlog::warn("realtracker::init x:%d,y:%d, ptx:%d, pty:%d\n", iniPt.x, iniPt.y, pt.x, pt.y);
+    spdlog::warn("realtracker::init x:{},y:{}, ptx:{}, pty:{}", pt.x, pt.y, pt.x, pt.y);
 
     std::vector<bbox_t> detRet;
 #if TRACKER_DEBUG
@@ -798,7 +753,7 @@ void realtracker::init(const cv::Point &pt, cv::Mat image)
             minIdx = i;
         }
     }
-    minIdx = -1;
+    // minIdx = -1;
     printf("realtracker::init minDist = %f\n", minDist);
 
     m_state = EN_TRACKER_FSM::STRACK;
@@ -875,145 +830,15 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frame)
         m_trackObj.update(frame, m_strackerRet, 0.8);
     }
 
-    // printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
-    //        m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
-
-    printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f, acc x:%f, acc y:%f\n",
-           m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1],
-           m_trackObj.m_acc[0], m_trackObj.m_acc[1]);
-
-    return;
-
-
-
-
-    static int slostCnt = 0;
-    // std::vector<bbox_t> detRet;
-
-//     if (!m_irFrame)
-//     {
-//         // auto detimg = frame.clone();
-//         // runDetector(detimg, detRet);
-
-// #if TRACKER_DEBUG
-//         auto detimg = frame.clone();
-//         runDetector(detimg, detRet);
-// #else
-//         runDetectorNoDraw(frame, detRet);
-// #endif
-//     }
-    std::cout<<m_stracker->getTmplRect()<<std::endl;
-    cv::rectangle(frame, m_stracker->getTmplRect(), cv::Scalar(229, 204, 255), 3, 8);
-
-    if(m_stracker->isLost())
-    {
-        if(slostCnt++ == 35)
-        {
-            slostCnt = 0;
-            m_stracker->isLost() = false;
-            runTracker(frame);
-            m_strackerfailedCnt = m_stracker->isLost() ? 1 : 0;
-            
-        }
-        else
-        {
-            m_trackObj.updateWithoutDet();
-            m_stracker->setRoi(m_trackObj.m_rect);
-            rectangle(frame, m_trackObj.m_rect, cv::Scalar(0, 255, 255), 3, 8);
-        }
-    }
-    else
-    {
-        runTracker(frame);
-    }
-
-    
-    // #if TRACKER_DEBUG
-    //     auto detimg = frame.clone();
-    //     runDetector(detimg, detRet);
-    // #else
-    //     runDetectorNoDraw(frame, detRet);
-    // #endif
-
-    if (m_stracker->isLost())
-    {
-        printf("STRACK lost\n\n");
-        if(m_strackerfailedCnt == 1)
-            m_state = EN_TRACKER_FSM::SEARCH;
-        else
-        {
-            rectangle(frame, m_trackObj.m_rect, cv::Scalar(0, 255, 255), 3, 8);
-            m_state = EN_TRACKER_FSM::STRACK;
-        }
-        
-    }
-    else
-    {
-        m_strackerfailedCnt = 0;
-        rectangle(frame, m_strackerRet, cv::Scalar(255, 255, 255), 3, 8);
-        m_state = EN_TRACKER_FSM::STRACK;
-        m_trackObj.update(frame, m_strackerRet, 0.8);
-
-#if 0
-        if (m_irFrame)
-        {
-            m_trackObj.m_rect = m_strackerRet;
-            rectangle(frame, m_strackerRet, cv::Scalar(255, 255, 255), 3, 8);
-            m_state = EN_TRACKER_FSM::STRACK;
-            return;
-        }
-        for (int i = 0; i < detRet.size(); ++i)
-        {
-            if (detRet[i].w < 32 && detRet[i].h < 32)
-                continue;
-            cv::Rect brect = cv::Rect{detRet[i].x, detRet[i].y, detRet[i].w, detRet[i].h};
-            cv::Rect strackerRect = cv::Rect(m_stracker->centerPt().x - m_stracker->m_GateSize / 2, m_stracker->centerPt().y - m_stracker->m_GateSize, m_stracker->m_GateSize, m_stracker->m_GateSize);
-            int area = intersectionArea(brect, strackerRect);
-            // printf("STRACK dist:%d\n", area);
-
-            // is inside
-            if (brect.contains(m_stracker->centerPt()))
-            {
-                m_state = EN_TRACKER_FSM::DTRACK;
-                m_trackObj.init(detRet[i], frame);
-                printf("STRACK to DTRACK\n");
-#if TRACKER_DEBUG
-                rectangle(frame, brect, cv::Scalar(0, 255, 255), 3, 8);
-#endif
-                return;
-            }
-
-            if (area > 0)
-            {
-
-                double sim = calculateHistogramSimilarity(frame(brect), frame(strackerRect));
-                // printf("FSM_PROC_STRACK sim:%f\n", sim);
-                if (sim > 0.5)
-                    break;
-                m_state = EN_TRACKER_FSM::DTRACK;
-                // m_trackCls = m_frameInfo.m_tracks[0][i].m_type;
-                // lastId = m_frameInfo.m_tracks[0][i].m_ID.m_val;
-
-                m_trackObj.init(detRet[i], frame);
-
-                printf("STRACK to DTRACK\n");
-#if TRACKER_DEBUG
-                rectangle(frame, brect, cv::Scalar(0, 255, 255), 3, 8);
-#endif
-                return;
-            }
-        }
-        m_trackObj.m_rect = m_strackerRet;
-        rectangle(frame, m_strackerRet, cv::Scalar(255, 255, 255), 3, 8);
-
-        m_state = EN_TRACKER_FSM::STRACK;
-#endif
-    }
-
     printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
            m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
 
-        return;
+    // printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f, acc x:%f, acc y:%f\n",
+    //        m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1],
+    //        m_trackObj.m_acc[0], m_trackObj.m_acc[1]);
+
+    return;
+
 }
 
 void realtracker::FSM_PROC_SSEARCH(cv::Mat &frame)
@@ -1026,11 +851,13 @@ void realtracker::FSM_PROC_SSEARCH(cv::Mat &frame)
         cv::Point sp = cv::Point(m_trackObj.m_rect.x+m_trackObj.m_rect.width/2, m_trackObj.m_rect.y+m_trackObj.m_rect.height/2);
         cv::Point ep = cv::Point(sp.x+m_trackObj.m_velo[0]*80, sp.y+m_trackObj.m_velo[1]*80);
         cv::line(frame, sp,ep,cv::Scalar(0,255,0), 2);
+        std::cout<<m_trackObj.m_rect<<std::endl;
 #endif
         m_trackObj.updateWithoutDet();
         usleep(8000);
         m_stracker->setRoi(m_trackObj.m_rect);
         rectangle(frame, m_trackObj.m_rect, cv::Scalar(0, 255, 255), 3, 8);
+        std::cout<<m_trackObj.m_rect<<std::endl;
         m_state = EN_TRACKER_FSM::SSEARCH;
     }
     else
@@ -1057,9 +884,12 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     runDetectorNoDraw(frame, detRet);
     runTrackerNoDraw(frame, false);
 #endif
+
     m_trackObj.predict();
 
+#if TRACKER_DEBUG
     std::cout << "FSM_PROC_DTRACK start:::" << m_trackObj.m_rect << std::endl;
+#endif
 
     cv::Rect finalRect;
     cv::Rect m_dtrackerRet;
@@ -1216,8 +1046,8 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
         m_dtrackerLostCnt++;
         if (m_dtrackerLostCnt > 2)
         {
-            minDistThres = std::min(150.0, minDistThres * 3);
-            areaDifThres = 90;
+            minDistThres = std::min(60.0, minDistThres * 3);
+            areaDifThres = 50;
         }
     }
     else
@@ -1237,7 +1067,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     cv::rectangle(debugimg, derRect, cv::Scalar(255, 0, 127), 2);
     cv::imwrite("detrect.png", frame(derRect));
     cv::imwrite("patch.png", m_trackObj.m_patch);
-    // cv::imwrite("m_trackObj.m_rect.png", frame(m_trackObj.m_rect));
+    // cv::imwrite("m_trackObj.m_rect.png", frame(m_trackObj.m_rect)); 
 
     // double sim = calculateHistogramSimilarity(frame(m_trackObj.m_rect), frame(derRect));
     // printf("FSM_PROC_DTRACKdddddddddddddddddddddd sim:%f\n", sim);
@@ -1288,8 +1118,9 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
     if (m_strackerLost && m_dtrackerLost)
     {
         spdlog::debug("all tracker lost");
-        m_trackObj.updateWithoutDet();
-        color = cv::Scalar(0, 255, 255);
+        // m_trackObj.updateWithoutDet();
+        m_trackObj.m_lostCnt++;
+        color = cv::Scalar(0, 255, 255);    //b,g,r, yellow
     }
     else
     {
@@ -1361,12 +1192,14 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frame)
 #if TRACKER_DEBUG
     cv::imshow("debugImg", debugimg);
     cv::rectangle(frame, derRect, cv::Scalar(255, 0, 127), 2);
+    
 #endif
 
     cv::rectangle(frame, m_trackObj.m_rect, color, 2);
     printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
            m_trackObj.m_age, m_trackObj.m_lostCnt, m_trackObj.m_trace.size(), m_trackObj.m_velo[0], m_trackObj.m_velo[1]);
     std::cout << m_trackObj.m_rect << std::endl;
+    
 
     m_state = EN_TRACKER_FSM::DTRACK;
 }
@@ -1426,8 +1259,10 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<bbox_t> &detRet, 
             memcpy(trackerStatus + 7, &h, 2);
         }
 
-        int16_t x = m_trackObj.center().x - 960;
-        int16_t y = m_trackObj.center().y - 540;
+        // int16_t x = m_trackObj.center().x - 960;
+        // int16_t y = m_trackObj.center().y - 540;
+        int16_t x = m_trackObj.center().x - m_imgCenterX;
+        int16_t y = m_trackObj.center().y - m_imgCenterY;
         x_ = m_trackObj.center().x;
         y_= m_trackObj.center().y;
         // int16_t x = m_strackerRet.x+m_stracker->m_GateSize/2- 960;
@@ -1483,13 +1318,6 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<bbox_t> &detRet, 
 
 void realtracker::runTracker(cv::Mat &frame, bool alone)
 {
-    // static int cnt = 0;
-    // if(cnt < 5)
-    // {
-    //     cnt++;
-    //     return;
-    // }
-    // cnt = 0;
     sw.reset();
     // printf("realtracker::runTracker\n");
     cv::Rect kcfResult, templateRet;
@@ -1501,30 +1329,11 @@ void realtracker::runTracker(cv::Mat &frame, bool alone)
     rectangle(strakerRet, cv::Point(kcfResult.x, kcfResult.y), cv::Point(kcfResult.x + kcfResult.width, kcfResult.y + kcfResult.height), cv::Scalar(145, 79, 59), 3, 8);
     cv::imshow("strakerRet", strakerRet);
 #endif
-    // double kcfDist = getDistance(cv::Point(kcfResult.tl().x + m_stracker->m_GateSize/2, kcfResult.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
-    // templateRet = m_stracker->updateTP(frame);
-    // double templateDist = getDistance(cv::Point(templateRet.tl().x + m_stracker->m_GateSize/2, templateRet.tl().y + m_stracker->m_GateSize/2), ScreenCenter);
-    // rectangle(frame, cv::Point(templateRet.x, templateRet.y ), cv::Point( templateRet.x+templateRet.width, templateRet.y+templateRet.height), cv::Scalar(255,255,255), 2, 8 );
-    // printf("stracker rect, kcfdist:%f, templatedist:%f\n", kcfDist, templateDist);
-    // std::cout<<result<<std::endl;
 
-    // if(kcfDist > templateDist)
-    // {
-    //     m_stracker->reset();
-    //     m_stracker->init(templateRet, frame);
-    //     m_strackerRet = templateRet;
-    // }
-    // else
-    // {
-    //     m_strackerRet = kcfResult;
-    //     cv::Mat temp = frame(kcfResult);
-    //     m_stracker->resetTemplate(temp);
-    // }
-
-    m_strackerRet = kcfResult;
-    // m_strackerRet.x = kcfResult.x + 16 - osdw / 2;
-    // m_strackerRet.y = kcfResult.y + 16 - osdw / 2;
-    // m_strackerRet.width = m_strackerRet.height = osdw;
+    // m_strackerRet = kcfResult;
+    m_strackerRet.x = kcfResult.x + 16 - osdw / 2;
+    m_strackerRet.y = kcfResult.y + 16 - osdw / 2;
+    m_strackerRet.width = m_strackerRet.height = osdw;
 
     // m_strackerRet = (kcfDist > templateDist ? templateRet : kcfResult);
 }
@@ -1537,7 +1346,6 @@ void realtracker::runTrackerNoDraw(cv::Mat &frame, bool alone)
 
 static inline int boxDif(bbox_t &box1, bbox_t &box2)
 {
-    // int i = abs(box1.x - box2.x);
     return (abs(int(box1.x - box2.x)) + abs(int(box1.y - box2.y)) + abs(int(box1.w - box2.w)) + abs(int(box1.h - box2.h)));
 }
 
@@ -1573,6 +1381,35 @@ void realtracker::runDetector(cv::Mat &frame, std::vector<bbox_t> &detRet)
     detRet = boxs;
 
     return;
+    // m_frameInfo.CleanRegions();
+
+    // // printf("frameInfo.m_regions[0] size%d, boxs :%d\n", frameInfo.m_regions[0].size(), boxs.size());
+    // // for(auto& box:boxs)
+    // // {
+    // // 	printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
+    // // }
+    // m_regions.clear();
+    // for(auto &box:boxs)
+    // {
+    //     m_regions.emplace_back(cv::Rect(cvRound(1.0*box.x), cvRound(1.0*box.y), cvRound(1.0*box.w), cvRound(1.0*box.h)), (box.obj_id), box.prob);
+    //     printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", box.x, box.y, box.w, box.h, box.prob, box.obj_id);
+    // }
+
+    // printf("frameInfo.m_regions[0] size%d, regions:%d\n", m_frameInfo.m_regions[0].size(), m_regions.size());
+    // m_frameInfo.m_regions[0] = m_regions;
+    // // m_mtracker->Update(m_frameInfo.m_regions[0], m_frameInfo.m_frames[0].GetUMatGray(), m_fps);
+    // m_mtracker->Update(m_frameInfo.m_regions[0], m_frameInfo.m_frames[0].GetUMatBGR(), m_fps);
+    // printf("track size:%d\n", m_frameInfo.m_tracks[0].size());
+    // m_mtracker->GetTracks(m_frameInfo.m_tracks[0]);
+    // // detRet = m_frameInfo.m_tracks[0];
+
+    // DrawData(m_frameInfo.m_frames[0].GetMatBGR(), m_frameInfo.m_tracks[0], m_frameInfo.m_frameInds[0], 0);
+    // // frame = frameInfo.m_frames[0].GetMatBGR().clone();
+    // finalDet = m_frameInfo.m_frames[0].GetMatBGR();
+
+    // cv::imshow("finaldet", finalDet);
+
+    // return;
 }
 void realtracker::runDetectorOut(cv::Mat &frame, std::vector<bbox_t> &detRet)
 {
@@ -1610,7 +1447,7 @@ void realtracker::runDetectorNoDraw(cv::Mat &frame, std::vector<bbox_t> &detRet)
     printf("realtracker::runDetectorNoDraw\n");
     // std::vector<bbox_t> boxs;
     detRet.clear();
-    m_frameInfo.m_frames[0].GetMatBGRWrite() = frame;
+    // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame;
     // m_frameInfo.m_frames[0].GetMatBGRWrite() = frame.clone();
     m_detector->process(frame, detRet);
     for (int i = 0; i < detRet.size(); i++)
@@ -1638,6 +1475,9 @@ void realtracker::reset()
 void realtracker::setFrameScale(double s)
 {
     m_frameScale = s;
+
+    m_imgCenterX = (m_frameScale == 1 ? 960 : 640);
+    m_imgCenterY = (m_frameScale == 1 ? 540 : 360);
 }
 
 void realtracker::setGateSize(int s)
