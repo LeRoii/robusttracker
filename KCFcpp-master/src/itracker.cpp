@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
 static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
 {

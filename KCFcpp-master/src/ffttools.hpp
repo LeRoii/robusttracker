@@ -49,17 +49,18 @@ the use of this software, even if advised of the possibility of such damage.
 namespace FFTTools
 {
 // Previous declarations, to avoid warnings
-cv::Mat fftd(cv::Mat img, bool backwards = false);
+cv::Mat fftd(cv::Mat img, bool backwards = false, bool byRow = false);
 cv::Mat real(cv::Mat img);
 cv::Mat imag(cv::Mat img);
 cv::Mat magnitude(cv::Mat img);
 cv::Mat complexMultiplication(cv::Mat a, cv::Mat b);
+cv::Mat complexDivisionReal(cv::Mat a, cv::Mat b);
 cv::Mat complexDivision(cv::Mat a, cv::Mat b);
 void rearrange(cv::Mat &img);
 void normalizedLogTransform(cv::Mat &img);
 
 
-cv::Mat fftd(cv::Mat img, bool backwards)
+cv::Mat fftd(cv::Mat img, bool backwards, bool byRow)
 {
 /*
 #ifdef USE_FFTW
@@ -115,6 +116,9 @@ cv::Mat fftd(cv::Mat img, bool backwards)
         //cv::Mat planes[] = {cv::Mat_<double> (img), cv::Mat_<double>::zeros(img.size())};
         cv::merge(planes, 2, img);
     }
+if(byRow)
+      cv::dft(img, img, (cv::DFT_ROWS | cv::DFT_COMPLEX_OUTPUT));
+    else
     cv::dft(img, img, backwards ? (cv::DFT_INVERSE | cv::DFT_SCALE) : 0 );
 
     return img;
@@ -162,6 +166,23 @@ cv::Mat complexMultiplication(cv::Mat a, cv::Mat b)
     cv::Mat res;
     cv::merge(pres, res);
 
+    return res;
+}
+
+cv::Mat complexDivisionReal(cv::Mat a, cv::Mat b)
+{
+    std::vector<cv::Mat> pa;
+    cv::split(a, pa);
+
+    std::vector<cv::Mat> pres;
+
+    cv::Mat divisor = 1. / b;
+
+    pres.push_back(pa[0].mul(divisor));
+    pres.push_back(pa[1].mul(divisor));
+
+    cv::Mat res;
+    cv::merge(pres, res);
     return res;
 }
 
