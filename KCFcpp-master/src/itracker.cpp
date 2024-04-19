@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
 static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
 {
@@ -219,8 +219,8 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     // double ssim = cv::compareSSIM(m_oriPatch, retPatch);
 
 #if TRACKER_DEBUG
-    cv::imshow("ori", m_oriPatch);
-    cv::imshow("retppr", retPatch);
+    // cv::imshow("ori", m_oriPatch);
+    // cv::imshow("retppr", retPatch);
 #endif
 
     static double lastSim = 0.0f;
@@ -230,11 +230,11 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     double simDif = sim - lastSim;
 
     lastSim = sim;
-    if(sim > 0.75 || peakVal > 1.0f)
+    if(sim > 0.85 || peakVal > 1.0f)
         m_oriPatch = retPatch.clone();
     // if(sim > 0.8f)
     // if(sim < 0.3f && peakVal < 1.0f)
-    if(sim < 0.5f && peakVal < 1.0f)
+    if(sim < 0.8f && peakVal < 1.0f)
         simFailCnt++;
     else
         simFailCnt = 0;
@@ -244,6 +244,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
 
 #if TRACKER_DEBUG 
     printf("simDif:%f\n", simDif);
+    printf("sim:%f\n", sim);
     printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f, simFailCnt:%d\n", sim, peakVal, peakVal - lastPeakVal, simFailCnt);
 #endif
     float peakDif = peakVal - lastPeakVal;

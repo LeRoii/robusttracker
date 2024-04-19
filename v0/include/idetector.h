@@ -1,3 +1,12 @@
+/*
+ * @Author: WJM
+ * @Date: 2024-03-11 11:25:51
+ * @LastEditors: WJM
+ * @LastEditTime: 2024-03-11 16:33:01
+ * @Description:
+ * @FilePath: /rknn_yolov8_detector_v2/home/rpdzkj/wjm/pinlingv2.3.1/pinlingv2.3/v0/include/idetector.h
+ * @custom_string: http://www.aiar.xjtu.edu.cn/
+ */
 #ifndef _IDETECTOR_H_
 #define _IDETECTOR_H_
 
@@ -9,27 +18,27 @@
 #include "model_inference.h"
 #include "ThreadPool.hpp"
 
-class idetector
+class CDetector
 {
 public:
-    explicit idetector(char *enginepath, int thread_num, int obj_class_num);
-    ~idetector();
-    void init();
-    // void process(cv::Mat &img);
-    void process(cv::Mat &img, std::vector<bbox_t> &boxs);
-    void processDebug(cv::Mat &img, std::vector<bbox_t> &boxs);
+    explicit CDetector(char *engine_path, int thread_num, int obj_class_num, float nms_threshold, float conf_threshold);
+    ~CDetector();
+    void Init();
+    void ImgInference(cv::Mat img, bbox_t *boxes, int &boxs_count);
 
 private:
-    modelInference *model_inference;
-    char *model_path;
-    int frames_index;
-    int thread_num;
-    std::vector<modelInference *> dets;
+    // CModelInference *modelInference;
+    char *modelPath;
+    int framesIndex;
+    int threadNum;
+    std::vector<CModelInference *> modelInferences;
     std::queue<std::future<int>> futs;
-    dpool::ThreadPool pool;
+    dpool::ThreadPool threadpool;
     struct timeval time;
     long tmpTime, lopTime;
-    int obj_class_num;
+    int objClassNum;
+    float nmsThreshold;
+    float confThreshold;
 };
 
 #endif
