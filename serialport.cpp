@@ -203,7 +203,7 @@ static void VL_ParseSerialData_E1(uint8_t *buf)
     if (stE1Cfg.enBaseOpMode == OnTrack)
     {
         stSysStatus.trackOn = true;
-        stSysStatus.trackAssignPoint = cv::Point(960, 540);
+        stSysStatus.trackAssignPoint = cv::Point(640, 360);
     }
 
     if (stE1Cfg.enBaseOpMode > TrackingSpeedAdjustment &&

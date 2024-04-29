@@ -335,6 +335,10 @@ void TCP2serialFunc()
 
     std::cout << "Server is listening on port 2000..." << std::endl;
 
+    std::vector<uint8_t> receiveBuffer;
+    const std::vector<uint8_t> frameStart = {0x55, 0xAA, 0xDC};
+    uint8_t buffRcvData[1024] = {0};
+
     while (!interrupted.load())
     {
         sin_size = sizeof(struct sockaddr_in);
@@ -358,12 +362,121 @@ void TCP2serialFunc()
             ssize_t retLen = recv(client_sockfd_tcp, recv_buf, BUFSIZ, 0);
             if (retLen > 0)
             {
-                TCPtransform = true;
-                // receiveBuffer.insert(receiveBuffer.end(), recv_buf_temp, recv_buf_temp + retLen);
-                serialTCP.serial_send(recv_buf + 3, retLen - 4);
-                // printf("==============>");
-                // printHex(recv_buf, retLen);
+            // std::cout << "=======>serialUp received " << std::dec << retLen << "bytes" << std::endl;
+            receiveBuffer.insert(receiveBuffer.end(), recv_buf, recv_buf + retLen);
+            // 处理粘包的情况
+            {
+                // 循环直到缓冲区数据不够一帧的最小长度
+                while (receiveBuffer.size() > frameStart.size())
+                {
+                    // 查找帧起始标志
+                    auto frameStartIt = std::search(receiveBuffer.begin(), receiveBuffer.end(), frameStart.begin(), frameStart.end());
+                    std::cout << "frameStartIt != receiveBuffer.end(): "<<(frameStartIt != receiveBuffer.end())<<std::endl;
+                    for (int i = 0; i < receiveBuffer.size(); i++)
+                    {
+                        printf("[%02X]", receiveBuffer[i]);
+                    }
+                    printf("\n");
+                    if (frameStartIt != receiveBuffer.end())
+                    {
+                        // 检查是否有足够的数据读取长度字节
+                        auto headerEndIt = frameStartIt + frameStart.size();
+                        std::cout <<"distance="<<std::distance(headerEndIt, receiveBuffer.end()) <<std::endl;
+                        if (std::distance(headerEndIt, receiveBuffer.end()) >= 1)
+                        {
+                            // 读取长度字节，假设长度字节紧随帧起始后
+                            size_t frameLength = *(headerEndIt) & 0x3F; // 取字节的低6位作为长度
+                            // std::cout<<frameLength<<std::endl;
+                            // 检查是否有足够的数据包含整个帧
+                            if (std::distance(headerEndIt, receiveBuffer.end()) >= frameLength)
+                            {
+                                // 提取帧，包括帧头和数据
+                                std::vector<uint8_t> frame(frameStartIt, headerEndIt + frameLength);
+                                // 处理帧
+
+                                EN_DATA_FRAME_TYPE frameType = GetFrameType(frame, frameLength + 3);
+                                std::cout <<"frameType="<< frameType <<std::endl;
+                                // printf("frame type:%d\n", frameType);
+                                if (frameType == HeartBeat15)
+                                {
+                                    printf("heart beat 15 from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                else if (frameType == CtrlSdCmd)
+                                {
+                                    // printf("CtrlSdCmd from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                else if (frameType == IPInq)
+                                {
+                                    // printf("IPInq from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                else if (frameType == HandShake)
+                                {
+                                    printf("handshake from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                else if (frameType == FrameS2)
+                                {
+                                    // printf("TGCC Ctrl S2 from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                // else if (frameType == FrameE2)
+                                // {
+                                //     printf("TGCC Ctrl E2 from up serial\n\n");
+                                //     receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                //     continue;
+                                // }
+                                else if (frameType == Status42)
+                                {
+                                    // printf("TGCC Ctrl 42 from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                else if (frameType == HeartBeat14)
+                                {
+                                    printf("heart beat 14 from up serial\n\n");
+                                    receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                                    continue;
+                                }
+                                for (int i = 0; i < frame.size(); i++)
+                                {
+                                    printf("[%02X]", frame[i]);
+                                }
+                                printf("\n");
+                                uint8_t *usefulFrame = frame.data();
+                                VL_ParseSerialData(usefulFrame);
+
+                                // 移除处理过的数据
+                                receiveBuffer.erase(receiveBuffer.begin(), headerEndIt + frameLength);
+                            }
+                            else
+                            {
+                                // 不完整的帧，退出循环等待更多数据
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            // 不完整的头，退出循环等待更多数据
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // 未找到帧起始标志，清空缓冲区
+                        receiveBuffer.clear();
+                        break;
+                    }
+                }
             }
+        }
             else if (retLen == 0)
             {
                 std::cout << "Client disconnected." << std::endl;
