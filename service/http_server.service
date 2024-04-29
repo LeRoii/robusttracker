@@ -1,0 +1,13 @@
+[Unit]
+Description=HTTP Server Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/rpdzkj/code/html
+ExecStart=/usr/bin/python3 /home/rpdzkj/code/html/http_server.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

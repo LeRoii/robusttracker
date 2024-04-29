@@ -1,0 +1,10 @@
+[Unit]
+Description=Set permissions on USB devices after boot
+
+[Service]
+ExecStartPre=/bin/sleep 7
+ExecStart=/bin/bash -c "sudo chmod -R 777 /dev/bus/usb/"
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

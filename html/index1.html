@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings</title>
+    <style>
+        .title {
+            background-color: rgb(99, 227, 99);
+            color: black;
+            text-align: center;
+            padding: 10px;
+            font-size: 24px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 10px;
+            table-layout: fixed;
+            /* 确保每列都有相同的宽度 */
+            border-collapse: separate;
+            /* 设置单元格边框独立 */
+            border-spacing: 0 1px;
+            /* 设置单元格间距 */
+        }
+
+        th,
+        td {
+            padding: 7px;
+            text-align: left;
+            background-color: #f7f2f2;
+            /* 单元格背景色 */
+        }
+
+        /* 添加漂亮的边框和阴影 */
+
+        th,
+        td {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 鼠标悬停效果 */
+
+        td:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        .input-field {
+            width: 90%;
+            /* 加宽文本框 */
+            font-size: 16px;
+            /* 字体放大 */
+            padding: 2px;
+            /* 增加一些内边距 */
+        }
+
+        .dropdown-field {
+            width: 120px;
+            font-size: 16px;
+            /* 字体放大 */
+            padding: 2px;
+            /* 增加一些内边距 */
+        }
+
+        .explanation {
+            font-size: 10px;
+            color: grey;
+        }
+
+        .port-input {
+            width: 60px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+        .ip-input {
+            width: 50px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+        .input-hint {
+            font-size: 16px;
+            color: gray;
+            margin-left: 2px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .file-upload-container {
+            position: relative;
+            /* 设置相对定位，使绝对定位的子元素相对于此元素定位 */
+            height: 50px;
+            display: flex;
+            align-items: center;
+            /* 根据需要设定合适的高度 */
+        }
+
+        .file-upload-container input[type="text"] {
+            width: 150px;
+            /* 输入框的宽度 */
+            margin-right: 10px;
+            /* 输入框与按钮之间的间距 */
+        }
+
+        .file-upload-container button {
+            position: absolute;
+            /* 绝对定位 */
+            /* top: 50%; */
+            /* 向下偏移父容器高度的一半 */
+            left: 50%;
+            /* 向右偏移父容器宽度的一半 */
+            transform: translate(-50%, 0);
+            /* 通过移动按钮自身宽度和高度的一半来完成准确居中 */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="title">System Setting</div>
+    <table>
+        <form method="post" action="/submit">
+            <th>Camera IP: </th>
+            <td>
+                <input type="number" class="ip-input" min="0" max="255" value="192">.
+                <input type="number" class="ip-input" min="0" max="255" value="168">.
+                <input type="number" class="ip-input" min="0" max="255" value="4">.
+                <input type="number" class="ip-input" min="0" max="255" value="163">
+                <input type="hidden" name="full_ip" id="full_ip">
+            </td>
+            <!-- <div class="explanation">This is an explanation for the input field.</div> -->
+            </tr>
+
+            <tr>
+                <th>Camera UDP Contorl Port: </th>
+                <td>
+                    <input type="number" class="port-input" min="1" max="65535" value="2000">
+                    <span class="input-hint"> (1~65535 except 2000)</span>
+                </td>
+                <!-- <div class="explanation">This is an explanation for the input field.</div> -->
+            </tr>
+
+
+            <tr>
+                <th>Video Compression Quality: </th>
+                <td>
+                    <select class="dropdown-field">
+                        <option value="high">high</option>
+                        <option value="medium">medium</option>
+                        <option value="low">low</option>
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th colspan="2">
+                    <button type="submit" id="submit-btn"
+                        style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Submit</button>
+                </th>
+            </tr>
+        </form>
+
+        <tr>
+            <th colspan="2">XML Upload</th>
+        </tr>
+
+        <tr>
+            <th colspan="2">
+                <div class="file-upload-container">
+                    <label for="fileInput">Upload XML File: </label>
+                    <input id="pathInput" type="text" placeholder="文件路径" readonly>
+                    <button onclick="browseFiles()"
+                        style="display: block; width: 150px; font-size: 16px;">Browse</button>
+                </div>
+            </th>
+
+        </tr>
+
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Upload XML</button></th>
+
+        </tr>
+
+        <tr>
+            <th colspan="2">XML Upload</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Upload XML</button></th>
+
+        </tr>
+        </tr>
+
+        <tr>
+            <th colspan="2">XML Download</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Download XML</button></th>
+
+        </tr>
+
+        </tr>
+
+        <tr>
+            <th colspan="2"> Download Files</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Download Video or
+                    img</button></th>
+
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Download Log</button></th>
+
+        </tr>
+
+        </tr>
+
+        <tr>
+            <th colspan="2">System Control</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Restore Factory
+                    Settings</button></th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Track Debug Open</button>
+            </th>
+
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Format SD-CARD</button></th>
+
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">One-click Packing</button>
+            </th>
+        </tr>
+
+        <tr>
+            <th colspan="2"><button onclick="Reboot()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Reboot</button></th>
+        </tr>
+
+
+
+
+
+
+
+
+
+        <!-- Add additional rows as needed -->
+    </table>
+
+    <script>
+        function browseFiles() {
+            const input = document.getElementById('pathInput');
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.addEventListener('change', function () {
+                const filePath = fileInput.value;
+                input.value = filePath;
+            });
+            fileInput.click();
+        }
+        // 添加监听事件到表单
+        document.getElementById('submit-btn').addEventListener('click', function (event) {
+            // 防止表单直接提交
+            event.preventDefault();
+
+            // 获取所有 ip-input 类的输入值
+            var ipParts = document.getElementsByClassName('ip-input');
+            var ip = '';
+            for (var i = 0; i < ipParts.length; i++) {
+                ip += ipParts[i].value;
+                if (i < ipParts.length - 1) {
+                    ip += '.';
+                }
+            }
+
+            // 将组合的 IP 地址设置到隐藏的 input 中
+            document.getElementById('full_ip').value = ip;
+
+            // 现在可以提交表单了
+            event.target.form.submit();
+        });
+
+
+    </script>
+</body>
+
+</html>

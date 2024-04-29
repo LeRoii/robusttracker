@@ -1,0 +1,56 @@
+detection: 1
+track: 0
+
+inputVideoType: "mipi"
+inputIRVideoType: "USB"
+visi_dev: "/dev/video0"
+ir_dev: "/dev/video11"
+# inputVideoType: "eth"
+# irStreamAdd: "rtsp://192.168.168.119:554/stream1"
+# visStreamAdd: "rtsp://192.168.168.119:554/stream0"
+# irStreamAdd: "rtspsrc location=rtsp://192.168.168.119:554/stream1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# visStreamAdd: "rtspsrc location=rtsp://192.168.168.119:554/stream0 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# visStreamAdd: "rtspsrc location=rtsp://192.168.144.119/554 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# irStreamAdd: "rtspsrc location=rtsp://192.168.144.119/554 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# irStreamAdd: "rtspsrc location=rtsp://192.168.2.119:554 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# visStreamAdd: "rtspsrc location=rtsp://192.168.2.119:554 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+irStreamAdd: "rtspsrc location=rtsp://192.168.3.119:554/stream1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+visStreamAdd: "rtspsrc location=rtsp://192.168.3.119:554/stream0 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# irStreamAdd: "rtspsrc location=rtsp://192.168.2.119:554 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+# visStreamAdd: "rtspsrc location=rtsp://192.168.2.119:554 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false"
+mipiVisStreamAdd: "v4l2src device=/dev/video11 ! video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 ! videoconvert ! appsink"
+engine1: "/home/rpdzkj/code/pinlingv3/rknn_yolox_detector_v2/visdrone_6_rga.rknn"
+irengine1: "/home/rpdzkj/code/pinlingv3/rknn_yolox_detector_v2/visdrone_6_rga.rknn"
+engine: "/home/rpdzkj/wjm/exe/yolox_RK3588_i8.rknn"
+irengine: "/home/rpdzkj/wjm/exe/IR.rknn"
+videopath: "/home/nx/data/ir_far.mp4"
+
+
+cameraUDPContorlPort: "2000"
+videoCompressionQuality: "high"
+
+saveFileType: "TS"
+
+HDMIOutputFPS: "60"
+
+streamType: "h264"
+
+resolution: "720P"
+
+RTSPServerPort: "8553"
+RTSPEncoderBitrate: "2048"
+
+webPort: "8554"
+RTSPOutputForImageTransmission: "Default"
+
+OSDSrtSet: "Close"
+recognitionClass: "Both"
+
+UDPSendIP: "192.168.2.119"
+UDPSendSwitch: "Open"
+
+UDPSendPort: "55012"
+UDPSendType: "TS"
+
+
+

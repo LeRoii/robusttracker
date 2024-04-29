@@ -1,0 +1,32 @@
+<!--
+ * @Author: WJM
+ * @Date: 2024-03-02 14:24:15
+ * @LastEditors: WJM
+ * @LastEditTime: 2024-03-02 14:24:23
+ * @Description: 
+ * @FilePath: /pinlingv2.3.1/html/selectfiles.html
+ * @custom_string: http://www.aiar.xjtu.edu.cn/
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Files to Download</title>
+</head>
+<body>
+    <div class="videos">
+        <h2>Videos</h2>
+        {% for video in video_files %}
+        <a href="{{ url_for('download_file', filename=video) }}" download>{{ video }}</a><br>
+        {% endfor %}
+    </div>
+    <div class="images">
+        <h2>Images</h2>
+        {% for img in image_files %}
+        <a href="{{ url_for('download_file', filename=img) }}" download>{{ img }}</a><br>
+        {% endfor %}
+    </div>
+    <button onclick="window.history.back();">Return to Main Page</button>
+</body>
+</html>

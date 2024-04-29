@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings</title>
+    <style>
+        .title {
+            background-color: rgb(99, 227, 99);
+            color: black;
+            text-align: center;
+            padding: 10px;
+            font-size: 24px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 10px;
+            table-layout: fixed;
+            /* 确保每列都有相同的宽度 */
+            border-collapse: separate;
+            /* 设置单元格边框独立 */
+            border-spacing: 0 1px;
+            /* 设置单元格间距 */
+        }
+
+        th,
+        td {
+            padding: 7px;
+            text-align: left;
+            background-color: #f7f2f2;
+            /* 单元格背景色 */
+        }
+
+        /* 添加漂亮的边框和阴影 */
+
+        th,
+        td {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 鼠标悬停效果 */
+
+        td:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+        }
+
+        .input-field {
+            width: 90%;
+            /* 加宽文本框 */
+            font-size: 16px;
+            /* 字体放大 */
+            padding: 2px;
+            /* 增加一些内边距 */
+        }
+
+        .dropdown-field {
+            width: 120px;
+            font-size: 16px;
+            /* 字体放大 */
+            padding: 2px;
+            /* 增加一些内边距 */
+        }
+
+        .explanation {
+            font-size: 10px;
+            color: grey;
+        }
+
+        .port-input {
+            width: 60px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+        .camera-ip-input {
+            width: 50px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+        .gateway-input {
+            width: 50px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+        .netmask-input {
+            width: 50px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+        .UDP-IP-input {
+            width: 50px;
+            font-size: 16px;
+            text-align: center;
+            /* border: none;
+            border-bottom: 1px solid #000; */
+            padding: 2px;
+            margin-right: 2px;
+        }
+
+
+        .input-hint {
+            font-size: 16px;
+            color: gray;
+            margin-left: 2px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .file-upload-container {
+            position: relative;
+            /* 设置相对定位，使绝对定位的子元素相对于此元素定位 */
+            height: 50px;
+            display: flex;
+            align-items: center;
+            /* 根据需要设定合适的高度 */
+        }
+
+        .file-upload-container input[type="text"] {
+            width: 150px;
+            /* 输入框的宽度 */
+            margin-right: 10px;
+            /* 输入框与按钮之间的间距 */
+        }
+
+        .file-upload-container button {
+            position: absolute;
+            /* 绝对定位 */
+            /* top: 50%; */
+            /* 向下偏移父容器高度的一半 */
+            left: 50%;
+            /* 向右偏移父容器宽度的一半 */
+            transform: translate(-50%, 0);
+            /* 通过移动按钮自身宽度和高度的一半来完成准确居中 */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="title">System Setting</div>
+    <table>
+        <tr>
+            <th colspan="2">System Info</th>
+        </tr>
+        <tr>
+            <th>Soft Version</th>
+            <td><input type="text" name="softVersion" class="input-field" placeholder="VP1_CR21_V90009R00000B41"
+                    disabled></td>
+        </tr>
+        <tr>
+            <th>VIS model Version</th>
+            <td><input type="text" name="VISModeVersion" class="input-field" placeholder="5S-VlS-PL-20220914-2"
+                    disabled></td>
+        </tr>
+        <tr>
+            <th>IRF model Version</th>
+            <td><input type="text" name="IRFModelVersion" class="input-field" placeholder="USER-IRF-PL-20220928"
+                    disabled></td>
+        </tr>
+        <tr>
+            <th>IR Version</th>
+            <td><input type="text" name="IRVersion" class="input-field" placeholder="23Y-2M-10D" disabled></td>
+        </tr>
+        <tr>
+            <th colspan="2">Device Configuration</th>
+        </tr>
+
+        <form method="post" action="/submit">
+            <tr>
+                <th>Camera IP: </th>
+                <td>
+                    {% for octet in networkInfo.address %}
+                    <input type="number" class="ip-input" min="0" max="255" value={{octet}}>
+                    {% if not loop.last %}.{% endif %}
+                    {% endfor %}
+                    <input type="hidden" name="camera_ip" id="camera_ip">
+                    <input type="hidden" name="gateway" id="gateway">
+                    <input type="hidden" name="netmask" id="netmask">
+                    <input type="hidden" name="udp_ip" id="udp_ip">
+
+                </td>
+                <!-- <div class="explanation">This is an explanation for the input field.</div> -->
+            </tr>
+
+            <tr>
+                <th>Camera UDP Contorl Port: </th>
+                <td>
+                    <input type="number" name="cameraUDPContorlPort" class="port-input" min="1" max="65535"
+                        value={{pinlingConfig.cameraUDPContorlPort}}>
+                    <span class="input-hint"> (1~65535 except 2000)</span>
+                </td>
+                <!-- <div class="explanation">This is an explanation for the input field.</div> -->
+            </tr>
+
+
+            <tr>
+                <th>Video Compression Quality: </th>
+                <td>
+                    <select class="dropdown-field" name="videoCompressionQuality">
+                        <option value="high" {% if pinlingConfig.videoCompressionQuality=="high" %}selected{% endif %}>
+                            high</option>
+                        <option value="medium" {% if pinlingConfig.videoCompressionQuality=="medium" %}selected{% endif
+                            %}>medium</option>
+                        <option value="low" {% if pinlingConfig.videoCompressionQuality=="low" %}selected{% endif %}>low
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th>Save File Type: </th>
+                <td>
+                    <select class="dropdown-field" name="saveFileType">
+                        <option value="TS" {% if pinlingConfig.saveFileType=="TS" %}selected{% endif %}>TS
+                        </option>
+                        <option value="PS" {% if pinlingConfig.saveFileType=="PS" %}selected{% endif %}>PS
+                        </option>
+                    </select>
+                    <div class="explanation">ts stream plays normally on vlc</div>
+                </td>
+            </tr>
+
+            <tr>
+                <th>HDMI Output FPS: </th>
+                <td>
+                    <select class="dropdown-field" name="HDMIOutputFPS">
+                        <option value="60" {% if pinlingConfig.HDMIOutputFPS==60 %}selected{% endif %}>60
+                        </option>
+                        <option value="30" {% if pinlingConfig.HDMIOutputFPS==30 %}selected{% endif %}>30
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th>Stream Type: </th>
+                <td>
+                    <select class="dropdown-field" name="streamType">
+                        <option value="h264" {% if pinlingConfig.streamType=="h264" %}selected{% endif %}>h264
+                        </option>
+                        <option value="h265" {% if pinlingConfig.streamType=="h265" %}selected{% endif %}>h265
+                        </option>
+                    </select>
+
+                </td>
+            </tr>
+
+            <tr>
+                <th>Resolution: </th>
+                <td>
+                    <select class="dropdown-field" name="resolution">
+                        <option value="720P" {% if pinlingConfig.resolution=="720P" %}selected{% endif %}>720P
+                        </option>
+                        <option value="1080P" {% if pinlingConfig.resolution=="1080P" %}selected{% endif %}>1080P
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+
+            <tr>
+                <th>RTSP Encoder Bitrate: </th>
+                <td>
+                    <input type="number" name="RTSPEncoderBitrate" class="port-input" min="500" max="6000"
+                        value={{pinlingConfig.RTSPEncoderBitrate}}>
+                    <span class="input-hint"> (500~6000)</span>
+                </td>
+
+            </tr>
+
+            <tr>
+                <th>RTSP Server Port: </th>
+                <td>
+                    <input type="number" name="RTSPServerPort" class="port-input" min="1" max="65535"
+                        value={{pinlingConfig.RTSPServerPort}}>
+                    <span class="input-hint"> (1~65535 except 8554)</span>
+                </td>
+            </tr>
+
+            <tr>
+                <th>Gateway: </th>
+                <td>
+                    {% for octet in networkInfo.gateway %}
+                    <input type="number" class="gateway-input" min="0" max="255" value={{octet}}>
+                    {% if not loop.last %}.{% endif %}
+                    {% endfor %}
+                </td>
+            </tr>
+
+            <tr>
+                <th>Net Mask: </th>
+                <td>
+                    {% for octet in networkInfo.netmask %}
+                    <input type="number" class="netmask-input" min="0" max="255" value={{octet}}>
+                    {% if not loop.last %}.{% endif %}
+                    {% endfor %}
+                </td>
+            </tr>
+
+            <tr>
+                <th>Web Port: </th>
+                <td>
+                    <input type="number" name="webPort" class="port-input" min="8000" max="9000"
+                        value={{pinlingConfig.webPort}}>
+                    <span class="input-hint"> (8000~9000 except 8554)</span>
+                </td>
+            </tr>
+
+
+
+            <tr>
+                <th>RTSP Output for image transmission: </th>
+                <td>
+                    <select class="dropdown-field" name="RTSPOutputForImageTransmission">
+                        <option value={{pinlingConfig.RTSPOutputForImageTransmission}}>Default</option>
+
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th>OSD Srt Set: </th>
+                <td>
+                    <select class="dropdown-field" name="OSDSrtSet">
+                        <option value="Close" {% if pinlingConfig.OSDSrtSet=="Close" %}selected{% endif %}>Close
+                        </option>
+                        <option value="Open" {% if pinlingConfig.OSDSrtSet=="Open" %}selected{% endif %}>Open
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th>Recognition Class: </th>
+                <td>
+                    <select class="dropdown-field" name="recognitionClass">
+                        <option value="Both" {% if pinlingConfig.recognitionClass=="Both" %}selected{% endif %}>Both
+                        </option>
+                        <option value="Car" {% if pinlingConfig.recognitionClass=="Car" %}selected{% endif %}>Car
+                        </option>
+                        <option value="Person" {% if pinlingConfig.recognitionClass=="Person" %}selected{% endif %}>
+                            Person
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+
+
+            <tr>
+                <th colspan="2">UDP Send Setting</th>
+            </tr>
+
+            <tr>
+                <th>UDP Send IP: </th>
+                <td>
+                    {% for octet in pinlingConfig.UDPSendIP %}
+                    <input type="number" class="UDP-IP-input" min="0" max="255" value={{octet}}>
+                    {% if not loop.last %}.{% endif %}
+                    {% endfor %}
+                </td>
+
+            </tr>
+            <tr>
+                <th>UDP Send Switch: </th>
+                <td>
+                    <select class="dropdown-field" name="UDPSendSwitch">
+                        <option value="Close" {% if pinlingConfig.UDPSendSwitch=="Close" %}selected{% endif %}>Close
+                        </option>
+                        <option value="Open" {% if pinlingConfig.UDPSendSwitch=="Open" %}selected{% endif %}>Open
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th>UDP Send Port: </th>
+                <td>
+                    <input type="number" name="UDPSendPort" class="port-input" min="1024" max="65535"
+                        value={{pinlingConfig.UDPSendPort}}>
+                    <span class="input-hint"> (1024~65535 except 2000/8554)</span>
+                </td>
+            </tr>
+            <tr>
+                <th>UDP Send Type: </th>
+                <td>
+                    <select class="dropdown-field" name="UDPSendType">
+                        <option value="TS" {% if pinlingConfig.UDPSendType=="TS" %}selected{% endif %}>TS
+                        </option>
+                        <option value="PS" {% if pinlingConfig.UDPSendType=="PS" %}selected{% endif %}>PS
+                        </option>
+                    </select>
+                </td>
+            </tr>
+
+            <tr>
+                <th colspan="2">
+                    <button type="submit" id="submit-btn"
+                        style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Submit</button>
+                </th>
+            </tr>
+        </form>
+
+        <tr>
+            <th colspan="2">XML Upload</th>
+        </tr>
+
+        <tr>
+            <th colspan="2">
+                <div class="file-upload-container">
+                    <label for="fileInput">Upload XML File: </label>
+                    <input id="pathInput" type="text" placeholder="文件路径" readonly>
+                    <button onclick="browseFiles()"
+                        style="display: block; width: 150px; font-size: 16px;">Browse</button>
+                </div>
+            </th>
+
+        </tr>
+
+        <tr>
+            <th colspan="2"><button onclick="parseXML()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Upload XML</button></th>
+
+        </tr>
+
+        <tr>
+            <th colspan="2">XML Download</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="downloadXML()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Download XML</button>
+            </th>
+
+        </tr>
+
+        <tr>
+            <th colspan="2"> Download Files</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="downloadVideo()" id="123" type="button"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Download Video or
+                    img</button>
+            </th>
+
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 16px;">Download Log</button>
+            </th>
+
+        </tr>
+
+        </tr>
+
+        <tr>
+            <th colspan="2">System Control</th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Restore Factory
+                    Settings</button></th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Track Debug Open</button>
+            </th>
+
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="formatSDCard()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Format SD-CARD</button>
+            </th>
+        </tr>
+        <tr>
+            <th colspan="2"><button onclick="browseFiles()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">One-click
+                    Packing</button>
+            </th>
+        </tr>
+
+        <tr>
+            <th colspan="2"><button onclick="reboot()"
+                    style="display: block; margin: 0 auto; width: 150px; font-size: 14px;">Reboot</button></th>
+        </tr>
+        <!-- Add additional rows as needed -->
+    </table>
+
+
+    <script>
+
+        function reboot() {
+            fetch('/reboot-system', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+        function formatSDCard() {
+
+            fetch('/format-sdcard', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+
+        }
+
+        function downloadVideo() {
+            window.location.href = "/selectfiles.html"; // 跳转到文件选择页面
+
+        }
+        function browseFiles() {
+            const input = document.getElementById('pathInput');
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.addEventListener('change', function () {
+                const filePath = fileInput.value;
+                input.value = filePath;
+            });
+            fileInput.click();
+        }
+
+        function downloadXML() {
+            // 收集表单数据
+            var camera_ip = document.getElementById('camera_ip').value;
+            var gateway = document.getElementById('gateway').value;
+            var netmask = document.getElementById('netmask').value;
+            var udp_ip = document.getElementById('udp_ip').value;
+
+            // 创建XML格式的字符串
+            var xmlString = '<configurations>\n' +
+                ' <camera_ip>' + camera_ip + '</camera_ip>\n' +
+                ' <gateway>' + gateway + '</gateway>\n' +
+                ' <netmask>' + netmask + '</netmask>\n' +
+                ' <udp_ip>' + udp_ip + '</udp_ip>\n' +
+                '</configurations>';
+
+            // 创建一个Blob对象，并指定内容类型为text/xml
+            var blob = new Blob([xmlString], { type: 'text/xml' });
+
+            // 创建一个下载链接
+            var a = document.createElement('a');
+            a.href = window.URL.createObjectURL(blob);
+            a.download = 'configurations.xml';
+
+            // 触发下载
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // 添加监听事件到表单
+        document.getElementById('submit-btn').addEventListener('click', function (event) {
+            // 防止表单直接提交
+            event.preventDefault();
+
+            // 获取所有 ip-input 类的输入值
+            var ipParts = document.getElementsByClassName('ip-input');
+            var camera_ip = '';
+            for (var i = 0; i < ipParts.length; i++) {
+                camera_ip += ipParts[i].value; if (i < ipParts.length - 1) {
+                    camera_ip
+                        += '.';
+                }
+            } ipParts = document.getElementsByClassName('gateway-input'); var gateway = ''; for (var i = 0; i <
+                ipParts.length; i++) { gateway += ipParts[i].value; if (i < ipParts.length - 1) { gateway += '.'; } }
+            ipParts = document.getElementsByClassName('netmask-input'); var netmask = ''; for (var i = 0; i < ipParts.length;
+                i++) { netmask += ipParts[i].value; if (i < ipParts.length - 1) { netmask += '.'; } }
+            ipParts = document.getElementsByClassName('UDP-IP-input'); var udp_ip = ''; for (var i = 0; i < ipParts.length; i++) { udp_ip += ipParts[i].value; if (i < ipParts.length - 1) { udp_ip += '.'; } } // 将组合的 IP 地址设置到隐藏的 input 中
+            document.getElementById('camera_ip').value = camera_ip; document.getElementById('gateway').value = gateway;
+            document.getElementById('netmask').value = netmask; document.getElementById('udp_ip').value = udp_ip; // 现在可以提交表单了
+            event.target.form.submit();
+        });
+        function parseXML() { } 
+    </script>
+</body>
+
+</html>

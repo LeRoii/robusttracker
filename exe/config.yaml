@@ -1,0 +1,61 @@
+detection: 1
+track: 0
+inputVideoType: mipi
+inputIRVideoType: USB
+visi_dev: /dev/video0
+ir_dev: /dev/video11
+irStreamAdd: rtspsrc location=rtsp://192.168.3.119:554/stream1 latency=0 ! rtph264depay
+  ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false
+visStreamAdd: rtspsrc location=rtsp://192.168.3.119:554/stream0 latency=0 ! rtph264depay
+  ! h264parse ! omxh264dec ! videoconvert ! appsink max-buffers=1 drop=true sync=false
+mipiVisStreamAdd: v4l2src device=/dev/video11 ! video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1
+  ! videoconvert ! appsink
+videopath: /home/nx/data/ir_far.mp4
+cameraUDPContorlPort: 2000
+videoCompressionQuality: low
+saveFileType: TS
+HDMIOutputFPS: 60
+streamType: h264
+resolution: 1080P
+RTSPServerPort: 8553
+RTSPEncoderBitrate: 2048
+webPort: 8554
+RTSPOutputForImageTransmission: Default
+OSDSrtSet: Close
+recognitionClass: Both
+UDPSendIP: 192.168.4.9
+UDPSendSwitch: Close
+UDPSendPort: 55012
+UDPSendType: TS
+gateSize: 32
+visClsNum: 12
+irClsNum: 7
+initalOffsetLimit: 100
+offsetLimitCeil: 150
+initFusMinDistThres: 70
+initialMinDistThres: 15.0
+initialAreaDifThres: 30.0
+searchFrameCntThres: 3
+strackerFailCntThres: 6
+trackUpdateSimThres: 0.7
+ssearchCntThres: 35
+featureCalCntThres: 3
+featureAbanDistThres: 100
+minDistCeil: 45
+minDistThresScalCnt: 3
+areaDifThresCeil: 50
+maxSimThresFSwitch: 0.65
+maxSimDifThresFSwitch: 0.3
+strackerWaitThres: 5
+containRectCntThres: 3
+detectorBoxDifThres: 5
+offsetLimitIncCntThres: 10
+trackTraceSizeThres: 100
+trackVeloUpdateSizeDifThres: 8
+trackVeloBufSize: 10
+dtrackerLostCntThres: 2
+detectorVisNmsConf: 0.45
+detectorVisConf: 0.2
+detectorIrNmsConf: 0.45
+detectorIrConf: 0.2
+trackFinalLostCntThres: 35
