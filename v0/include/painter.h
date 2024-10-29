@@ -9,4 +9,6 @@ void PaintCrossPattern(cv::Mat &frame0, float currRollAngle, float currPitchAngl
 void PaintCoordinate(cv::Mat &frame0);
 void PaintViewPara(cv::Mat &frame0);
 void PaintTrackerMissDistance(cv::Mat &frame0);
+void drawRect(cv::Mat frame, cv::Rect r, cv::Scalar color = cv::Scalar(0,255,255));
+void drawLostRect(cv::Mat frame, cv::Rect r);
 #endif

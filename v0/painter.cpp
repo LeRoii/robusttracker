@@ -488,3 +488,37 @@ void PaintViewPara(cv::Mat &frame0)
     }
     cv::putText(frame0, sdCardState, cv::Point(x, y + 200), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
 }
+
+void drawRect(cv::Mat frame, cv::Rect r, cv::Scalar color)
+{
+    cv::Point tl{r.x, r.y};
+    cv::Point bl{r.x,r.y + r.height};
+    cv::Point tr{r.x + r.width, r.y};
+    cv::Point br{r.x + r.width, r.y+r.height};
+
+    int xlinelen = r.width/4;
+    int ylinelen = r.height/4;
+    int thickness = 3;
+
+    cv::line(frame, tl, cv::Point(tl.x + xlinelen, tl.y), color, thickness);
+    cv::line(frame, tl, cv::Point(tl.x, tl.y + ylinelen), color, thickness);
+
+    cv::line(frame, bl, cv::Point(bl.x + xlinelen, bl.y), color, thickness);
+    cv::line(frame, bl, cv::Point(bl.x, bl.y - ylinelen), color, thickness);
+
+    cv::line(frame, tr, cv::Point(tr.x - xlinelen, tr.y), color, thickness);
+    cv::line(frame, tr, cv::Point(tr.x, tr.y + ylinelen), color, thickness);
+
+    cv::line(frame, br, cv::Point(br.x - xlinelen, br.y), color, thickness);
+    cv::line(frame, br, cv::Point(br.x, br.y - ylinelen), color, thickness);
+}
+
+void drawLostRect(cv::Mat frame, cv::Rect r)
+{
+    int s = 3;
+    int w = r.width * s;
+    int h = r.height * s;
+    cv::Point pt(r.x+r.width/2, r.y+r.height/2);
+    cv::Rect rc(pt.x - w/2, pt.y - h/2, w, h);
+    drawRect(frame, rc, cv::Scalar(0,255,0));
+}

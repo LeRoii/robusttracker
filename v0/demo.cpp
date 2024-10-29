@@ -7,6 +7,40 @@
 #include "itracker.h"
 #include "realtracker.h"
 
+void drawRect(cv::Mat frame, cv::Rect r, cv::Scalar color = cv::Scalar(0,255,255))
+{
+    cv::Point tl{r.x, r.y};
+    cv::Point bl{r.x,r.y + r.height};
+    cv::Point tr{r.x + r.width, r.y};
+    cv::Point br{r.x + r.width, r.y+r.height};
+
+    int xlinelen = r.width/4;
+    int ylinelen = r.height/4;
+    int thickness = 3;
+
+    cv::line(frame, tl, cv::Point(tl.x + xlinelen, tl.y), color, thickness);
+    cv::line(frame, tl, cv::Point(tl.x, tl.y + ylinelen), color, thickness);
+
+    cv::line(frame, bl, cv::Point(bl.x + xlinelen, bl.y), color, thickness);
+    cv::line(frame, bl, cv::Point(bl.x, bl.y - ylinelen), color, thickness);
+
+    cv::line(frame, tr, cv::Point(tr.x - xlinelen, tr.y), color, thickness);
+    cv::line(frame, tr, cv::Point(tr.x, tr.y + ylinelen), color, thickness);
+
+    cv::line(frame, br, cv::Point(br.x - xlinelen, br.y), color, thickness);
+    cv::line(frame, br, cv::Point(br.x, br.y - ylinelen), color, thickness);
+}
+
+void drawLostRect(cv::Mat frame, cv::Rect r)
+{
+    int s = 3;
+    int w = r.width * s;
+    int h = r.height * s;
+    cv::Point pt(r.x+r.width/2, r.y+r.height/2);
+    cv::Rect rc(pt.x - w/2, pt.y - h/2, w, h);
+    drawRect(frame, rc, cv::Scalar(0,255,0));
+}
+
 cv::Rect box;//矩形对象
 bool drawing_box = false;//记录是否在画矩形对象
 bool box_complete = false;
@@ -21,6 +55,8 @@ realtracker *rtracker = nullptr;
 cv::Mat trackFrame;
 cv::Mat dispFrame, trackRet, detFrame, trackRetByDet;
 int trackOn;
+
+int gateS = 64;
 
 void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数，鼠标点击后执行的内容应在此
 {
@@ -61,8 +97,8 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
         if (trackOn) {
             if (rtracker) {
                 rtracker->reset();
-                rtracker->init( userPt, dispFrame );
-                cv::rectangle(trackFrame, cv::Rect(userPt.x - 16, userPt.y - 16, 32,32),cv::Scalar( 48,48,255 ), 2, 8 );
+                rtracker->init( userPt, dispFrame, dispFrame);
+                cv::rectangle(trackFrame, cv::Rect(userPt.x - gateS/2, userPt.y - gateS/2, gateS,gateS),cv::Scalar( 48,48,255 ), 2, 8 );
                 trackerInited = true;
                 cv::imshow("trackRet", trackFrame);
             }
@@ -289,9 +325,14 @@ int main(int argc, char*argv[])
     std::string videopath = config["videopath"].as<std::string>();
     std::string irEngine = config["irengine"].as<std::string>();
 
+    gateS = config["gates"].as<int>();
+
+
     std::queue<cv::Mat> frameQueue;
 
-    rtracker = new realtracker(engine, irEngine);
+    rtracker = new realtracker("/home/rpdzkj/1/h265encode_test/exe/trackercfg.yaml");
+    // rtracker->setGateSize(gateS);
+    gateS = rtracker->osdw;
 
     // idetector *detector = new idetector("/home/nx/model/vis-8s-2c.engine");
     // idetector *detector = new idetector(engine);
@@ -305,11 +346,7 @@ int main(int argc, char*argv[])
         return 0;
     }
 
-	itracker *tracker = new itracker();
-
-
     std::vector<bbox_t> boxs;
-
 
     cv::Mat frame;
     int nFrames = 0;
@@ -327,7 +364,7 @@ int main(int argc, char*argv[])
     cv::Point pt;
 
     
-    std::vector<bbox_t> detRet;
+    // std::vector<bbox_t> detRet;
     // std::vector<TrackingObject> detRet;
 
     uint8_t trackerStatus[9];
@@ -336,6 +373,7 @@ int main(int argc, char*argv[])
     cv::Mat templt;
 
     // rtracker->setIrFrame(true);
+    bbox_t detRet[200];
 
     while(1)
     {
@@ -355,93 +393,36 @@ int main(int argc, char*argv[])
 
         printf("=====nframe:%d======\n", nFrames);
 
-#if 0
-        if(trackOn)
-        {
-            if (nFrames == 0) {
-                while(1)
-                {
-                    printf("1111111111\n");
-                    auto tmpmat = frame.clone();
-                    cv::rectangle( tmpmat, cv::Point(box.x,box.y), cv::Point(box.x+box.width,box.y+box.height), cv::Scalar( 48,48,255 ), 2, 8 );
-                    cv::imshow("trackRet", tmpmat);
-                    if(box_complete == true)
-                    {
-                        xMin = box.x;
-                        yMin = box.y;
-                        width = box.width;
-                        height = box.height;
-                        break;
-                    }
-                    cv::waitKey(30);
-                }
-                printf("WWWWWWW\n");
-                // tracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
-                // rtracker->init( cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize), frame );
-                rtracker->init( cv::Point(xMin, yMin), frame );
-                // rectangle( frame, Point( xMin, yMin ), Point( xMin+width, yMin+height), Scalar( 0, 255, 255 ), 1, 8 );
-                // resultsFile << xMin << "," << yMin << "," << width << "," << height << endl;
-
-                templt = frame(cv::Rect(xMin-GateSize/2, yMin-GateSize/2, GateSize, GateSize)).clone();
-
-                spdlog::debug("tracker init pt:({},{})", xMin, yMin);
-            }
-            // Update
-            else{
-                // bool lost;
-                // result = tracker->update(frame, lost);
-                // // drawCrosshair(frame, cv::Point(result.x+result.width/2,result.y+result.height/2), 0.5);
-                // rectangle(trackFrame, cv::Point( result.x, result.y ), cv::Point( result.x+result.width, result.y+result.height), cv::Scalar( 255,0,0 ), 2, 8 );
-                // // resultsFile << result.x << "," << result.y << "," << result.width << "," << result.height << endl;
-                // userPt.x = result.x+GateSize/2;
-                // userPt.y = result.y+GateSize/2;
-                // rtracker->runTracker(trackFrame);
-                rtracker->update(trackFrame, detRet, trackerStatus);
-                
-
-                // cv::Mat templret;
-                // matchTemplate(trackFrame,templt,templret,cv::TM_CCOEFF_NORMED);
-                // double maxVal,minVal;
-                // cv::Point minLoc,maxLoc;
-                // minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
-                // //回执最佳匹配结果
-                // rectangle(trackFrame,cv::Rect(maxLoc.x,maxLoc.y,templt.cols,templt.rows),cv::Scalar(135,32,156),2);
-
-
-                // spdlog::debug("tracker lost:{}", lost);
-
-                // if(lost || !contain)
-                // {
-                //     spdlog::debug("reset tracker ");
-                //     //reset tracker
-                //     cv::Rect brect = frameInfo.m_tracks[0][minIdx].m_rrect.boundingRect();
-                //     cv::Point center{brect.tl().x + brect.width/2, brect.tl().y + brect.height/2};
-                //     tracker->reset();
-                //     tracker->init( cv::Rect(center.x-GateSize/2, center.y-GateSize/2, GateSize, GateSize), frame );
-                // }
-
-                spdlog::debug("tracker status:{}", trackerStatus[4]);
-                cv::imshow("trackRet", trackFrame);
-            }
-
-            spdlog::debug("tracker end");
-        }
-#endif
         int center_x,center_y;
+        cv::Rect trackRect;
+        int boxes_count;
         if(trackOn) {
             if (trackerInited) {
                 // rtracker->update(trackFrame, detRet, trackerStatus);
                 // rtracker->update(frame, detRet, trackerStatus);
-                rtracker->update(frame, detRet, trackerStatus,center_x,center_y);
+                // rtracker->update(frame, detRet, trackerStatus, center_x, center_y);
+                rtracker->update(trackFrame, trackFrame, trackerStatus, center_x, center_y, trackRect);
+
+                 if(rtracker->trackerLost())
+                {
+                    drawLostRect(trackFrame, trackRect);
+                }
+                else
+                    drawRect(trackFrame, trackRect);
+
+
+
                 spdlog::debug("tracker status:{}", trackerStatus[4]);
             }
-            cv::imshow("trackRet", frame);
+            cv::imshow("trackRet", trackFrame);
         }
         nFrames++;
 
         if(detOn)
         {
-            rtracker->runDetector(detFrame, detRet);
+            // rtracker->runDetector(detFrame, detRet);
+            rtracker->runDetectorOut(detFrame, detRet, boxes_count);
+
             // cv::imshow("show", trackRetByDet);
 
             // cv::resize(dispFrame, dispFrame, cv::Size(1280,720));
@@ -456,7 +437,7 @@ int main(int argc, char*argv[])
         
         char c = cv::waitKey(waitVAL);
         if(c == 'g')
-            waitVAL = 10;
+            waitVAL = 1;
         else if(c == 's')
             waitVAL = 0;
 

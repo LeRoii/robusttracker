@@ -1,8 +1,8 @@
-engine: ../model/rgb_yolov8_s.rknn
+engine: /home/rpdzkj/robusttracker/model/rgb_yolov8_s.rknn
 # irengine: /home/rpdzkj/code/robusttracker-0229/self_v0/model/yolox_RK3588_i8-ir.rknn
-irengine: ../model/ir_yolov8.rknn
+irengine: /home/rpdzkj/robusttracker/model/ir_yolov8.rknn
 
-gateSize: 32
+gateSize: 28
 visClsNum: 10
 irClsNum: 3
 initalOffsetLimit: 100
@@ -11,9 +11,9 @@ initFusMinDistThres: 70
 initialMinDistThres: 15.0
 initialAreaDifThres: 30.0
 searchFrameCntThres: 3
-strackerFailCntThres: 6
+strackerFailCntThres: 2
 trackUpdateSimThres: 0.7
-ssearchCntThres: 35
+ssearchCntThres: 200
 featureCalCntThres: 3
 featureAbanDistThres: 100
 minDistCeil: 40
@@ -27,10 +27,10 @@ detectorBoxDifThres: 5
 offsetLimitIncCntThres: 10
 trackTraceSizeThres: 100
 trackVeloUpdateSizeDifThres: 4
-trackVeloBufSize: 50
+trackVeloBufSize: 80
 dtrackerLostCntThres: 2
 detectorVisNmsConf: 0.45
-detectorVisConf: 0.2
+detectorVisConf: 0.4
 detectorIrNmsConf: 0.45
 detectorIrConf: 0.2
 trackFinalLostCntThres: 120

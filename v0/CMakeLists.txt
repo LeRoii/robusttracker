@@ -46,7 +46,7 @@ add_executable(demo ${APP_SRC})
 
 # target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
 target_link_libraries(demo ${OpenCV_LIBS} -ltracker ${RKNN_RT_LIB} ${RGA_LIB})
-target_link_libraries(demo -lidetector -lGuideSCUSB2 -lusb-1.0 -lm)
+target_link_libraries(demo -lidetector_yolov8 -lGuideSCUSB2 -lusb-1.0 -lm)
 target_link_libraries(demo yaml-cpp)
 target_link_libraries(demo -pthread)
 target_link_libraries(demo spdlog::spdlog)

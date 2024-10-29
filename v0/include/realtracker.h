@@ -123,12 +123,17 @@ public:
     void setGateSize(int s);
     void setIrFrame(bool ir);
 
+    bool trackerLost();
+
+    int osdw;
+
 private:
     void fsmUpdate(cv::Mat &frame, cv::Mat &, cv::Rect &);
     void FSM_PROC_STRACK(cv::Mat &frame, cv::Mat &, cv::Rect &);
     void FSM_PROC_DTRACK(cv::Mat &frame, cv::Mat &, cv::Rect &);
     void FSM_PROC_SEARCH(cv::Mat &frame);
     void FSM_PROC_SSEARCH(cv::Mat &frame, cv::Rect &);
+    bool sseFind(float sim);
 
     itracker *m_stracker;
     CDetector *m_detector;
@@ -161,7 +166,7 @@ private:
     double minDistThres;
     double areaDifThres;
     int m_dtrackerLostCnt;
-    int osdw;
+    
     bool sevorKeepFlag;
     int16_t x;
     int16_t y;
