@@ -148,27 +148,31 @@ CameraUSB::~CameraUSB()
 
 int CameraUSB::Init()
 {
+    printf("walker ----- CameraUSB::Init()--- \n");
     if (!usbCamera->openDevice())
     {
+        std::cout<< "walker ----usbCamera->openDevice() error ---" <<std::endl;
         return RET_ERR;
     }
-    if (!usbCamera->queryCapability())
-    {
-        return RET_ERR;
-    }
+    // if (!usbCamera->queryCapability())
+    // {
+    //     return RET_ERR;
+    // }
 
+     printf("walker -----11111111111--- \n");
     if (!usbCamera->initDevice())
     {
+             printf("walker -----12121212112121212121--- \n");
         return RET_ERR;
     }
-    if (!usbCamera->mmap_v4l2_buffer())
-    {
-        return RET_ERR;
-    }
-    if (!usbCamera->startCapture())
-    {
-        return RET_ERR;
-    }
+    // if (!usbCamera->mmap_v4l2_buffer())
+    // {
+    //     return RET_ERR;
+    // }
+    // if (!usbCamera->startCapture())
+    // {
+    //     return RET_ERR;
+    // }
     return RET_OK;
 }
 

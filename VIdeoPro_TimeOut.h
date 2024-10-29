@@ -1,0 +1,15 @@
+#ifndef VIDEOPRO_TIMEOUT_H
+#define VIDEOPRO_TIMEOUT_H
+
+/*超时时间宏定义*/
+#define MILLIN_PER_SECOND (1000000LLU)  //1秒
+#define MILLIN_PER_MILLISECOND (1000LLU)  //1毫秒
+
+#define MAX_TIMEOUT_MODULE_INIT (20 * MILLIN_PER_MILLISECOND) /*模块初始化超时时间*/
+
+#define MAX_TIMEOUT_MODULE_INIT_30FPS (30 * MILLIN_PER_MILLISECOND) /*模块初始化超时时间*/
+
+void TimeOut();
+
+#endif	// #define VIDEOPRO_TIMEOUT_H
+

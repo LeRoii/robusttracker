@@ -1,4 +1,23 @@
 
+
+#include <stdio.h>  
+#include <unistd.h>
+#include <signal.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <spdlog/fmt/chrono.h>
+#include <deque>
+#include <numeric>
+#include <chrono>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <sstream>
+#include <iterator>
+#include <poll.h>
+#include <queue>
 // SerialPort.cpp
 #include "serialport.h"
 #include <iostream>
@@ -11,9 +30,11 @@
 #include "common.h"
 #include <termios.h>
 #include <arpa/inet.h>
+#include "VideoPro_Uart.h"
+#include "VideoPro_MsgTable.h"
 
 extern ST_SYS_STATUS stSysStatus;
-
+extern Serial serial137Link; 
 ST_A1_CONFIG stA1Cfg = {0};
 ST_A2_CONFIG stA2Cfg = {0};
 ST_C1_CONFIG stC1Cfg = {0};
@@ -32,6 +53,28 @@ ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg = {0};
 
 ST_CMD_SD_CONFIG stCmdSDCfg = {0};
 ST_ACK_SD_CONFIG stAckSDCfg = {0};
+
+
+
+ST_TriaxialAngle stTriaxialAngle = {0};
+ST_TriaxialAngle_Speed stTriaxialAngleSpeed = {0};
+ST_XYZ_AcceleratedSpeed stXYZAcceleratedSpeed = {0};
+ST_AttitudeAngle stAttitudeAngle={0};
+
+extern uint8_t trackerStatus[9];
+
+// 是否对比度增强
+extern bool isNeedContrastEnhance ;
+// 是否线性变换增强
+extern bool isNeedLinearTransformation ;
+// 是否图像增强
+extern bool isNeedImageEnhance ;
+// 是否图像超分辨率
+extern bool isNeedSuperResolution;
+ //超分辨率系数
+extern float  SuperResolutionindex;
+extern std::mutex mtx; // 定义一个互斥锁
+
 
 EN_DATA_FRAME_TYPE GetFrameType(std::vector<uint8_t> &send_buf, int Len)
 {
@@ -59,6 +102,11 @@ EN_DATA_FRAME_TYPE GetFrameType(std::vector<uint8_t> &send_buf, int Len)
         else if (send_buf[4] == 0x19)
         {
             return IPInq;
+        } else if (send_buf[4] == 0x1C) {
+            if ((send_buf[5] == 0x02 && send_buf[6] == 0x80) ||
+            (send_buf[5] == 0x02 && send_buf[6] == 0xC0)) {
+                return FocusC1;
+            }
         }
     }
 
@@ -203,7 +251,7 @@ static void VL_ParseSerialData_E1(uint8_t *buf)
     if (stE1Cfg.enBaseOpMode == OnTrack)
     {
         stSysStatus.trackOn = true;
-        stSysStatus.trackAssignPoint = cv::Point(640, 360);
+        stSysStatus.trackAssignPoint = cv::Point(960, 540);
     }
 
     if (stE1Cfg.enBaseOpMode > TrackingSpeedAdjustment &&
@@ -262,7 +310,34 @@ static void VL_ParseSerialData_C2(uint8_t *buf)
 {
     ST_C2_CONFIG *c2Cfg = (ST_C2_CONFIG *)buf;
     stC2Cfg.opCmd1 = c2Cfg->opCmd1;
-    memcpy(&stC2Cfg.opCmdPara1, c2Cfg->opCmdPara1, 2);
+
+    printf("收到cmd: 0x%02x\n", stC2Cfg.opCmd1 );
+    switch ( stC2Cfg.opCmd1)
+    {
+        case 0x10 ://图像增强开
+            isNeedImageEnhance=true;
+            break;
+        case 0x11 : //图像增强开
+            /* code */
+            isNeedImageEnhance=false;
+            break;
+        case 0x06: //超分辨率开
+            /* code */
+            isNeedSuperResolution=true;
+              break;
+        case 0x07: //超分辨率关
+            /* code */
+            isNeedSuperResolution=false;
+            break;
+        case 0x08 : //图像增强
+            /* code */
+           isNeedSuperResolution=true;
+           printf("图像增强 收到参数: 0x%02x 0x%02x\n", c2Cfg->opCmdPara1[0],c2Cfg->opCmdPara1[1] );
+           break;
+        default:
+            break;
+    }
+    // memcpy(&stC2Cfg.opCmdPara1, c2Cfg->opCmdPara1, 2);
 }
 
 // to do
@@ -498,27 +573,27 @@ static void VL_ParseSerialData_A1C1E1(uint8_t *buf)
     // }
     switch (stA1C1E1Cfg.c1Config.enOpCmd1)
     {
-    case IrWhite:
-        stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
-        break;
-    case IrBlack:
-        stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
-        break;
-    case IrRainbow:
-        stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
-        break;
-    case ScreenShoot:
-        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_SHOOT;
-        break;
-    case RecordStart:
-        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_START;
-        break;
-    case RecordEnd:
-        stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_END;
-        break;
+        case IrWhite:
+            stSysStatus.enIrImgMode = EN_IRIMG_MODE::WHITEHOT;
+            break;
+        case IrBlack:
+            stSysStatus.enIrImgMode = EN_IRIMG_MODE::BLACKHOT;
+            break;
+        case IrRainbow:
+            stSysStatus.enIrImgMode = EN_IRIMG_MODE::PSEUDOCOLOR;
+            break;
+        case ScreenShoot:
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::SCREEN_SHOOT;
+            break;
+        case RecordStart:
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_START;
+            break;
+        case RecordEnd:
+            stSysStatus.enScreenOpMode = EN_SCREEN_OP_MODE::RECORDING_END;
+            break;
 
-    default:
-        break;
+        default:
+            break;
     }
 
     printf("c1Config.enOpCmd1:%#x\n", stA1C1E1Cfg.c1Config.enOpCmd1);
@@ -779,10 +854,219 @@ static void VL_ParseSerialData_ACK_SD(uint8_t *buf)
     }
 }
 
+
+static void XJ_ParseData_CAMCTRL(uint8_t *buf)
+{
+    // ST_ACK_SD_CONFIG *ackSdCfg = (ST_ACK_SD_CONFIG *)buf;
+    // stAckSDCfg.ctrlCmd = ackSdCfg->ctrlCmd;
+    // if (stAckSDCfg.ctrlCmd == (InquirySDCardStatus - 1))
+    // {
+    //     stAckSDCfg.ackSDData[0] = ackSdCfg->ackSDData[0];
+    //     stAckSDCfg.ackSDData[1] = ackSdCfg->ackSDData[1];
+    // }
+    // else if ((stAckSDCfg.ctrlCmd >= (InquirySDCardTotalCapacity - 1)) && (stAckSDCfg.ctrlCmd < SDQueryCmdButt))
+    // {
+    //     memcpy(&stAckSDCfg.ackSDData, ackSdCfg->ackSDData, 4);
+    // }
+}
+
+static void XJ_ServoDirection(uint8_t *buf)
+{
+    ST_ServoDirection *pstServoDirection = (ST_ServoDirection *)buf;
+
+    switch (pstServoDirection->lcmd)
+    {
+        case 0:
+            /* code */
+            break;
+        case 1:
+            /* 向上 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth,stTriaxialAngle.angleofpitch+1);
+            break;
+        case 2:
+            /* 向下 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth,stTriaxialAngle.angleofpitch-1);
+            break;
+        case 3:
+            /* 向左 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth-1,stTriaxialAngle.angleofpitch);
+            break;
+        case 4:
+           /* 向右*/
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth+1,stTriaxialAngle.angleofpitch);
+            break;
+        case 5:
+            /* 左上 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth-1,stTriaxialAngle.angleofpitch+1);
+            break;
+        case 6:
+            /* 左下 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth-1,stTriaxialAngle.angleofpitch-1);
+            break;
+        case 7:
+            /* 右上 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth+1,stTriaxialAngle.angleofpitch+1);
+            break;
+        case 8:
+            /* 右下 */
+            project173_SendFollowYawPitch(stTriaxialAngle.azimuth+1,stTriaxialAngle.angleofpitch-1);
+            break;
+        case 9:
+            /* code */
+            project173_SendFollowYawPitch(0,0);
+            project173_SendFollowRoll(0);
+            break;
+        default:
+            break;
+    }
+    // project173_SendFollowYawPitch(pServoDirectionYaw->lyaw,stTriaxialAngle.angleofpitch);
+}
+
+static void XJ_ServoDirection_Yaw(uint8_t *buf)
+{
+    ST_ServoDirectionYaw *pServoDirectionYaw = (ST_ServoDirectionYaw *)buf;
+    printf("进入  XJ_ServoDirection_Yaw  %d \n",pServoDirectionYaw->lyaw/100);
+    project173_SendFollowYawPitch(pServoDirectionYaw->lyaw/100,0);
+}
+
+static void XJ_ServoDirection_Pitch(uint8_t *buf)
+{
+    ST_ServoDirectionPitch *pServoDirectionPitch = (ST_ServoDirectionPitch *)buf;
+    printf("进入  XJ_ServoDirection_Pitch  %d \n",pServoDirectionPitch->lpitch/100);
+    project173_SendFollowYawPitch(0,pServoDirectionPitch->lpitch/100);
+}
+
+static void XJ_ServoDirection_Roll(uint8_t *buf)
+{
+    ST_ServoDirectionRoll *pServoDirectionRoll = (ST_ServoDirectionRoll *)buf;
+    printf("进入  XJ_ServoDirection_Roll  %d \n",pServoDirectionRoll->lroll/100);
+    project173_SendFollowRoll(pServoDirectionRoll->lroll/100);
+}
+
+static void XJ_Video_OsdControl(uint8_t *buf)
+{
+    if(nullptr==buf)
+    { 
+        return;
+    }
+    ST_VideoOsdControl *pstVideoOsdControl = (ST_VideoOsdControl *)buf;
+    if(pstVideoOsdControl->isOsdenable==0)
+    {
+        stSysStatus.osdCtrl.osdSwitch=1;
+    }
+    else
+    {
+        stSysStatus.osdCtrl.osdSwitch=0;
+    }
+}
+
+static void XJ_Video_CamCtrlIrinit(uint8_t *buf)
+{
+    if(nullptr==buf)
+    { 
+        return;
+    }
+    ST_VideoCamCtrl *pstVideoCamCtrl = (ST_VideoCamCtrl *)buf;
+    switch (pstVideoCamCtrl->isIRinit)
+    {
+        case 1:
+             projectIR_SendIRInit(); 
+            /* code */
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void XJ_Video_Range(uint8_t *buf)
+{
+
+     printf("开始测距 \n");
+    if(nullptr==buf)
+    { 
+        return;
+    }
+    ST_VideoRangeCtrl *pstVideoRangeCtrl = (ST_VideoRangeCtrl *)buf;
+    switch (pstVideoRangeCtrl->isRanging)
+    {
+        case 1:
+           project137_CmdRange();
+            /**开始测距*/
+            break;
+        default:
+            break;
+    }
+}
+
+static void XJ_Video_SuperResolution(uint8_t *buf)
+{
+    if(nullptr==buf)
+    { 
+        return;
+    }
+    ST_VideoSuperResolution *pstVideoSuperResolution = (ST_VideoSuperResolution *)buf;
+    switch (pstVideoSuperResolution->imagetype)
+    {
+        case 1:
+            /**可见光超分*/
+            isNeedSuperResolution=true;
+            break;
+        case 0:
+            /**可见光超分*/
+            isNeedSuperResolution=true;
+            break;
+        default:
+            break;
+    }
+      mtx.lock(); // 加锁
+    printf("接受数据 %d \n",pstVideoSuperResolution->index);
+    SuperResolutionindex=pstVideoSuperResolution->index/10.0;
+    mtx.unlock(); // 解锁
+    // short=pstVideoSuperResolution->index/10;
+}
+
+static void XJ_Video_Enhance(uint8_t *buf)
+{
+    if(nullptr==buf)
+    { 
+        return;
+    }
+    uint8_t  type; //类型 0 对比度增强 1 细节增强  2 线性变换
+    uint8_t  state; //0  增强关  1  增强开
+    ST_VideoEnhance *pstVideoEnhance = (ST_VideoEnhance *)buf;
+     printf("  接受的值 %d  %d \n " ,pstVideoEnhance->type,pstVideoEnhance->state);
+    switch (pstVideoEnhance->type)
+    {
+        case 0:
+            isNeedContrastEnhance=pstVideoEnhance->state;
+            break;
+        case 1:
+             isNeedImageEnhance=pstVideoEnhance->state;
+            break;
+        case 2:
+             isNeedLinearTransformation=pstVideoEnhance->state;
+            /**开始测距*/
+            break;
+        default:
+            break;
+    }
+
+    // Z_lowerThreshold_=pstVideoEnhance->fZ_lowerThreshold_;
+    // Z_upperThreshold_ =pstVideoEnhance->fZ_upperThreshold_;
+    // Z_k1_=pstVideoEnhance->fZ_k1_;
+    // Z_k2_=pstVideoEnhance->fZ_k2_;
+    // Z_k3_=pstVideoEnhance->fZ_k3_;
+    // printf("  XJ_Video_Enhance %f %f  %f %f  %f  \n", pstVideoEnhance->Z_upperThreshold_,pstVideoEnhance->Z_lowerThreshold_,
+    // pstVideoEnhance->Z_k1_,pstVideoEnhance->Z_k2_,pstVideoEnhance->Z_k3_);
+}
+
+
+
 void VL_ParseSerialData(uint8_t *buf)
 {
     uint8_t frameID = buf[4];
-    // printf("frameID__________________________________________%#x", frameID);
+    printf("frameID__________________________________________%#x", frameID);
     switch (frameID)
     {
     case 0x30:
@@ -843,6 +1127,33 @@ void VL_ParseSerialData(uint8_t *buf)
     case 0xD5:
         VL_ParseSerialData_ACK_SD(buf + 5);
         break;
+    case 0x61:
+        XJ_ServoDirection(buf);
+        break;
+    case 0x62:
+        XJ_ServoDirection_Yaw(buf);
+        break;
+    case 0x63:
+         XJ_ServoDirection_Pitch(buf);
+        break;
+    case 0x64:
+         XJ_ServoDirection_Roll(buf);
+        break;
+    case 0x65:
+        XJ_Video_OsdControl(buf);
+        break;
+    case 0x66:
+        XJ_Video_CamCtrlIrinit(buf);
+        break;
+    case 0x67:
+         XJ_Video_Range(buf); 
+        break;
+    case 0x68:
+         XJ_Video_SuperResolution(buf); 
+        break;
+    case 0x69:
+        XJ_Video_Enhance(buf);
+        break;
     default:
         break;
     }
@@ -888,6 +1199,11 @@ int Serial::openPort(int fd, int comport)
     {
         // devFile = "/dev/ttyTHS2";
         fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
+    }
+    else if (comport == 5)
+    {
+        // devFile = "/dev/ttyTHS2";
+        fd = open("/dev/ttyACM0", O_RDWR | O_NOCTTY | O_NDELAY);
     }
 
     // fd = open(devFile, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -1081,8 +1397,17 @@ int Serial::set_serial(int port)
             return -1;
         }
     }
+    else if (port ==5)
+    {
+        if ((iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1)) < 0)
+        {
+            perror("set_opt error");
+            return -1;
+        }
+    }
     else
     {
+        /*********173 项目设置波特率为 偶****/
         if ((iSetOpt = setOpt(fdSerial, 115200, 8, 'N', 1)) < 0)
         {
             perror("set_opt error");

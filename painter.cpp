@@ -6,6 +6,9 @@
 #include "common.h"
 #include <chrono>
 #include <sys/vfs.h>
+#include <iostream>
+#include <iomanip>
+#include <string>
 
 extern ST_SYS_STATUS stSysStatus;
 extern ST_A1_CONFIG stA1Cfg;
@@ -26,6 +29,10 @@ extern ST_T2F2B2D2_CONFIG stT2F2B2D2Cfg;
 
 // OSD 字体宽度
 int fontThickness = 2;
+/********工作模式**********/
+extern uint8_t  WorkModeFlag;
+extern ST_TriaxialAngle stTriaxialAngle;
+extern ST_AttitudeAngle stAttitudeAngle;
 
 // OSD 颜色
 // cv::Scalar osdColor = cv::Scalar(123,224,82);
@@ -527,3 +534,97 @@ void drawLostRect(cv::Mat frame, cv::Rect r)
     cv::Rect rc(pt.x - w/2, pt.y - h/2, w, h);
     drawRect(frame, rc, cv::Scalar(0,255,0));
 }
+
+
+void PaintWorkStatus(cv::Mat &frame0, cv::Ptr<cv::freetype::FreeType2> &ft2)
+{
+     int fHeight = frame0.rows;
+    int fWidth = frame0.cols;
+    int x = 10;
+    int y = ((fHeight / 4) * 3) -70;
+    char WorkStr[128]={0};
+    snprintf(WorkStr, 128, "%s", "初始化");
+    switch (WorkModeFlag)
+    {
+        case  WORKMODE_INIT:
+             snprintf(WorkStr, 128, "%s", "初始化");
+            /* code */
+            break;
+        case  WORKMODE_LOCK:
+                snprintf(WorkStr, 128, "%s", "锁定");
+            /* code */
+            break;
+        case  WORKMODE_HANDMOVE:
+                snprintf(WorkStr, 128, "%s", "手动");
+            /* code */
+            break;
+        case  WORKMODE_VIDEOTRACKER:
+                 snprintf(WorkStr, 128, "%s", "视频跟踪");
+            /* code */
+            break;
+        case  WORKMODE_FLOWUP:
+                snprintf(WorkStr, 128, "%s", "随动");
+            /* code */
+            break;
+        case  WORKMODE_INERTIA:
+                snprintf(WorkStr, 128, "%s", "惯性");
+            /* code */
+            break;
+        default:
+            snprintf(WorkStr, 128, "%s", "初始化");
+            break;
+    }
+    ft2->putText(frame0, WorkStr, cv::Point(x, y), 24, osdColor, fontThickness, cv::LINE_8, true);
+
+}
+
+
+std::string doubleToStringWithTwoDecimalPlaces(double value) {
+    std::ostringstream streamObj;
+    // 设置浮点数的精度为2，并以固定的浮点数表示形式进行输出
+    streamObj << std::fixed << std::setprecision(2) << value;
+    return streamObj.str();
+}
+
+//角度信息
+void PaintAngle(cv::Mat &frame0)
+{
+    int fHeight = frame0.rows;
+    int fWidth = frame0.cols;
+    int x = 10;
+    int y = (fHeight / 4) * 2+150;
+
+    // std::string strfocal =  "az : " + std::to_string( stTriaxialAngle.azimuth/10.0);
+     std::string strfocal =  "az : " + doubleToStringWithTwoDecimalPlaces( stTriaxialAngle.azimuth/100.0);
+    // 目标位置坐标
+    cv::putText(frame0, strfocal, cv::Point(x, y+110), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+    //std::string isDisWork =  "el : " + std::to_string(stTriaxialAngle.angleofpitch/10.0);
+    std::string isDisWork =  "el : " + doubleToStringWithTwoDecimalPlaces( stTriaxialAngle.angleofpitch/100.0);
+    // 目标位置坐标
+    cv::putText(frame0, isDisWork, cv::Point(x, y+140), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+    std::string prefix = "ro : ";
+    // std::string combinedStr = prefix + std::to_string(  stTriaxialAngle.roll/10.0);
+    std::string combinedStr = prefix + doubleToStringWithTwoDecimalPlaces( stTriaxialAngle.roll/100.0);
+    // 目标位置坐标
+    cv::putText(frame0, combinedStr, cv::Point(x, y+170), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+}
+//姿态角度信息
+void Paint_Arhs(cv::Mat &frame0)
+{
+    int fHeight = frame0.rows;
+    int fWidth = frame0.cols;
+    int x = 10;
+    int y = (fHeight / 4) * 3;
+
+    std::string strfocal =  "Arhs_az : " + std::to_string(stAttitudeAngle.Azimuth_AttitudeAngle/10.0);
+    // 目标位置坐标
+    cv::putText(frame0, strfocal, cv::Point(x, y+110), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+    std::string isDisWork =  "Arhs_el : " + std::to_string(stAttitudeAngle.Angleofpitch_AttitudeAngle/10.0);
+    // 目标位置坐标
+    cv::putText(frame0, isDisWork, cv::Point(x, y+140), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+    std::string prefix = "Arhs_ro : ";
+    std::string combinedStr = prefix + std::to_string(      stAttitudeAngle.Roll_AttitudeAngle/10.0);
+    // 目标位置坐标
+    cv::putText(frame0, combinedStr, cv::Point(x, y+170), cv::FONT_HERSHEY_SIMPLEX, stSysStatus.osdFontSize, osdColor, fontThickness, cv::LINE_AA);
+}
+

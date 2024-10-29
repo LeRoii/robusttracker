@@ -12,7 +12,6 @@
 #include <cstring>
 #include <unistd.h>
 
-
 EN_DATA_FRAME_TYPE GetFrameType(std::vector<uint8_t> &send_buf, int Len);
 void VL_ParseSerialData(uint8_t* buf);
 bool CheckFrameHeader(uint8_t *send_buf, int Len);

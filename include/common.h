@@ -418,6 +418,50 @@ struct ST_A2C2E2S2_CONFIG
     ST_S2_CONFIG s2Config;
 };
 
+
+enum WORK_MODE
+{
+    MODE_INIT = 0x00,  //初始化
+    MODE_LOCK= 0x12,   //锁定
+    MODE_MANUALOPERATION = 0x33, // 手动
+    MODE_VIDEOTRACKING = 73, //视频跟踪
+    MODE_FOLLOW = 0x14,   //随动   
+};
+/******传感器**********/
+struct ST_TriaxialAngle
+{
+    short azimuth;    //方位角度
+    short angleofpitch;//俯仰角度
+    short roll;        //横滚角度
+};
+
+/******陀螺 数据**********/
+struct ST_TriaxialAngle_Speed
+{
+    unsigned short azimuth_speed;    //方位角速度
+   unsigned short angleofpitch_speed;//俯仰角速度
+   unsigned short roll_speed;        //横滚角速度
+};
+/****X Y Z 加速度***/
+struct ST_XYZ_AcceleratedSpeed
+{
+   unsigned short XAcceleratedSpeed;    //X轴加速度
+   unsigned short YAcceleratedSpeed;    //Y轴加速度
+   unsigned short ZAcceleratedSpeed;    //Z轴加速度
+};
+
+/****姿态角***/
+struct ST_AttitudeAngle
+{
+    short Azimuth_AttitudeAngle;    //方位姿态角
+    short Angleofpitch_AttitudeAngle;    //俯仰姿态角
+    short Roll_AttitudeAngle;    //横滚姿态角
+};
+
+
+
+
+
 enum EN_DATA_FRAME_TYPE
 {
     TypeUnkonwn = 0,
@@ -433,6 +477,7 @@ enum EN_DATA_FRAME_TYPE
     FrameE2 = 10,
     Status42 = 11,
     IPInq = 12,
+    FocusC1 = 13,
 };
 
 enum EN_ONCE_SEND_DOWN_TO_UP_TYPE
@@ -881,5 +926,31 @@ struct ST_ACK_SD_CONFIG
     uint8_t ctrlCmd; // @ref (EN_SD_QUERY_CMD - 1)
     uint8_t ackSDData[4];
 };
+
+
+#pragma pack(push)
+#pragma pack(1)
+enum EN_ACK_SIFU_TYPE
+{
+    HANDSHAKE_ACK = 0x00,
+    WORKMODE_FLOWUP =0x05, //随动
+    WORKMODE_INIT = 0x10,
+    WORKMODE_LOCK = 0x11,
+    WORKMODE_HANDMOVE = 0x12,
+    WORKMODE_VIDEOTRACKER =0x13, 
+    WORKMODE_INERTIA =0x14, //惯性
+    VIDEOTRACKER_FEND =0x21, //遮挡
+    VIDEOTRACKER_LOSE =0x21, //丢失
+};
+#define HEAD 0xCC
+struct ST_ACK_SIFU_CONFIG
+{
+    uint8_t head; 
+    uint8_t type;
+    short uMissDistanceX; 
+    short uMissDistanceY; 
+    uint8_t  crc;
+};
+#pragma pack(pop)
 
 #endif

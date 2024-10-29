@@ -41,14 +41,14 @@ public:
         //CAP_PROP_FOURCC
         //CAP_OPENCV_MJPEG
         //capture.set(cv::CAP_PROP_FPS, 30);//帧率
-        capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G')) ;
+        //capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G')) ;
         //capture.set(cv::CAP_PROP_FOURCC, cv::CAP_OPENCV_MJPEG);//视频流格式
-        // printf("帧率------------ 测试 %d\n",fps_);
+
         // CAP_PROP_FPS
         // CAP_PROP_FRAME_WIDTH
-        capture.set(cv::CAP_PROP_FRAME_WIDTH, width_); //帧宽
-        capture.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
-        capture.set(cv::CAP_PROP_FPS, fps_);//帧率
+        capture.set(cv::CAP_PROP_FRAME_WIDTH, 1920); //帧宽
+        capture.set(cv::CAP_PROP_FRAME_HEIGHT, 1080);
+        capture.set(cv::CAP_PROP_FPS, 60);//帧率
         // capture.set(cv::CAP_PROP_FPS, 1080); //帧高
         // capture.get(cv::CAP_PROP_FOURCC);     //获取格式
         return true;
@@ -196,7 +196,7 @@ public:
         cv::Mat frame_rgb,frame;
         capture>>frame_rgb;
  
-		// capture.read(frame_rgb);
+		capture.read(frame_rgb);
 
         return frame_rgb;
     }

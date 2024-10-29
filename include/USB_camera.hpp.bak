@@ -22,37 +22,13 @@ public:
 
     bool openDevice()
     {
-        // fd_ = open(device_, O_RDWR);
-        // if (fd_ < 0)
-        // {
-        //     std::cerr << "Failed to open device" << std::endl;
-        //     return false;
-        // }
-        // return true;
-        capture.open(device_);
-        if (!capture.isOpened())//检测是否成功打开摄像头  
+        fd_ = open(device_, O_RDWR);
+        if (fd_ < 0)
         {
-    
-            std::cout << "未发现摄像头！" << std::endl;    
+            std::cerr << "Failed to open device" << std::endl;
             return false;
-
-        }  
-       // CAP_PROP_FORMAT
-        //CAP_PROP_FOURCC
-        //CAP_OPENCV_MJPEG
-        //capture.set(cv::CAP_PROP_FPS, 30);//帧率
-        capture.set(cv::CAP_PROP_FOURCC, cv::VideoWriter::fourcc('M', 'J', 'P', 'G')) ;
-        //capture.set(cv::CAP_PROP_FOURCC, cv::CAP_OPENCV_MJPEG);//视频流格式
-        // printf("帧率------------ 测试 %d\n",fps_);
-        // CAP_PROP_FPS
-        // CAP_PROP_FRAME_WIDTH
-        capture.set(cv::CAP_PROP_FRAME_WIDTH, width_); //帧宽
-        capture.set(cv::CAP_PROP_FRAME_HEIGHT, height_);
-        capture.set(cv::CAP_PROP_FPS, fps_);//帧率
-        // capture.set(cv::CAP_PROP_FPS, 1080); //帧高
-        // capture.get(cv::CAP_PROP_FOURCC);     //获取格式
+        }
         return true;
-
     }
 
     bool queryCapability()
@@ -78,28 +54,25 @@ public:
 
     bool initDevice()
     {
-    //     memset(&format, 0, sizeof(format));
-    // //     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    // //     format.fmt.pix.width = width_;
-    // //     format.fmt.pix.height = height_;
-    // //     format.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
-    // //    // format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-    // //     format.fmt.pix.field = V4L2_FIELD_ANY;
-    //     printf("----------------------- 设置usb:V4L2_PIX_FMT_MJPEG\n");
-    //     if (ioctl(fd_, VIDIOC_G_FMT, &format) < 0)
-    //     {
-    //         std::cerr << "Failed to Get format" << std::endl;
-    //         return false;
-    //     }
-        int fps=capture.get(cv::CAP_PROP_FPS);
-        int w=capture.get(cv::CAP_PROP_FRAME_WIDTH);
-        int h=capture.get(cv::CAP_PROP_FRAME_HEIGHT);
-
-        printf("walker -111111111--- width = %d\n",w);
-        printf("walker --222222222--  height = %d\n", h);
-        printf("walker -33333333--  fps = %d\n",fps); //帧宽);
+        memset(&format, 0, sizeof(format));
+        format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        format.fmt.pix.width = width_;
+        format.fmt.pix.height = height_;
+        format.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+       // format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+        format.fmt.pix.field = V4L2_FIELD_ANY;
+        printf(" 设置usb:V4L2_PIX_FMT_MJPEG\n");
+        if (ioctl(fd_, VIDIOC_S_FMT, &format) < 0)
+        {
+            std::cerr << "Failed to set format" << std::endl;
+            return false;
+        }
+        printf("width = %d\n", format.fmt.pix_mp.width);
+        printf("height = %d\n", format.fmt.pix_mp.height);
+        printf("nmplane = %d\n", format.fmt.pix_mp.num_planes);
 
         // TODO: More initialization (e.g., buffer allocation) goes here
+
         return true;
     }
 
@@ -172,31 +145,24 @@ public:
 
     cv::Mat writeVideoFrame()
     {
-        // struct v4l2_buffer buf = {0};
-        // buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-        // buf.memory = V4L2_MEMORY_MMAP;
+        struct v4l2_buffer buf = {0};
+        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.memory = V4L2_MEMORY_MMAP;
 
-        // if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
-        //     perror("VIDIOC_DQBUF");
-        //     exit(EXIT_FAILURE);
-        // }
-        // cv::Mat frame(cv::Size(width_, height_), CV_8UC2, buffers[buf.index].start);
-        // // imwrite("./test.jpg",frame);
+        if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
+            perror("VIDIOC_DQBUF");
+            exit(EXIT_FAILURE);
+        }
+        cv::Mat frame(cv::Size(width_, height_), CV_8UC2, buffers[buf.index].start);
+        // imwrite("./test.jpg",frame);
 
-        // cv::Mat frame_rgb;
-        // cv::cvtColor(frame, frame_rgb, cv::COLOR_YUV2BGR_YUYV);
+        cv::Mat frame_rgb;
+        cv::cvtColor(frame, frame_rgb, cv::COLOR_YUV2BGR_YUYV);
 
-        // if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
-        //     perror("VIDIOC_QBUF");
-        //     exit(EXIT_FAILURE);
-        // }
-
-        // return frame_rgb;
-
-        cv::Mat frame_rgb,frame;
-        capture>>frame_rgb;
- 
-		// capture.read(frame_rgb);
+        if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
+            perror("VIDIOC_QBUF");
+            exit(EXIT_FAILURE);
+        }
 
         return frame_rgb;
     }
@@ -228,8 +194,6 @@ public:
 
 private:
     int fd_ = -1;
-    
-    cv::VideoCapture capture;
     const char *device_;
     int width_, height_, fps_;
     struct v4l2_capability cap;

@@ -4,7 +4,7 @@ Description=Demo Service with 7 seconds delay
 [Service]
 Type=simple
 ExecStartPre=/bin/sleep 7
-ExecStart=/home/rpdzkj/exe/demo
+ExecStart=/home/rpdzkj/2/2/build/demo
 
 [Install]
 WantedBy=multi-user.target

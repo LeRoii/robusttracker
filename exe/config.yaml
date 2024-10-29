@@ -18,7 +18,7 @@ HDMIOutputFPS: 60
 streamType: h264
 resolution: 1080P
 RTSPServerPort: 8553
-RTSPEncoderBitrate: 2048
+RTSPEncoderBitrate: 4096
 webPort: 8554
 RTSPOutputForImageTransmission: Default
 OSDSrtSet: Close

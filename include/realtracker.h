@@ -68,6 +68,8 @@ public:
     bool isLost();
     void predict();
 
+    void calcTjr(cv::Mat img, bbox_t *detRet, int m_boxes_count);
+
     cv::Rect m_rect;
     float m_prob;
     int m_cls;
@@ -89,6 +91,7 @@ public:
 
     cv::Rect m_initRect;
     float rx, ry;
+    cv::Point p1;
 
 private:
     inline void calcVelo();
@@ -96,6 +99,7 @@ private:
     std::deque<std::pair<int, int>> m_veloBuf;
 
     cv::Rect m_lastPos;
+    bool m_findp;
 };
 
 class realtracker
@@ -125,12 +129,15 @@ public:
 
     bool trackerLost();
 
+    void gateAdjust(int dir);//0:up, 1:down, 2:left, 3:right
+
 private:
     void fsmUpdate(cv::Mat &frame, cv::Mat &, cv::Rect &);
     void FSM_PROC_STRACK(cv::Mat &frame, cv::Mat &, cv::Rect &);
     void FSM_PROC_DTRACK(cv::Mat &frame, cv::Mat &, cv::Rect &);
     void FSM_PROC_SEARCH(cv::Mat &frame);
     void FSM_PROC_SSEARCH(cv::Mat &frame, cv::Rect &);
+    bool sseFind(float sim);
 
     itracker *m_stracker;
     CDetector *m_detector;
@@ -140,7 +147,7 @@ private:
     regions_t m_regions;
     float m_fps;
     cv::Point m_kcfRet;
-    // int m_GateSize;
+    int m_GateSize;
     bool m_kcfLost;
 
     double m_frameScale;
@@ -173,6 +180,17 @@ private:
     int m_imgCenterY;
     bbox_t m_detRet[OBJ_NUMB_MAX_SIZE];
     int m_boxes_count;
+
+    bool m_adjustFlg;
+    cv::Point m_adjstPt;
+
+    bool m_initdet;
+    int m_strackerslpcnt;
+    float m_serDis;
+    int m_gateS;
+    bool m_smlv;
+
+    cv::Rect m_finalRect;
 };
 
 #endif

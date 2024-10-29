@@ -23,34 +23,19 @@ endif()
 include_directories( ${CMAKE_SOURCE_DIR}/include)
 #rga
 include_directories(/usr/include/rga
-                    /usr/local/include/)
-
-
-
-
-
-
-
-
+                    /usr/local/include/
+                    /usr/include/opencv4/
+                    )
 
 
 # 查找必要的FFmpeg组件
-find_package(OpenCV REQUIRED)
+# find_package(OpenCV REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(AVFORMAT REQUIRED libavformat)
 pkg_check_modules(AVCODEC REQUIRED libavcodec)
 pkg_check_modules(AVUTIL REQUIRED libavutil)
 
 message(STATUS "AVFORMAT_LIBRARIES: ${AVFORMAT_LIBRARIES}")
-
-
-
-
-
-
-
-
-
 
 include_directories(
         ${CMAKE_CURRENT_LIST_DIR}/dev/include
@@ -60,48 +45,30 @@ include_directories(
 
 link_directories(
         ${CMAKE_CURRENT_LIST_DIR}/dev/lib
+        /usr/lib/aarch64-linux-gnu
 )
 
-
-
-
-
-
-
-
-find_package(OpenCV)
-include_directories(${OpenCV_INCLUDE_DIRS})
-
-
+find_package(OpenCL REQUIRED)
+# find_package(OpenCV)
+# include_directories(${OpenCV_INCLUDE_DIRS})
 
 find_package(yaml-cpp REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(MTTracking REQUIRED)
 
 set(APP_SRC 
-  ${PROJECT_SOURCE_DIR}/demo.cpp
-  ${PROJECT_SOURCE_DIR}/painter.cpp
-  ${PROJECT_SOURCE_DIR}/camera.cpp  
-  ${PROJECT_SOURCE_DIR}/serialport.cpp
-  ${PROJECT_SOURCE_DIR}/realtracker.cpp
+    ${PROJECT_SOURCE_DIR}/demo.cpp
+    ${PROJECT_SOURCE_DIR}/painter.cpp
+    ${PROJECT_SOURCE_DIR}/camera.cpp  
+    ${PROJECT_SOURCE_DIR}/serialport.cpp
+    ${PROJECT_SOURCE_DIR}/realtracker.cpp
+    ${PROJECT_SOURCE_DIR}/VideoPro_Common.cpp
+    ${PROJECT_SOURCE_DIR}/VideoPro_MsgTable.cpp
+    ${PROJECT_SOURCE_DIR}/VIdeoPro_TimeOut.cpp
+    ${PROJECT_SOURCE_DIR}/VideoPro_Enhancement.cpp
+    ${PROJECT_SOURCE_DIR}/VideoPro_Uart.cpp
   )
-
-
-
-
-
-
-
-
 add_executable(demo ${APP_SRC} MppEncoder.cpp MppEncoder.h)
-
-
-
-
-
-
-
-
 
 # target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
 target_link_libraries(demo ${OpenCV_LIBS} -ltracker ${RKNN_RT_LIB} ${RGA_LIB})
@@ -112,9 +79,8 @@ target_link_libraries(demo spdlog::spdlog)
 #target_link_libraries(demo MTTracking::mtracking MTTracking::mdetection)
 
 
-
-
-
-
-
 target_link_libraries(demo avformat avcodec avutil swscale swresample rockchip_mpp utils pthread c )
+target_link_libraries(demo
+   opencv_calib3d opencv_core opencv_dnn opencv_features2d opencv_flann opencv_gapi opencv_highgui opencv_imgcodecs opencv_imgproc opencv_ml opencv_objdetect opencv_photo opencv_stitching opencv_video opencv_videoio opencv_freetype
+)
+target_link_libraries(demo  ${OpenCL_LIBRARIES})
