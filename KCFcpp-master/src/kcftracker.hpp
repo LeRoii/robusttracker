@@ -113,6 +113,8 @@ public:
     float scale_weight;  // to downweight detection scores of other scales for added stability
 
     void setRoi(cv::Rect roi);
+    cv::Rect seulDetect(cv::Mat image);
+    void updateRoi(cv::Mat image);
 
 protected:
     // Detect object in the current frame.

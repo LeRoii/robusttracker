@@ -5,11 +5,19 @@ static KCFTracker* trackerPtr = nullptr;
 
 #define TRACKER_DEBUG 0
 
+static int randomcnt = 0;
+static int randomNum = 30;
+static int finalwidth = 32;
+static int finalheight = 32;
+static float scalef = 0.5;
+
+
+
 static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
 {
     // printf("realtracker::calculateSSIM start\n");
     // std::cout<<"img1 :"<<img1.size()<<std::endl;
-    // std::cout<<"img2 :"<<img2.size()<<std::endl;
+    // std::cout<<"img2 :"<<img2.size()<<std::endl; 
     cv::Mat img1, img2;
 
     cv::Size targetSize(std::min(imgg1.cols, imgg2.cols), std::min(imgg1.rows, imgg2.rows));
@@ -64,25 +72,43 @@ static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
 
 static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
     cv::Mat hsvImage1, hsvImage2;
-    cv::cvtColor(image1, hsvImage1, cv::COLOR_BGR2HSV);
-    cv::cvtColor(image2, hsvImage2, cv::COLOR_BGR2HSV);
-
-    int hBins = 30;
-    int sBins = 32;
-    int histSize[] = {hBins, sBins};
-    float hRanges[] = {0, 180};
-    float sRanges[] = {0, 256};
-    const float* ranges[] = {hRanges, sRanges};
-    int channels[] = {0, 1};
+    cv::cvtColor(image1, hsvImage1, cv::COLOR_BGR2GRAY);
+    cv::cvtColor(image2, hsvImage2, cv::COLOR_BGR2GRAY);
 
     cv::MatND hist1, hist2;
-    cv::calcHist(&hsvImage1, 1, channels, cv::Mat(), hist1, 2, histSize, ranges, true, false);
-    cv::calcHist(&hsvImage2, 1, channels, cv::Mat(), hist2, 2, histSize, ranges, true, false);
+    int histSize = 256; // 直方图的大小
+    float range[] = {0, 256}; // 像素值的范围
+    const float* histRange = {range};
+    cv::calcHist(&hsvImage1, 1, 0, cv::Mat(), hist1, 1, &histSize, &histRange);
+    cv::calcHist(&hsvImage2, 1, 0, cv::Mat(), hist2, 1, &histSize, &histRange);
 
+    // 比较直方图，使用巴氏距离作为相似度度量
     double similarity = cv::compareHist(hist1, hist2, cv::HISTCMP_BHATTACHARYYA);
 
     return similarity;
 }
+
+// static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat& image2) {
+//     cv::Mat hsvImage1, hsvImage2;
+//     cv::cvtColor(image1, hsvImage1, cv::COLOR_BGR2HSV);
+//     cv::cvtColor(image2, hsvImage2, cv::COLOR_BGR2HSV);
+
+//     int hBins = 30;
+//     int sBins = 32;
+//     int histSize[] = {hBins, sBins};
+//     float hRanges[] = {0, 180};
+//     float sRanges[] = {0, 256};
+//     const float* ranges[] = {hRanges, sRanges};
+//     int channels[] = {0, 1};
+
+//     cv::MatND hist1, hist2;
+//     cv::calcHist(&hsvImage1, 1, channels, cv::Mat(), hist1, 2, histSize, ranges, true, false);
+//     cv::calcHist(&hsvImage2, 1, channels, cv::Mat(), hist2, 2, histSize, ranges, true, false);
+
+//     double similarity = cv::compareHist(hist1, hist2, cv::HISTCMP_BHATTACHARYYA);
+
+//     return similarity;
+// }
 
 itracker::itracker():m_isLost(true),m_init(false)
 {
@@ -110,21 +136,26 @@ itracker::~itracker()
 
 void itracker::init(cv::Rect &roi, cv::Mat image)
 {
-    // if(roi.x < 0)
-    //     roi.x = 0;
-    // if(roi.x + roi.width > image.cols)
-    //     roi.x = image.cols - roi.width - 1;
-    // if(roi.y < 0)
-    //     roi.y = 0;
-    // if(roi.y + roi.height > image.rows)
-    //     roi.y = image.rows - roi.height - 1;
-    // m_oriPatch = image(roi).clone();
-    // // cv::cvtColor(m_oriPatch, m_oriPatch, cv::COLOR_BGR2GRAY);
-    // // cv::imwrite("oripatch.png", m_oriPatch);
-    // trackerPtr->init(roi, image);
-    // m_GateSize = roi.width;
+    if(roi.x < 0)
+        roi.x = 0;
+    if(roi.x + roi.width > image.cols)
+        roi.x = image.cols - roi.width - 2;
+    if(roi.y < 0)
+        roi.y = 0;
+    if(roi.y + roi.height > image.rows)
+        roi.y = image.rows - roi.height - 2;
+    m_template = m_oriPatch = image(roi).clone();
 
-    // m_tmplSz = trackerPtr->padding*m_GateSize;
+    printf("\n\n%d,%d\n",image.cols,image.rows);
+    trackerPtr->init(roi, image);
+    printf("\ntracker init by rect ");
+    std::cout<<roi<<std::endl;
+    m_centerPt = cv::Point(roi.x+roi.width/2, roi.y+roi.height/2);
+
+    m_init = true;
+    m_isLost = false;
+
+    m_tmplSz = trackerPtr->padding*m_GateSize;
 }
 
 void itracker::init(const cv::Point &pt, cv::Mat image)
@@ -148,13 +179,16 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
 
     printf("\n\n%d,%d\n",image.cols,image.rows);
     trackerPtr->init(roi, image);
-    printf("\nooooooooooooooooooooooooooooooooooooooooooooooooooooooo\n");
+    printf("\ntracker init by pt\n");
     m_centerPt = pt;
 
     m_init = true;
     m_isLost = false;
 
     m_tmplSz = trackerPtr->padding*m_GateSize;
+
+    m_stpUpdt = 0;
+    m_setupf = 0;
 
 }
 
@@ -177,7 +211,7 @@ cv::Rect itracker::updateTP(cv::Mat image)
     cv::Point minLoc,maxLoc;
     minMaxLoc(templret,&minVal,&maxVal,&minLoc,&maxLoc);
     
-    // rectangle(image,cv::Rect(maxLoc.x,maxLoc.y,m_GateSize, m_GateSize),cv::Scalar(135,32,156),2);
+    rectangle(image,cv::Rect(maxLoc.x,maxLoc.y,m_GateSize, m_GateSize),cv::Scalar(135,32,156),2);
 
     m_centerPt.x = m_centerPt.x - m_templateSearchOffset + maxLoc.x + m_GateSize/2;
 	m_centerPt.y = m_centerPt.y-m_templateSearchOffset + maxLoc.y + m_GateSize/2;
@@ -186,8 +220,31 @@ cv::Rect itracker::updateTP(cv::Mat image)
 
 }
 
+cv::Rect itracker::find(cv::Mat image, double &sim)
+{
+    float peakVal;
+    auto result = trackerPtr->seulDetect(image);
+    if(result.x < 0)
+        result.x = 0;
+    if(result.x + result.width > image.cols)
+        result.x = image.cols - result.width - 1;
+    if(result.y < 0)
+        result.y = 0;
+    if(result.y + result.height > image.rows)
+        result.y = image.rows - result.height - 1;
+    auto retPatch = image(result);
+    sim = calculateHistogramSimilarity(m_oriPatch, retPatch);
+
+    double ssim = calculateSSIM(m_oriPatch, retPatch);
+    sim = ssim;
+    printf("itracker::find hsim:%f, ssim:%f\n", sim, ssim);
+
+    return result;
+}
+
 cv::Rect itracker::update(cv::Mat image, bool alone)
 {
+    
     if(!m_init)
         return cv::Rect();
     static int st = 0;
@@ -199,6 +256,9 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     float peakVal;
     auto result = trackerPtr->update(image, peakVal);
 
+    if(m_isLost)
+        return result;
+
     if(result.x < 0)
         result.x = 0;
     if(result.x + result.width > image.cols)
@@ -208,7 +268,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     if(result.y + result.height > image.rows)
         result.y = image.rows - result.height - 1;
 
-    // std::cout<<result<<std::endl;
+    std::cout<<"itracker:"<<result<<std::endl;
     auto retPatch = image(result);
     // islost = false;
 
@@ -219,33 +279,77 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     // double ssim = cv::compareSSIM(m_oriPatch, retPatch);
 
 #if TRACKER_DEBUG
-    // cv::imshow("ori", m_oriPatch);
-    // cv::imshow("retppr", retPatch);
+    cv::imshow("ori", m_oriPatch);
+    cv::imshow("retppr", retPatch);
 #endif
 
     static double lastSim = 0.0f;
     double sim = calculateSSIM(m_oriPatch, retPatch);
-    int simFailedCntThres = alone ? 5 : 3;
+    double hsim = calculateHistogramSimilarity(m_oriPatch, retPatch);
+    printf("hsim:%f\n", hsim);
+    printf("sim:%f\n", sim);
+    int simFailedCntThres = 4;
 
-    double simDif = sim - lastSim;
+    double simDif = hsim - lastSim;
 
-    lastSim = sim;
-    if(sim > 0.85 || peakVal > 1.0f)
+    lastSim = hsim;
+    // if(sim > 0.95 || peakVal > 1.0f)
+    // if(sim > 0.95)
+    //     m_oriPatch = retPatch.clone();
+    // // if(sim > 0.8f)
+    // // if(sim < 0.3f && peakVal < 1.0f)
+    // if(sim < 0.9f && peakVal < 1.0f)
+    //     simFailCnt++;
+    // else
+    //     simFailCnt = 0;
+    
+    // if(!alone && sim < 0.5f)
+    //     m_isLost = true;
+
+
+    // if(sim > 0.99 || peakVal > 1.0f)
+    if(sim > 0.8 || m_setupf++ < 5)
+    // if(hsim < 0.2)
+    {
         m_oriPatch = retPatch.clone();
+        // trackerPtr->updateRoi(image);
+        m_stpUpdt = 0;
+    }
+    else
+    {
+        if(m_stpUpdt++ > 30 && sim > 0.35)
+        {
+#if TRACKER_DEBUG
+            printf("m_stpUpdt met, updt patch\n");
+#endif
+            m_setupf = 0;
+            m_stpUpdt = 0;
+        }
+    }
+    // if(peakVal > 0.8)
+        trackerPtr->updateRoi(image);
     // if(sim > 0.8f)
-    // if(sim < 0.3f && peakVal < 1.0f)
-    if(sim < 0.8f && peakVal < 1.0f)
+    // if(sim < 0.8f && peakVal < 1.0f)
+    // if(peakVal < 0.5f || sim < 0.5f)
+    if(peakVal < 0.8f || sim < 0.65f)
+    // if(hsim > 0.4)
         simFailCnt++;
     else
         simFailCnt = 0;
-    
-    if(!alone && sim < 0.5f)
-        m_isLost = true;
 
-#if TRACKER_DEBUG 
+    if(sim < 0.2 && peakVal < 0.45)
+    {
+        // m_isLost = true;
+        simFailCnt++;
+    }
+    else if(sim < 0.1)
+    {
+        simFailCnt += 2;
+    }
+    
+#if 1 
     printf("simDif:%f\n", simDif);
-    printf("sim:%f\n", sim);
-    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f, simFailCnt:%d\n", sim, peakVal, peakVal - lastPeakVal, simFailCnt);
+    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f, simFailCnt:%d\n", hsim, peakVal, peakVal - lastPeakVal, simFailCnt);
 #endif
     float peakDif = peakVal - lastPeakVal;
     
@@ -256,6 +360,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
             case 0:
                 if(peakDif < -0.2)
                 {
+                    simFailCnt++;
                     st = 1;
                     fallEdgePv = lastPeakVal + 0.005;
 #if TRACKER_DEBUG
@@ -272,7 +377,9 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
                 
                 break;
             case 1:
-                if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > 2)
+                // if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > simFailedCntThres)
+                if(simFailCnt > simFailedCntThres)
+
                 {
                     st = 2;
                 }
@@ -288,7 +395,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
                 printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
 #endif
                 
-                if(bottomCnt > 10 || simFailCnt > 2)
+                // if(bottomCnt > 10 || simFailCnt > simFailedCntThres)
                 {
                     m_isLost = true;
                     fallEdgePv = 0;
@@ -308,8 +415,49 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     
     lastPeakVal = peakVal;
 
-    m_centerPt.x = result.x + m_GateSize/2;
-	m_centerPt.y = result.y + m_GateSize/2;
+    m_centerPt.x = result.x + result.width/2;
+	m_centerPt.y = result.y + result.height/2;
+
+    // cv::Rect roi(result.x > 20 ? result.x-20 : 0, result.y > 20 ? result.y-20 : 0, 20, 20);
+
+    // if(roi.x + roi.width > image.cols)
+    //     roi.x = image.cols - result.width - 1;
+    // if(roi.y + roi.height > image.rows)
+    //     roi.y = image.rows - result.height - 1;
+
+    // std::cout<<roi<<std::endl;
+    // cv::Mat roiImage = image(roi);
+
+    // cv::Mat edges;
+    // cv::Canny(roiImage, edges, 50, 150);
+
+    // // 提取轮廓
+    // std::vector<std::vector<cv::Point>> contours;
+    // cv::findContours(edges, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+    // cv::Rect maxBoundingRect;
+    // double maxArea = 0.0;
+    // for (const auto& contour : contours) {
+    //     double area = cv::contourArea(contour);
+    //     if (area > maxArea) {
+    //         maxArea = area;
+    //         maxBoundingRect = cv::boundingRect(contour);
+    //     }
+    // }
+
+    // if(randomcnt == randomNum)
+    // {
+    //     finalwidth = abs(maxBoundingRect.width - 32) > scalef*32 ? ((maxBoundingRect.width > 32) ? 32*(1+scalef) : 32*(1-scalef)) : maxBoundingRect.width;
+    //     finalheight = abs(maxBoundingRect.height - 32) > scalef*32 ? ((maxBoundingRect.height > 32) ? 32*(1+scalef) : 32*(1-scalef)) : maxBoundingRect.height;
+    //     randomNum = rand() % 10 +10;
+    //     randomcnt = 0;
+    // }
+    // else
+    // {
+    //     randomcnt++;
+    //     result.width = finalwidth = result.width;
+    //     result.height = finalheight = result.height;
+    // }
 
     return result;
 }
@@ -333,6 +481,9 @@ void itracker::reset()
 
     m_init = false;
     m_isLost = true;
+
+    m_setupf = 0;
+    m_stpUpdt = 0;
 }
 
 bool& itracker::isLost()
@@ -365,5 +516,7 @@ void itracker::setRoi(cv::Rect roi)
 {
     m_centerPt.x = roi.x + m_GateSize/2;
 	m_centerPt.y = roi.y + m_GateSize/2;
+
+    roi.width = roi.height = m_GateSize;
     trackerPtr->setRoi(roi);
 }

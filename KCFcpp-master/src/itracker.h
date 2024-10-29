@@ -23,6 +23,7 @@ public:
     int m_tmplSz;
     cv::Rect getTmplRect();
     void setRoi(cv::Rect roi);
+    cv::Rect find(cv::Mat image, double &sim);
 
 private:
     bool m_isLost;
@@ -35,6 +36,9 @@ private:
     int m_templateSearchOffset;
 
     bool m_init;
+
+    int m_setupf;
+    int m_stpUpdt;
 };
 
 
