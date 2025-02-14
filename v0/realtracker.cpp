@@ -10,6 +10,9 @@ static spdlog::stopwatch sw;
 static stTrackerCfg trackerCfg;
 
 #define CAL_VELO_MODE 0
+//export DISPLAY=192.168.4.1:0.0
+//./demo 10
+
 
 void DrawFilledRect(cv::Mat &frame, const cv::Rect &rect, cv::Scalar cl, int alpha)
 {
@@ -574,7 +577,9 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 #if 1
     std::cout << "curPos:" << m_rect << std::endl;
     std::cout << "m_lastPos:" << m_lastPos << std::endl;
-    printf("w diff:%d, h diff:%d\n", abs(m_rect.width - m_lastPos.width), abs(m_rect.height - m_lastPos.height));
+    // printf("w diff:%d, h diff:%d\n", abs(m_rect.width - m_lastPos.width), abs(m_rect.height - m_lastPos.height));
+    printf("obj dist:%f\n",sqrtf(powf((m_rect.x - m_lastPos.x), 2) + powf((m_rect.y - m_lastPos.y), 2)));
+
 #endif
     if (m_trace.size() > trackerCfg.trackTraceSizeThres)
         m_trace.pop_front();
@@ -615,7 +620,7 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
     // std::cout<<"patch size:"<<m_patch.size()<<std::endl;
     // cv::imwrite("patch.png", m_patch);
     cv::Point sp = cv::Point(m_rect.x + m_rect.width / 2, m_rect.y + m_rect.height / 2);
-    cv::Point ep = cv::Point(sp.x + m_velo[0] * 80, sp.y + m_velo[1] * 80);
+    cv::Point ep = cv::Point(sp.x + m_velo[0] * 30, sp.y + m_velo[1] * 30);
     cv::line(img, sp, ep, cv::Scalar(0, 255, 0), 2);
 
 #endif
@@ -1572,6 +1577,9 @@ void realtracker::runDetectorOut(cv::Mat &frame, bbox_t *detRet, int &boxs_count
     {
         m_irDetector->ImgInference(frame, detRet, boxs_count);
     }
+
+    printf("realtracker::runDetectorOut boxs_count:%d\n", boxs_count);
+
     for (int i = 0; i < boxs_count; i++)
     {
         // printf("box-->x:%d, y:%d, w:%d, h:%d, conf:%f, cls:%d\n", boxs[i].x, boxs[i].y, boxs[i].w, boxs[i].h, boxs[i].prob, boxs[i].obj_id);
@@ -1651,7 +1659,7 @@ void realtracker::setIrFrame(bool ir)
 
 bool realtracker::trackerLost()
 {
-    return (m_state == EN_TRACKER_FSM::SSEARCH || m_state == EN_TRACKER_FSM::SEARCH);
+    return (m_state == EN_TRACKER_FSM::SSEARCH && m_ssearchCnt > 30);
 }
 
 bool realtracker::sseFind(float sim)

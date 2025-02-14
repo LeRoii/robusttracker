@@ -95,7 +95,7 @@ KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
     // Parameters equal in all cases
     lambda = 0.0001;
     // padding = 2.5; 
-    padding = 5; 
+    padding = 3; 
     //output_sigma_factor = 0.1;
     output_sigma_factor = 0.125;
 
@@ -107,7 +107,7 @@ KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
         // TPAMI
         //interp_factor = 0.02;
         //sigma = 0.5; 
-        cell_size = 2;
+        cell_size = 4;
         _hogfeatures = true;
 
         if (lab) {
