@@ -212,7 +212,6 @@ int main(int argc, char*argv[])
             // cv::imshow("final-detRet", detFrame);
         }
 
-        
         char c = cv::waitKey(waitVAL);
         if(c == 'g')
             waitVAL = 1;

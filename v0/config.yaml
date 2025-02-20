@@ -28,7 +28,8 @@ irengine: "/home/rpdzkj/code/robusttracker/v0/model/IR.rknn"
 # videopath: "/home/rpdzkj/oriVideo/IMG_3573.MOV" #0
 # videopath: "/home/rpdzkj/oriVideo/IMG_3575.MOV" #2
 # videopath: "/home/rpdzkj/videos_recorded/2023-03-02-21-22-50.mp4" #2
-videopath: "/home/rpdzkj/data/1.mp4" #2
+# videopath: "/home/rpdzkj/data/4/465-453_.avi" #2
+videopath: "/home/rpdzkj/data/5.mkv" #2
 # videopath: "/home/rpdzkj/wxqq.mp4" #2
 # videopath: "/home/rpdzkj/20240930_102525.mkv" #2
 # videopath: "/home/rpdzkj/20240930_103049.mkv" #2

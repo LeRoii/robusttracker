@@ -4,7 +4,7 @@ engine: /home/rpdzkj/robusttracker/model/rgb_yolov8_s.rknn
 # irengine: /home/rpdzkj/code/robusttracker-0229/self_v0/model/yolox_RK3588_i8-ir.rknn
 irengine: /home/rpdzkj/robusttracker/model/ir_yolov8.rknn
 # 波门大小
-gateSize: 32
+gateSize: 28
 # 可见光模型类别
 visClsNum: 10
 # 红外模型类别

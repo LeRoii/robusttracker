@@ -546,13 +546,13 @@ cv::Point trackObj::center()
 
 inline void trackObj::calcVelo()
 {
-    if (m_veloBuf.size() < trackerCfg.trackVeloBufSize - 2)
-    {
-        m_velo[0] = 0;
-        m_velo[1] = 0;
+    // if (m_veloBuf.size() < trackerCfg.trackVeloBufSize - 2)
+    // {
+    //     m_velo[0] = 0;
+    //     m_velo[1] = 0;
 
-        return;
-    }
+    //     return;
+    // }
     float sumx, sumy;
     sumx = sumy = 0.0;
     for (auto &velo : m_veloBuf)
@@ -1671,5 +1671,5 @@ bool realtracker::sseFind(float sim)
     else if( m_ssearchCnt > trackerCfg.ssearchCntThres * 0.3)
         return sim > 0.3;
     else
-        return sim > 0.6;
+        return sim > 0.4;
 }

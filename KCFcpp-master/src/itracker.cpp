@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 0
+#define TRACKER_DEBUG 1
 
 static int randomcnt = 0;
 static int randomNum = 30;
@@ -188,7 +188,7 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
     m_tmplSz = trackerPtr->padding*m_GateSize;
 
     m_stpUpdt = 0;
-    m_setupf = 0;
+    m_setupf = 5;
 
 }
 
@@ -521,7 +521,7 @@ void itracker::reset()
     m_init = false;
     m_isLost = true;
 
-    m_setupf = 0;
+    m_setupf = 5;
     m_stpUpdt = 0;
 }
 
