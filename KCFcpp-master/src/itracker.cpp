@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 1
+#define TRACKER_DEBUG 0
 
 static int randomcnt = 0;
 static int randomNum = 30;
@@ -223,7 +223,7 @@ cv::Rect itracker::updateTP(cv::Mat image)
 cv::Rect itracker::find(cv::Mat image, double &sim)
 {
     float peakVal;
-    auto result = trackerPtr->seulDetect(image);
+    auto result = trackerPtr->seulDetect(image, peakVal);
     if(result.x < 0)
         result.x = 0;
     if(result.x + result.width > image.cols)
@@ -251,11 +251,26 @@ cv::Rect itracker::find(cv::Mat image, double &sim)
             result.y = image.rows - result.height;
     }
     auto retPatch = image(result);
-    sim = calculateHistogramSimilarity(m_oriPatch, retPatch);
+    // sim = calculateHistogramSimilarity(m_oriPatch, retPatch);
 
     double ssim = calculateSSIM(m_oriPatch, retPatch);
-    sim = ssim;
-    printf("itracker::find hsim:%f, ssim:%f\n", sim, ssim);
+    // sim = ssim;
+    if(peakVal > 0.3)
+        sim = 0.1 + ssim;
+    else if(peakVal > 0.4)
+        sim = 0.15 + ssim;
+    else
+        sim = ssim - 0.15;
+
+    // if(peakVal > 0.3)
+    // {
+    //     sim = ssim + peakVal - 0.3;
+    // }
+    // else
+    // {
+    //     sim = ssim - (0.3 - peakVal);
+    // }
+    printf("itracker::find peakVal:%f, sim:%f\n", peakVal, sim);
 
     return result;
 }
@@ -265,12 +280,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     
     if(!m_init)
         return cv::Rect();
-    static int st = 0;
-    static float fallEdgePv = 0;
-    static int bottomCnt = 0;
-    static int lastSt = -1;
     static int simFailCnt = 0;
-    static float lastPeakVal = 0;
     float peakVal;
     auto result = trackerPtr->update(image, peakVal);
 
@@ -326,7 +336,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     double hsim;// = calculateHistogramSimilarity(m_oriPatch, retPatch);
     // printf("hsim:%f\n", hsim);
     // printf("sim:%f\n", sim);
-    int simFailedCntThres = 4;
+    int simFailedCntThres = 3;
 
     double simDif = hsim - lastSim;
 
@@ -369,91 +379,42 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     // if(sim > 0.8f)
     // if(sim < 0.8f && peakVal < 1.0f)
     // if(peakVal < 0.5f || sim < 0.5f)
-    if(peakVal < 0.4f || sim < 0.6f)
-    // if(hsim > 0.4)
-        simFailCnt++;
-    else
-        simFailCnt = 0;
+    // if(peakVal < 0.4f || sim < 0.6f)
+    // // if(hsim > 0.4)
+    //     simFailCnt++;
+    // else
+    //     simFailCnt = 0;
 
-    if(sim < 0.2 && peakVal < 0.25)
+    if(sim < 0.2 || peakVal < 0.4)
     {
         // m_isLost = true;
         simFailCnt++;
+        if(sim < 0.1)
+        {
+            simFailCnt ++;
+        }
     }
-    else if(sim < 0.1)
+    else
     {
-        simFailCnt += 2;
+        simFailCnt = 0;
     }
     
 #if 1
     // printf("simDif:%f\n", simDif);
-    printf("sim:%f\n", sim);
-    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, diff:%f, simFailCnt:%d\n", hsim, peakVal, peakVal - lastPeakVal, simFailCnt);
+    // printf("sim:%f\n", sim);
+    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, simFailCnt:%d\n", sim, peakVal, simFailCnt);
 #endif
-    float peakDif = peakVal - lastPeakVal;
-    
-    do{
-        lastSt = st;
-        switch(st)
-        {
-            case 0:
-                if(peakDif < -0.2)
-                {
-                    simFailCnt++;
-                    st = 1;
-                    fallEdgePv = lastPeakVal + 0.005;
-#if TRACKER_DEBUG
-                    printf("\n\n-----------------ffffffallEdgePv = %f\n", fallEdgePv);
-#endif
-                }
-                if(simFailCnt > simFailedCntThres)
-                {
-                    st = 2;
-#if TRACKER_DEBUG
-                    printf("stracker state------->2\n");
-#endif
-                }
-                
-                break;
-            case 1:
-                // if(peakDif > 0.1 || peakVal >= fallEdgePv || bottomCnt > 10 || simFailCnt > simFailedCntThres)
-                if(simFailCnt > simFailedCntThres)
-
-                {
-                    st = 2;
-                }
-                else
-                {
-                    bottomCnt++;
-                    st = 1;
-                }
-                break;
-            case 2:
-                st = 0;
-#if TRACKER_DEBUG
-                printf("BBBBBBBBBBBBBBbottomCnt = %d\n", bottomCnt);
-#endif
-                
-                // if(bottomCnt > 10 || simFailCnt > simFailedCntThres)
-                {
-                    m_isLost = true;
-                    fallEdgePv = 0;
-                    bottomCnt = 0;
-                    simFailCnt = 0;
-                    printf("------------------Lost---------------\n");
-                }
-                break;
-            default:
-                break;
-        }
-        
+    if(simFailCnt > simFailedCntThres)
+    {
+        m_isLost = true;
+        simFailCnt = 0;
+        printf("------------------Lost---------------\n");
     }
-    while(lastSt != st && !m_isLost);
+
+    m_conf = sim + peakVal;
 
     // m_isLost = false;
     
-    lastPeakVal = peakVal;
-
     m_centerPt.x = result.x + result.width/2;
 	m_centerPt.y = result.y + result.height/2;
 
@@ -558,4 +519,9 @@ void itracker::setRoi(cv::Rect roi)
 
     // roi.width = roi.height = m_GateSize;
     trackerPtr->setRoi(roi);
+}
+
+float itracker::getConf()
+{
+    return m_conf;
 }

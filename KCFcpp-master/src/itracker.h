@@ -24,6 +24,7 @@ public:
     cv::Rect getTmplRect();
     void setRoi(cv::Rect roi);
     cv::Rect find(cv::Mat image, double &sim);
+    float getConf();
 
 private:
     bool m_isLost;
@@ -39,6 +40,7 @@ private:
 
     int m_setupf;
     int m_stpUpdt;
+    float m_conf;
 };
 
 
