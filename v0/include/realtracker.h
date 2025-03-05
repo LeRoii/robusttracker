@@ -4,8 +4,9 @@
 #include "idetector.h"
 #include "itracker.h"
 #include "multitracker.h"
-#include <mtracking/Ctracker.h>
+
 #include <opencv2/opencv.hpp>
+
 
 enum class EN_TRACKER_FSM
 {
@@ -68,6 +69,8 @@ public:
     bool isLost();
     void predict();
 
+    void calcTjr(cv::Mat img, bbox_t *detRet, int m_boxes_count);
+
     cv::Rect m_rect;
     float m_prob;
     int m_cls;
@@ -89,6 +92,7 @@ public:
 
     cv::Rect m_initRect;
     float rx, ry;
+    cv::Point p1;
 
 private:
     inline void calcVelo();
@@ -96,6 +100,7 @@ private:
     std::deque<std::pair<int, int>> m_veloBuf;
 
     cv::Rect m_lastPos;
+    bool m_findp;
 };
 
 class realtracker
@@ -115,16 +120,22 @@ public:
     void runTrackerNoDraw(cv::Mat &frame, bool alone = true);
     // int update(cv::Mat &frame, std::vector<TrackingObject> &detRet, cv::Point &pt);
     // EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
-    EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
+   // EN_TRACKER_FSM update(cv::Mat &frame, std::vector<TrackingObject> &detRet, uint8_t *trackerStatus);
     EN_TRACKER_FSM update(cv::Mat &frame, cv::Mat &frameTracker, uint8_t *trackerStatus, int &x_, int &y_, cv::Rect &);
     // EN_TRACKER_FSM update(cv::Mat& frame, cv::Mat& frameTracker, std::vector<bbox_t> &detRet, uint8_t *trackerStatus, bool isIRImg);
     void reset();
     void setFrameScale(double s);
     void setGateSize(int s);
+    int getGateSize();
     void setIrFrame(bool ir);
 
     bool trackerLost();
 
+    void gateAdjust(int dir);//0:up, 1:down, 2:left, 3:right
+    
+    // FrameInfo m_frameInfo;
+    // void plot_tracks(cv::Mat &frame, std::vector<std::shared_ptr<Track>> &tracks);
+    // std::vector<std::shared_ptr<Track>> tracks;
     int osdw;
 
 private:
@@ -138,12 +149,15 @@ private:
     itracker *m_stracker;
     CDetector *m_detector;
     CDetector *m_irDetector;
-    FrameInfo m_frameInfo;
-    std::unique_ptr<BaseTracker> m_mtracker;
+    // FrameInfo m_frameInfo;
+    // std::unique_ptr<BaseTracker> m_mtracker;
+        // std::unique_ptr<BoTSORT> tracker;
+
+
     regions_t m_regions;
     float m_fps;
     cv::Point m_kcfRet;
-    // int m_GateSize;
+    int m_GateSize;
     bool m_kcfLost;
 
     double m_frameScale;
@@ -166,7 +180,7 @@ private:
     double minDistThres;
     double areaDifThres;
     int m_dtrackerLostCnt;
-    
+
     bool sevorKeepFlag;
     int16_t x;
     int16_t y;
@@ -176,6 +190,17 @@ private:
     int m_imgCenterY;
     bbox_t m_detRet[OBJ_NUMB_MAX_SIZE];
     int m_boxes_count;
+
+    bool m_adjustFlg;
+    cv::Point m_adjstPt;
+
+    bool m_initdet;
+    int m_strackerslpcnt;
+    float m_serDis;
+    int m_gateS;
+    bool m_smlv;
+
+    cv::Rect m_finalRect;
 };
 
 #endif
