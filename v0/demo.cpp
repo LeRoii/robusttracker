@@ -248,6 +248,8 @@ void autoTest(){
         spdlog::debug("result_file: {}", result_file);
         std::ofstream outFile(result_file);
 
+        
+
         cv::namedWindow("trackRet");
         cv::setMouseCallback("trackRet", onmouseTrack);  // 设置鼠标回调
         canAdjustGateSize = true;
@@ -448,7 +450,18 @@ cv::Point getSafePoint(int x, int y, int gateSize, const cv::Mat& frame) {
     int safe_y = std::max(gateSize/2, std::min(y, frame.rows - gateSize/2));
     return cv::Point(safe_x, safe_y);
 }
-
+int getLineCount(const std::string& filename) {
+    std::ifstream file(filename);
+    int lineCount = 0;
+    std::string line;
+    
+    while (std::getline(file, line)) {
+        lineCount++;
+    }
+    
+    file.close();
+    return lineCount;
+}
 void autoCompare(){
     float diffPercent = 0.8;
     int gateSize = 32;
@@ -478,6 +491,11 @@ void autoCompare(){
     std::ofstream outResultFile;
     std::string resultFile = "../output/result.txt";
     outResultFile.open(resultFile);
+
+    std::ofstream outResultCompareLastFrameFile;
+    std::string resultCompareLastFrameFile = "../output/result_compare_last_frame.txt";
+    outResultCompareLastFrameFile.open(resultCompareLastFrameFile);
+
     int index = 0;
     //std::vector<int> gateSizeList;
     std::unordered_map<std::string, int> gateSizeMap;
@@ -520,6 +538,8 @@ void autoCompare(){
     }
 
     int lostTrackNum = 0;
+    int mp4Num = 0;
+    int totalLostFrame = 0;
     for(auto& line : testData){
         std::stringstream ss(line);
         std::string item;
@@ -528,6 +548,7 @@ void autoCompare(){
 
         // 用于存储分割后的数据
         std::string mp4_name;
+        
         int orign_x, orign_y, start_frame;
         
         // 按逗号分割并依次读取数据
@@ -641,23 +662,28 @@ void autoCompare(){
         memset(trackerStatus, 0, 9);
         int nFrames = 0;
 
+        int totalFrames = getLineCount(labelFile);
         // 创建结果文件
-        cv::namedWindow("trackRet");
+        //cv::namedWindow("trackRet");
         //cv::setMouseCallback("trackRet", onmouseTrack);  // 设置鼠标回调
         int fileIndex = 0;
         int diffFrame = 0;
+        int lostObj = 0;
+        int waitVal = 1;
         while(1){
             cap >> frame;
             if(frame.empty())
                 break;
             
             cv::resize(frame, frame, cv::Size(1280,720));
+
             trackFrame = frame.clone();  // 保存当前帧供回调函数使用
             nFrames++;  
             if (nFrames < start_frame){
                 
                 continue;
             }
+
             if (nFrames == start_frame){
                 rtracker->setGateSize(gateSize);
                 // 使用安全的坐标计算
@@ -692,6 +718,13 @@ void autoCompare(){
                         
                         int x_diff = std::abs(trackRect.x - trackDataList[fileIndex].x);
                         int y_diff = std::abs(trackRect.y - trackDataList[fileIndex].y);
+                        if (totalFrames - 2 == nFrames){
+                            if(x_diff > diffPercent * trackDataList[fileIndex].width || y_diff > diffPercent * trackDataList[fileIndex].height){
+                                lostObj = 1;
+                                spdlog::warn("=======lostObj=======");
+                                totalLostFrame++;
+                            }
+                        }
                         
                         // 在画面左上角显示差异信息
                         // cv::putText(frame, "X_diff: " + std::to_string(x_diff), 
@@ -706,13 +739,14 @@ void autoCompare(){
                         // cv::putText(frame, "DiffFrames: " + std::to_string(diffFrame), 
                         //           cv::Point(50, 70), cv::FONT_HERSHEY_SIMPLEX, 
                         //           0.6, cv::Scalar(0,0,255), 1);
-                        cv::putText(frame, "gateSize: " + std::to_string(gateSize), 
-                                  cv::Point(50, 90), cv::FONT_HERSHEY_SIMPLEX, 
-                                  0.8, cv::Scalar(0,0,255), 2);
-                        cv::putText(frame, "mp4_name: " + mp4_name + "_" + std::to_string(orign_x) + "_" + std::to_string(orign_y), 
-                                  cv::Point(50, 60), cv::FONT_HERSHEY_SIMPLEX, 
-                                  0.8, cv::Scalar(0,0,255), 2);        
+                        // cv::putText(frame, "gateSize: " + std::to_string(gateSize), 
+                        //           cv::Point(50, 90), cv::FONT_HERSHEY_SIMPLEX, 
+                        //           0.8, cv::Scalar(0,0,255), 2);
+                        // cv::putText(frame, "mp4_name: " + mp4_name + "_" + std::to_string(orign_x) + "_" + std::to_string(orign_y), 
+                        //           cv::Point(50, 60), cv::FONT_HERSHEY_SIMPLEX, 
+                        //           0.8, cv::Scalar(0,0,255), 2);        
                         
+                        spdlog::debug("nFrames:{}", nFrames);
                         spdlog::debug("y_diff:{}", y_diff);
                         spdlog::debug("x_diff:{}", x_diff);
                         if(x_diff > diffPercent * trackDataList[fileIndex].width || y_diff > diffPercent * trackDataList[fileIndex].height){
@@ -735,13 +769,18 @@ void autoCompare(){
                     else
                         drawRect(frame, trackRect);  // 默认黄色(0,255,255)
 
-                    spdlog::debug("tracker status:{}", trackerStatus[4]);
+                    // spdlog::debug("tracker status:{}", trackerStatus[4]);
 
                     cv::resize(frame, frame, cv::Size(640,360));
                 }
                 cv::imshow("trackRet", frame);
             }
-            cv::waitKey(1);
+            
+            char c = cv::waitKey(waitVal);
+            if(c == 's')
+                waitVal = 0;
+            else if(c == 'g')
+                waitVal = 1;
             // 等待'n'键来显示下一帧
             // while(true) {
             //     char c = cv::waitKey(0);  // 无限等待按键
@@ -765,6 +804,8 @@ next_video:  // 添加标签用于跳转
         }
 
         outResultFile << mp4_name << "_" << std::to_string(orign_x) << "_" << std::to_string(orign_y) << ":" << diffFrame << "," << nFrames << std::endl;
+        outResultCompareLastFrameFile << mp4_name << "_" << std::to_string(orign_x) << "_" << std::to_string(orign_y) << ":" << lostObj <<  std::endl;
+        lostObj = 0;
         nFrames = 0;
         diffFrame = 0;
         // 打印解析后的数据
@@ -774,7 +815,9 @@ next_video:  // 添加标签用于跳转
     }
     outResultFile << "lostTrackNum: " << lostTrackNum << ","
                      << "lostTrackRate: " << lostTrackNum * 1.0 / testData.size() << std::endl;
+    outResultCompareLastFrameFile << "totalLostFrame: " << totalLostFrame << std::endl;
     outResultFile.close();
+    outResultCompareLastFrameFile.close();
 }
 
 
@@ -786,137 +829,7 @@ int main(int argc, char*argv[]){
     }
     spdlog::set_level(spdlog::level::debug); 
     autoCompare();
-    //autoTest();
+    // autoTest();
     //readTxtShow("../output/1_760_263.txt");
     return 0;
 }
-
-// int main(int argc, char*argv[])
-// {
-//     //autoTest();
-//     if (setenv("DISPLAY", "192.168.4.1:0.0", 1) != 0) {
-//         std::cerr << "Failed to set DISPLAY environment variable." << std::endl;
-//         return 1;
-//     }
-//     //int waitVAL =  argc > 1 ? 10 : 0;
-//     int waitVAL = 0;
-//     spdlog::set_level(spdlog::level::debug); // Set global log level to debug
-
-//     YAML::Node config = YAML::LoadFile("/home/rpdzkj/robusttracker-algodev/v0/config.yaml");
-//     int detOn = config["detection"].as<int>();
-//     trackOn = config["track"].as<int>();
-//     std::string engine = config["engine"].as<std::string>();
-//     std::string videopath = config["videopath"].as<std::string>();
-//     std::string irEngine = config["irengine"].as<std::string>();
-
-//     rtracker = new realtracker("/home/rpdzkj/robusttracker-algodev/v0/tracker.yaml");
-//     // rtracker->setGateSize(gateS);
-//     gateS = rtracker->osdw;
-
-//     cv::VideoCapture cap(videopath);
-//     if(!cap.isOpened())
-//     {
-//         printf("open failed\n");
-//         return 0;
-//     }
-
-//     std::vector<bbox_t> boxs;
-
-//     cv::Mat frame;
-//     int nFrames = 0;
-
-//     cv::namedWindow("trackRet");
-//     cv::setMouseCallback("trackRet", onmouse);
-
-//     uint8_t trackerStatus[9];
-//     memset(trackerStatus, 0, 9);
-
-//     bbox_t detRet[200];
-
-//     cv::VideoWriter video;//("output.avi", fourcc,30.0, cv::Size(640, 512));
-//     bool recvid = false;
-
-//     while(1)
-//     {
-//         cap >> frame;
-//         // frame = cv::imread("/home/rpdzkj/3/model/1.jpg");
-//         if(frame.empty())
-//             break;
-
-//         // frame = cv::imread("/space/data/123.PNG");
-//         cv::resize(frame, frame, cv::Size(1280,720));
-
-//         trackFrame = frame.clone();
-//         detFrame = frame.clone();
-//         dispFrame = frame.clone();
-//         trackRetByDet = frame.clone();
-
-//         printf("=====nframe:%d======\n", nFrames);
-
-//         int center_x,center_y;
-//         cv::Rect trackRect;
-//         int boxes_count;
-//         if(trackOn) {
-//             if (trackerInited) {
-//                 rtracker->update(trackFrame, trackFrame, trackerStatus, center_x, center_y, trackRect);
-
-//                  if(rtracker->trackerLost())
-//                 {
-//                     drawLostRect(trackFrame, trackRect);
-//                 }
-//                 else
-//                     drawRect(trackFrame, trackRect);
-
-//                 spdlog::debug("tracker status:{}", trackerStatus[4]);
-
-//                 cv::resize(trackFrame, trackFrame, cv::Size(640,360));
-//             }
-
-//             cv::putText(trackFrame, std::to_string(nFrames), cv::Point(150, 100), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,0,255), 2, cv::LINE_AA);
-
-            
-//             cv::imshow("trackRet", trackFrame);
-//             if(recvid)
-//             {
-//                 video.write(frame);
-//             }
-//         }
-        
-
-//         if(detOn)
-//         {
-//             rtracker->runDetectorOut(detFrame, detRet, boxes_count);
-
-
-//             for (int i = 0; i < boxes_count; ++i)
-//             {
-//                 bbox_t &box = detRet[i];
-//                     drawRect(detFrame, cv::Rect(cv::Point(box.x, box.y), cv::Point(box.x + box.w, box.y + box.h)), cv::Scalar{255,0,0});
-//             }
-//             // cv::imshow("final-detRet", detFrame);
-//         }
-
-        
-//         char c = cv::waitKey(waitVAL);
-//         if(c == 'g')
-//             waitVAL = 1;
-//         else if(c == 's')
-//             waitVAL = 0;
-//         else if(c == 'r')
-//         {
-//             recvid = true;
-//             video.open(std::to_string(userPt.x) + "-" + std::to_string(userPt.y) + "_.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0, cv::Size(1280,720));
-//             spdlog::debug("video record start");
-//         }
-//         else if(c == 't')
-//         {
-//             recvid = false;
-//             video.release();
-//             spdlog::debug("video record stop");
-//         }
-
-//         nFrames++;
-//     }
-
-//     return 0;
-// }
