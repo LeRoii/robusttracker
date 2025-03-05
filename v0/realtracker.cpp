@@ -6,6 +6,7 @@
 #include <yaml-cpp/yaml.h>
 
 #define TRACKER_DEBUG 0
+#define TRACKER_DEBUG_DRAW 0
 static spdlog::stopwatch sw;
 static stTrackerCfg trackerCfg;
 
@@ -573,8 +574,8 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
     ry = m_rect.y;
 
     int sizeDif = abs(m_rect.width - m_lastPos.width) + abs(m_rect.height - m_lastPos.height);
-// #if TRACKER_DEBUG
-#if 1
+#if TRACKER_DEBUG
+// #if 1
     std::cout << "curPos:" << m_rect << std::endl;
     std::cout << "m_lastPos:" << m_lastPos << std::endl;
     // printf("w diff:%d, h diff:%d\n", abs(m_rect.width - m_lastPos.width), abs(m_rect.height - m_lastPos.height));
@@ -612,16 +613,16 @@ void trackObj::update(cv::Mat img, const cv::Rect &box, double ssim)
 
     Clamp(m_rect.x, m_rect.width, img.cols);
     Clamp(m_rect.y, m_rect.height, img.rows);
-    if (ssim > trackerCfg.trackUpdateSimThres)
-        m_patch = img(m_rect).clone();
 #if TRACKER_DEBUG
     if (!m_veloBuf.empty())
         printf("inst velo x:%d, inst velo y:%d\n", m_veloBuf.back().first, m_veloBuf.back().second);
     // std::cout<<"patch size:"<<m_patch.size()<<std::endl;
     // cv::imwrite("patch.png", m_patch);
+#if TRACKER_DEBUG_DRAW
     cv::Point sp = cv::Point(m_rect.x + m_rect.width / 2, m_rect.y + m_rect.height / 2);
     cv::Point ep = cv::Point(sp.x + m_velo[0] * 30, sp.y + m_velo[1] * 30);
     cv::line(img, sp, ep, cv::Scalar(0, 255, 0), 2);
+#endif
 
 #endif
 
@@ -957,7 +958,7 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frameDetect, cv::Mat &frameTracker, c
         // rectangle(frame, m_strackerRet, cv::Scalar(255, 255, 255), 3, 8);
         trackRect = m_strackerRet;
         m_state = EN_TRACKER_FSM::STRACK;
-        m_trackObj.update(frame, m_strackerRet, 0.8);
+        m_trackObj.update(frame, m_strackerRet, m_stracker->getConf());
     }
 
     printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
@@ -1016,7 +1017,7 @@ void realtracker::FSM_PROC_SSEARCH(cv::Mat &frame, cv::Rect &trackRect)
         return;
     }
 
-    if(m_ssearchCnt % 5 == 0)
+    if(m_ssearchCnt % 8 == 0)
     {
         double sim = 0.f;
         auto rect = m_stracker->find(frame, sim);
@@ -1185,7 +1186,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frameDetect, cv::Mat &frameTracker, c
             double res = calculateSSIM(frameTracker(roi), m_trackObj.m_patch);
 
             cv::Point center{m_detRet[i].x + m_detRet[i].w / 2, m_detRet[i].y + m_detRet[i].h / 2};
-#if TRACKER_DEBUG
+#if TRACKER_DEBUG_DRAW
             cv::line(debugimg, center, m_trackObj.center(), colormap[i], 2);
             cv::putText(debugimg, std::to_string(res), center, cv::FONT_HERSHEY_COMPLEX, 0.8, colormap[i], 1, 8, 0);
 #endif
@@ -1243,7 +1244,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frameDetect, cv::Mat &frameTracker, c
 
     // std::cout<<"closest detRet:"<<derRect<<std::endl;
 
-#if TRACKER_DEBUG
+#if TRACKER_DEBUG_DRAW
     cv::rectangle(debugimg, m_trackObj.m_rect, cv::Scalar(0, 0, 0), 2);
     cv::rectangle(debugimg, derRect, cv::Scalar(255, 0, 127), 2);
     // cv::imwrite("detrect.png", frame(derRect));
@@ -1382,7 +1383,7 @@ void realtracker::FSM_PROC_DTRACK(cv::Mat &frameDetect, cv::Mat &frameTracker, c
         return;
     }
 
-#if TRACKER_DEBUG
+#if TRACKER_DEBUG_DRAW
     cv::imshow("debugImg", debugimg);
     // cv::rectangle(frame, derRect, cv::Scalar(255, 0, 127), 2);
 #endif
@@ -1425,9 +1426,12 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frame, std::vector<TrackingObject> &
 
 EN_TRACKER_FSM realtracker::update(cv::Mat &frameDetect, cv::Mat &frameTracker, uint8_t *trackerStatus, int &x_, int &y_, cv::Rect &trackRect)
 {
+#if TRACKER_DEBUG
     printf("realtracker::update start\n");
-
     sw.reset();
+#endif
+
+    
 
     fsmUpdate(frameDetect, frameTracker, trackRect);
 
@@ -1482,10 +1486,10 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frameDetect, cv::Mat &frameTracker, 
         }
 
         m_trackerOffsetLimit = m_trackerOffsetLimit > trackerCfg.offsetLimitCeil ? trackerCfg.offsetLimitCeil : m_trackerOffsetLimit;
-
+#if TRACKER_DEBUG
         // printf("tracker center pt x:%d, y:%d\n", m_stracker->centerPt().x, m_stracker->centerPt().y);
         printf("tracker offset x:%d, y:%d\n", x, y);
-
+#endif
         x = ntohs(x);
         y = ntohs(y);
 
@@ -1495,15 +1499,17 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frameDetect, cv::Mat &frameTracker, 
     }
     else if (m_state == EN_TRACKER_FSM::SEARCH)
     {
-        printf("realtracker::update in search\n");
+        // printf("realtracker::update in search\n");
         trackerStatus[4] |= 0x02; // 0000 0010
         int16_t x = 0;
         int16_t y = 0;
         memcpy(trackerStatus, &x, 2);
         memcpy(trackerStatus + 2, &y, 2);
     }
+#if TRACKER_DEBUG
 
     spdlog::debug("realtracker::update Elapsed {}", sw);
+#endif
 
     return m_state;
 }
@@ -1671,5 +1677,5 @@ bool realtracker::sseFind(float sim)
     else if( m_ssearchCnt > trackerCfg.ssearchCntThres * 0.3)
         return sim > 0.3;
     else
-        return sim > 0.4;
+        return sim > 0.45;
 }
