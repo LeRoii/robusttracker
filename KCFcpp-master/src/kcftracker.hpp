@@ -99,7 +99,7 @@ the use of this software, even if advised of the possibility of such damage.
      
      // Update position based on the new frame
      virtual cv::Rect update(cv::Mat image);
-     virtual cv::Rect update(cv::Mat image, float &peakVal);
+     virtual cv::Rect update(cv::Mat image, double &apcVal, double &peakVal);
  
      float interp_factor; // linear interpolation factor for adaptation
      float sigma; // gaussian kernel bandwidth
@@ -118,7 +118,7 @@ the use of this software, even if advised of the possibility of such damage.
  
  protected:
      // Detect object in the current frame.
-     cv::Point2f detect(cv::Mat z, cv::Mat x, float &peak_value);
+     cv::Point2f detect(cv::Mat z, cv::Mat x, float &peak_value, double &apc);
  
      // train tracker with a single image
      void train(cv::Mat x, float train_interp_factor);

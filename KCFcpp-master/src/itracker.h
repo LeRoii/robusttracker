@@ -41,6 +41,8 @@ private:
     int m_setupf;
     int m_stpUpdt;
     float m_conf;
+
+    
 };
 
 

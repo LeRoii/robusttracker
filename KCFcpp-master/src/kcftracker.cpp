@@ -183,27 +183,31 @@ the use of this software, even if advised of the possibility of such damage.
  
  
      float peak_value;
-     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value);
+     double apc;
+     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value, apc);
  
      if (scale_step != 1) {
          // Test at a smaller _scale
          float new_peak_value;
-         cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value);
+         double new_apc;
+         cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value, new_apc);
  
          if (scale_weight * new_peak_value > peak_value) {
              res = new_res;
              peak_value = new_peak_value;
+             apc = new_apc;
              _scale /= scale_step;
              _roi.width /= scale_step;
              _roi.height /= scale_step;
          }
  
          // Test at a bigger _scale
-         new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value);
+         new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value, new_apc);
  
          if (scale_weight * new_peak_value > peak_value) {
              res = new_res;
              peak_value = new_peak_value;
+             apc = new_apc;
              _scale *= scale_step;
              _roi.width *= scale_step;
              _roi.height *= scale_step;
@@ -228,7 +232,7 @@ the use of this software, even if advised of the possibility of such damage.
      return _roi;
  }
  // Update position based on the new frame
- cv::Rect KCFTracker::update(cv::Mat image, float &peakVal)
+ cv::Rect KCFTracker::update(cv::Mat image, double &apcVal, double &peakVal)
  {
      if (_roi.x + _roi.width <= 0) _roi.x = -_roi.width + 1;
      if (_roi.y + _roi.height <= 0) _roi.y = -_roi.height + 1;
@@ -240,26 +244,30 @@ the use of this software, even if advised of the possibility of such damage.
  
  
      float peak_value;
-     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value);
+     double apc;
+     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value, apc);
  
      if (scale_step != 1) {
          // Test at a smaller _scale
          float new_peak_value;
-         cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value);
+         double new_apc;
+         cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value, new_apc);
  
          if (scale_weight * new_peak_value > peak_value) {
              res = new_res;
              peak_value = new_peak_value;
+             apc = new_apc;
              _scale /= scale_step;
              _roi.width /= scale_step;
              _roi.height /= scale_step;
          }
  
          // Test at a bigger _scale
-         new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value);
+         new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value, new_apc);
  
          if (scale_weight * new_peak_value > peak_value) {
              res = new_res;
+             apc = new_apc;
              peak_value = new_peak_value;
              _scale *= scale_step;
              _roi.width *= scale_step;
@@ -282,6 +290,7 @@ the use of this software, even if advised of the possibility of such damage.
  
      // printf("KCF:pv:%f\n", peak_value);
      peakVal = peak_value;
+     apcVal = apc;
  
      return _roi;
  }
@@ -304,27 +313,31 @@ the use of this software, even if advised of the possibility of such damage.
  
  
      float peak_value;
-     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value);
+     double apc;
+     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value, apc);
  
      if (scale_step != 1) {
          // Test at a smaller _scale
          float new_peak_value;
-         cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value);
+         double new_apc;
+         cv::Point2f new_res = detect(_tmpl, getFeatures(image, 0, 1.0f / scale_step), new_peak_value, new_apc);
  
          if (scale_weight * new_peak_value > peak_value) {
              res = new_res;
              peak_value = new_peak_value;
+             apc = new_apc;
              _scale /= scale_step;
              _roi.width /= scale_step;
              _roi.height /= scale_step;
          }
  
          // Test at a bigger _scale
-         new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value);
+         new_res = detect(_tmpl, getFeatures(image, 0, scale_step), new_peak_value, new_apc);
  
          if (scale_weight * new_peak_value > peak_value) {
              res = new_res;
              peak_value = new_peak_value;
+             apc = new_apc;
              _scale *= scale_step;
              _roi.width *= scale_step;
              _roi.height *= scale_step;
@@ -342,15 +355,18 @@ the use of this software, even if advised of the possibility of such damage.
  
      assert(_roi.width >= 0 && _roi.height >= 0);
  
-     printf("seulDetect,peakval:%f\n", peak_value);
-     peak = peak_value;
+     
+     // peak = peak_value;
+     peak = apc;
+ 
+     printf("seulDetect,peakval:%f\n", peak);
  
      return _roi;
  }
  
  
  // Detect object in the current frame.
- cv::Point2f KCFTracker::detect(cv::Mat z, cv::Mat x, float &peak_value)
+ cv::Point2f KCFTracker::detect(cv::Mat z, cv::Mat x, float &peak_value, double &apc)
  {
      using namespace FFTTools;
  
@@ -359,9 +375,33 @@ the use of this software, even if advised of the possibility of such damage.
  
      //minMaxLoc only accepts doubles for the peak, and integer points for the coordinates
      cv::Point2i pi;
+     cv::Point2i minPoint;
      double pv;
-     cv::minMaxLoc(res, NULL, &pv, NULL, &pi);
+     double minValue;
+     // cv::minMaxLoc(res, minValue, &pv, NULL, &pi);
+     cv::minMaxLoc(res,&minValue,&pv,&minPoint,&pi);
      peak_value = (float) pv;
+ 
+     double ave_res = 0;
+     double value_diff = 0;
+     double sum_diff = 0;
+     for(int i=0; i<res.cols; i++){
+         for(int j=0; j<res.rows; j++){
+                 
+         value_diff = res.at<float>(i,j) - minValue;
+         sum_diff += std::pow(value_diff,2); 
+     }
+     }
+     ave_res = sum_diff/(res.cols*res.rows);
+     double mmdiff=0;
+     mmdiff = pv-minValue;
+     mmdiff = std::pow(mmdiff,2);
+     double apce=mmdiff/ave_res;
+     // apceValue = apce;
+     // peak_value = apce;
+     apc = apce;
+ 
+     // printf("tracker apce:%f\n", apce);
  
  
      //subpixel peak estimation, coordinates will be non-integer

@@ -3,7 +3,7 @@
 
 static KCFTracker* trackerPtr = nullptr;
 
-#define TRACKER_DEBUG 0
+#define TRACKER_DEBUG 1
 
 static int randomcnt = 0;
 static int randomNum = 30;
@@ -11,6 +11,8 @@ static int finalwidth = 32;
 static int finalheight = 32;
 static float scalef = 0.5;
 
+static std::vector<double> preApce;
+static std::vector<double> preResMax;
 
 
 static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
@@ -156,6 +158,9 @@ void itracker::init(cv::Rect &roi, cv::Mat image)
     m_isLost = false;
 
     m_tmplSz = trackerPtr->padding*m_GateSize;
+
+    preApce.clear();
+    preResMax.clear();
 }
 
 void itracker::init(const cv::Point &pt, cv::Mat image)
@@ -189,6 +194,9 @@ void itracker::init(const cv::Point &pt, cv::Mat image)
 
     m_stpUpdt = 0;
     m_setupf = 5;
+
+    preApce.clear();
+    preResMax.clear();
 
 }
 
@@ -255,10 +263,12 @@ cv::Rect itracker::find(cv::Mat image, double &sim)
 
     double ssim = calculateSSIM(m_oriPatch, retPatch);
     // sim = ssim;
-    if(peakVal > 0.3)
-        sim = 0.1 + ssim;
-    else if(peakVal > 0.4)
-        sim = 0.15 + ssim;
+    if(peakVal > 40.f)
+        sim = 0.35 + ssim;
+    else if(peakVal > 30.f)
+        sim = 0.3 + ssim;
+    else if(peakVal > 20.f)
+        sim = 0.25 + ssim;
     else
         sim = ssim - 0.15;
 
@@ -280,12 +290,74 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     
     if(!m_init)
         return cv::Rect();
-    static int simFailCnt = 0;
-    float peakVal;
-    auto result = trackerPtr->update(image, peakVal);
 
+    
+    static int simFailCnt = 0;
+    double peakVal;
+    double apc;
+    auto result = trackerPtr->update(image, apc, peakVal);
+
+    preApce.push_back(apc);
+    preResMax.push_back(peakVal);
+
+    double addApce = 0;
+    double addResMax = 0;
+    double comApce = 0;
+    double comResMax = 0;
+
+
+    int sz =  preApce.size()-1;
+    for(int i=0;i<sz;i++){
+
+        addApce +=preApce[i];
+        addResMax +=preResMax[i];
+    }
+    //cout<<"addResMax = "<<addResMax<<endl;
     if(m_isLost)
         return result;
+
+    if(sz>0) {
+
+        addApce = addApce / sz;
+        addResMax = addResMax / sz;
+
+        //cout<<"sz ="<<sz<<endl;
+        comApce = 0.5 * addApce;
+        comResMax = 0.5 * addResMax;
+       printf("comApce = %f, comResMax = %f\n", comApce, comResMax);
+       printf("apc:%f, peakVal:%f\n", apc, peakVal);
+
+        // if (apc > comApce && peakVal > comResMax) {
+        //     m_isLost = false;
+
+        // } else {
+        //     m_isLost = true;
+        //     printf("tracking lost\n");
+        // }
+
+        if (apc < comApce && peakVal < comResMax) 
+            simFailCnt++;
+        else
+            simFailCnt = 0;
+
+        if(simFailCnt > 2)
+            m_isLost = true;
+
+        if (apc < comApce || peakVal < comResMax) 
+            m_conf = 0.5;
+        else
+        {
+            trackerPtr->updateRoi(image);
+            m_conf = 0.9;
+        }
+
+        printf("simFailCnt:%d\n", simFailCnt);
+
+    }
+
+    return result;
+
+
 
     // std::cout<<"bf itracker:"<<result<<std::endl;
 
@@ -356,7 +428,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
 
 
     // if(sim > 0.99 || peakVal > 1.0f)
-    if((sim > 0.7 && peakVal > 0.8) || m_setupf++ < 5)
+    if((sim > 0.7 || peakVal > 30.f) || m_setupf++ < 5)
     // if(hsim < 0.2)
     {
         m_oriPatch = retPatch.clone();
@@ -365,7 +437,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     }
     else
     {
-        if(m_stpUpdt++ > 30 && sim > 0.5 && peakVal > 0.5)
+        if(m_stpUpdt++ > 30 && sim > 0.5 && peakVal > 30.f)
         {
 #if TRACKER_DEBUG
             printf("m_stpUpdt met, updt patch\n");
@@ -374,7 +446,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
             m_stpUpdt = 0;
         }
     }
-    // if(peakVal > 0.8)
+    if(peakVal > 60.f)
         trackerPtr->updateRoi(image);
     // if(sim > 0.8f)
     // if(sim < 0.8f && peakVal < 1.0f)
@@ -385,7 +457,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     // else
     //     simFailCnt = 0;
 
-    if(sim < 0.2 || peakVal < 0.4)
+    if(sim < 0.2 || peakVal < 20.f)
     {
         // m_isLost = true;
         simFailCnt++;
@@ -411,7 +483,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
         printf("------------------Lost---------------\n");
     }
 
-    m_conf = sim + peakVal;
+    m_conf = simFailCnt > 0 ? 0.5 : 0.9;
 
     // m_isLost = false;
     
@@ -484,6 +556,9 @@ void itracker::reset()
 
     m_setupf = 5;
     m_stpUpdt = 0;
+
+    preApce.clear();
+    preResMax.clear();
 }
 
 bool& itracker::isLost()
