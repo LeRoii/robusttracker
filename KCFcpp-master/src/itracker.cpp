@@ -112,7 +112,7 @@ static double calculateHistogramSimilarity(const cv::Mat& image1, const cv::Mat&
 //     return similarity;
 // }
 
-itracker::itracker():m_isLost(true),m_init(false)
+itracker::itracker(int sensitivity):m_isLost(true),m_init(false), m_sen(sensitivity)
 {
 	bool HOG = true;
 	bool FIXEDWINDOW = false;
@@ -124,6 +124,15 @@ itracker::itracker():m_isLost(true),m_init(false)
 
     m_templateSearchWindowSize = 150;
     m_templateSearchOffset = m_templateSearchWindowSize/2;
+
+    switch(m_sen)
+    {
+        case 1: m_failCntThres = 10;break;
+        case 2: m_failCntThres = 5;break;
+        case 3: m_failCntThres = 3;break;
+        default:m_failCntThres = 100;break;
+    }
+    
 }
 
 itracker::~itracker()
@@ -297,6 +306,11 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     double apc;
     auto result = trackerPtr->update(image, apc, peakVal);
 
+    if(m_sen == 0)
+    {
+        return result;
+    }
+
     preApce.push_back(apc);
     preResMax.push_back(peakVal);
 
@@ -340,7 +354,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
         else
             simFailCnt = 0;
 
-        if(simFailCnt > 2)
+        if(simFailCnt > m_failCntThres)
             m_isLost = true;
 
         if (apc < comApce || peakVal < comResMax) 

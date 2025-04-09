@@ -3,11 +3,10 @@
 
 #include <opencv2/opencv.hpp>
 
-
 class itracker
 {
 public:
-    itracker(int sensitivity);
+    itracker();
     ~itracker();
 
     void init(cv::Rect &roi, cv::Mat image);
@@ -42,8 +41,7 @@ private:
     int m_setupf;
     int m_stpUpdt;
     float m_conf;
-    int m_sen;
-    int m_failCntThres;
+
     
 };
 

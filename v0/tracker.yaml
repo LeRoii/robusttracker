@@ -1,10 +1,10 @@
 # 可见光模型
-engine: /home/rpdzkj/robusttracker/model/rgb_yolov8_s.rknn
+engine: /home/rpdzkj/1/h265encode_test/model/rgb_yolov8_s.rknn
 # 红外模型
 # irengine: /home/rpdzkj/code/robusttracker-0229/self_v0/model/yolox_RK3588_i8-ir.rknn
-irengine: /home/rpdzkj/robusttracker/model/ir_yolov8.rknn
+irengine: /home/rpdzkj/1/h265encode_test/model/ir_yolov8.rknn
 # 波门大小
-gateSize: 28
+gateSize: 32
 # 可见光模型类别
 visClsNum: 10
 # 红外模型类别
@@ -35,6 +35,9 @@ detectorIrNmsConf: 0.45
 detectorIrConf: 0.2
 # 识别结果二次nms阈值
 detectorBoxDifThres: 5
+sensitivity: 3
+withServo: 0
+
 
 ######结合识别做跟踪的参数
 # 目标最长丢失帧数

@@ -53,6 +53,7 @@ struct stTrackerCfg
     double detectorIrNmsConf;        // 0.45
     double detectorIrConf;           // 0.4
     int trackFinalLostCntThres;      // 30
+    int withServo;
 };
 
 class trackObj
@@ -106,7 +107,6 @@ private:
 class realtracker
 {
 public:
-    realtracker(std::string rgbEnginepath, std::string irEnginepath, int rgbClassNum, int irClassNum);
     realtracker(std::string cfg);
     ~realtracker();
 

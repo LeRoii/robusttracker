@@ -23,14 +23,9 @@ mipiVisStreamAdd: "v4l2src device=/dev/video11 ! video/x-raw,format=NV12,width=1
 # videopath: "/space/data/pl/IMG_3576.MOV"
 engine: "/home/rpdzkj/code/robusttracker/v0/model/yolox_RK3588_i8.rknn"
 irengine: "/home/rpdzkj/code/robusttracker/v0/model/IR.rknn"
-# videopath: "/home/rpdzkj/oriVideo/IMG_3569.MOV" #0
-# videopath: "/home/rpdzkj/oriVideo/IMG_3571.MOV" #0
-# videopath: "/home/rpdzkj/oriVideo/IMG_3573.MOV" #0
-# videopath: "/home/rpdzkj/oriVideo/IMG_3575.MOV" #2
-# videopath: "/home/rpdzkj/videos_recorded/2023-03-02-21-22-50.mp4" #2
-# videopath: "/home/rpdzkj/data/4/465-453_.avi" #2
-videopath: "/home/rpdzkj/data/5.mkv" #2
-# videopath: "/home/rpdzkj/wxqq.mp4" #2
+# videopath: "/home/rpdzkj/data/10.mkv" #2
+videopath: "/home/rpdzkj/vi/1.mp4" #2
+# videopath: "/home/rpdzkj/robusttracker-algodev/v0/build/679-317_.avi" #2
 # videopath: "/home/rpdzkj/20240930_102525.mkv" #2
 # videopath: "/home/rpdzkj/20240930_103049.mkv" #2
 # videopath: "/home/rpdzkj/20240930_105350.mkv" #2
