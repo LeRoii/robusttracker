@@ -682,14 +682,14 @@ realtracker::realtracker(std::string cfg)
 
     int sensitivity = config["sensitivity"].as<int>();
 
-    m_stracker = new itracker(sensitivity);
+    m_stracker = new itracker(cfg);
     m_stracker->setGateSize(trackerCfg.gateSize);
 
-    m_detector = new CDetector(const_cast<char *>(engine.c_str()), 3, trackerCfg.visClsNum, trackerCfg.detectorVisNmsConf, trackerCfg.detectorVisConf);
-    m_detector->Init();
+    // m_detector = new CDetector(const_cast<char *>(engine.c_str()), 3, trackerCfg.visClsNum, trackerCfg.detectorVisNmsConf, trackerCfg.detectorVisConf);
+    // m_detector->Init();
 
-    m_irDetector = new CDetector(const_cast<char *>(irEngine.c_str()), 3, trackerCfg.irClsNum, trackerCfg.detectorIrNmsConf, trackerCfg.detectorIrConf);
-    m_irDetector->Init();
+    // m_irDetector = new CDetector(const_cast<char *>(irEngine.c_str()), 3, trackerCfg.irClsNum, trackerCfg.detectorIrNmsConf, trackerCfg.detectorIrConf);
+    // m_irDetector->Init();
 
     m_fps = 25;
 
@@ -728,7 +728,25 @@ inline double getDistance(cv::Point point1, cv::Point point2)
 
 void realtracker::init(const cv::Rect &roi, cv::Mat image)
 {
-    // m_stracker->init(roi, image);
+    m_adjustFlg = false;
+    m_trackerOffsetLimit = trackerCfg.initalOffsetLimit;
+
+    m_stracker->init(roi, image);
+    m_strackerfailedCnt = 0;
+    m_ssearchCnt = 0;
+
+
+    m_state = EN_TRACKER_FSM::STRACK;
+    bbox_t initBox;
+    initBox.x = roi.x;
+    initBox.y = roi.y;
+    initBox.w = roi.width;
+    initBox.h = roi.height;
+
+    m_trackObj.init(initBox, image);
+
+    minDistThres = trackerCfg.initialMinDistThres;
+    areaDifThres = trackerCfg.initialAreaDifThres;
 }
 
 /**
@@ -1456,6 +1474,7 @@ void realtracker::runTracker(cv::Mat &frame, bool alone)
     cv::Rect kcfResult, templateRet;
     // cv::Point ScreenCenter = cv::Point(960,540);
     kcfResult = m_stracker->update(frame, alone);
+    spdlog::debug("m_stracker Elapsed {}", sw);
 #if TRACKER_DEBUG
     spdlog::debug("m_stracker Elapsed {}", sw);
     // cv::Mat strakerRet = frame.clone();

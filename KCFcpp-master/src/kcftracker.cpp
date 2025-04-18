@@ -88,6 +88,73 @@ the use of this software, even if advised of the possibility of such damage.
 #include "labdata.hpp"
 #endif
 
+KCFTracker::KCFTracker(stTrackerParams cfg):m_cfg(cfg)
+{
+    // Parameters equal in all cases
+    lambda = m_cfg.lambda;
+    // padding = 2.5; 
+    padding = m_cfg.padding; 
+    //output_sigma_factor = 0.1;
+    output_sigma_factor = m_cfg.output_sigma_factor;
+
+
+    if (m_cfg.hog) {    // HOG
+        // VOT
+        interp_factor = m_cfg.interp_factor;
+        sigma = m_cfg.sigma; 
+        // TPAMI
+        //interp_factor = 0.02;
+        //sigma = 0.5; 
+        cell_size = m_cfg.cellSz;
+        _hogfeatures = true;
+
+        if (m_cfg.lab) {
+            interp_factor = m_cfg.interp_factor;
+            sigma = m_cfg.sigma; 
+            //output_sigma_factor = 0.025;
+            output_sigma_factor = m_cfg.output_sigma_factor;
+
+            _labfeatures = true;
+            _labCentroids = cv::Mat(nClusters, 3, CV_32FC1, &data);
+            cell_sizeQ = cell_size*cell_size;
+        }
+        else{
+            _labfeatures = false;
+        }
+    }
+    else {   // RAW
+        interp_factor = m_cfg.interp_factor;
+        sigma = m_cfg.sigma; 
+        cell_size = m_cfg.cellSz;
+        _hogfeatures = false;
+
+        if (m_cfg.lab) {
+            printf("Lab features are only used with HOG features.\n");
+            _labfeatures = false;
+        }
+    }
+
+    if (m_cfg.multiscale) { // multiscale
+        template_size = 96;
+        //template_size = 100;
+        scale_step = 1.05;
+        scale_weight = 0.95;
+        if (!m_cfg.fixedWin) {
+            //printf("Multiscale does not support non-fixed window.\n");
+            m_cfg.fixedWin = true;
+        }
+    }
+    else if (m_cfg.fixedWin) {  // fit correction without multiscale
+        template_size = 96;
+        //template_size = 100;
+        scale_step = 1;
+    }
+    else {
+        template_size = 1;
+        scale_step = 1;
+    }
+}
+
 // Constructor
 KCFTracker::KCFTracker(bool hog, bool fixed_window, bool multiscale, bool lab)
 {

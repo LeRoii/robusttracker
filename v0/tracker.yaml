@@ -35,11 +35,34 @@ detectorIrNmsConf: 0.45
 detectorIrConf: 0.2
 # 识别结果二次nms阈值
 detectorBoxDifThres: 5
+
+# 0：不抗遮挡，1-5：抗遮挡，从1-5遮挡判定依次变严格，5：目标被遮挡10%，进入惯性， 1：目标被遮挡90%以上，进入惯性
 sensitivity: 3
+# 0：图像处理惯性跟踪，1：伺服做惯性跟踪
 withServo: 0
 
+# 0: 自定义
+# 1: 速度优先，hog 关，padding=1.5-2.5，<10ms
+# 2：精度优先，hog 开，padding=3-4, 20+ms
+# 3：正常，hog 关，padding=3 14ms
+# 4：低分辨率目标, lambda=0.001
+# 5：结合识别做跟踪
+trackerMode: 3
 
-######结合识别做跟踪的参数
+# 跟踪模式0 自定义参数
+hog: true
+fixedWin: false
+multiscale: true
+lab: false
+lambda: 0.0001
+padding: 3
+output_sigma_factor: 0.125
+sigma: 0.6
+cellSz: 4
+interp_factor: 0.012
+
+
+# 用识别做跟踪的参数
 # 目标最长丢失帧数
 trackFinalLostCntThres: 120
 # 初始化识别融合距离

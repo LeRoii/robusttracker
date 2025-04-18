@@ -88,11 +88,27 @@ the use of this software, even if advised of the possibility of such damage.
 #define _OPENCV_KCFTRACKER_HPP_
 #endif
 
+struct stTrackerParams
+{
+  bool hog;
+  bool fixedWin;
+  bool multiscale;
+  bool lab;
+  double lambda;
+  int padding;
+  double output_sigma_factor;
+  double sigma;
+  int cellSz;
+  double interp_factor;
+  int mode;
+};
+
 class KCFTracker : public Tracker
 {
 public:
     // Constructor
     KCFTracker(bool hog = true, bool fixed_window = true, bool multiscale = true, bool lab = true);
+    KCFTracker(stTrackerParams cfg);
 
     // Initialize tracker 
     virtual void init(const cv::Rect &roi, cv::Mat image);
@@ -153,4 +169,5 @@ private:
     int _gaussian_size;
     bool _hogfeatures;
     bool _labfeatures;
+    stTrackerParams m_cfg;
 };

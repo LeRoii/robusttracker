@@ -57,6 +57,10 @@ cv::Mat dispFrame, trackRet, detFrame, trackRetByDet;
 int trackOn;
 
 int gateS = 64;
+static int m_gateSm = 0;
+static int m_gateW = 32;
+static int m_gateH = 32;
+
 
 void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数，鼠标点击后执行的内容应在此
 {
@@ -97,8 +101,17 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
         if (trackOn) {
             if (rtracker) {
                 rtracker->reset();
-                rtracker->init( userPt, dispFrame, dispFrame);
-                cv::rectangle(trackFrame, cv::Rect(userPt.x - gateS/2, userPt.y - gateS/2, gateS,gateS),cv::Scalar( 48,48,255 ), 2, 8 );
+                if(m_gateSm == 0)
+                {
+                    rtracker->init( userPt, dispFrame, dispFrame);
+                    cv::rectangle(trackFrame, cv::Rect(userPt.x - gateS/2, userPt.y - gateS/2, gateS,gateS),cv::Scalar( 48,48,255 ), 2, 8 );
+                }
+                else if(m_gateSm == 1)
+                {
+                    cv::Rect rect = cv::Rect(userPt.x - m_gateW/2, userPt.y - m_gateH/2, m_gateW, m_gateH);
+                    rtracker->init( rect, dispFrame);
+                    cv::rectangle(trackFrame, rect,cv::Scalar( 48,48,255 ), 2, 8 );
+                }
                 trackerInited = true;
                 cv::imshow("trackRet", trackFrame);
             }
@@ -110,6 +123,16 @@ void onmouse(int event, int x, int y, int flag, void*)//鼠标事件回调函数
     default:
         break;
     }
+}
+
+std::string extractFileName(const std::string& filePath) {
+    size_t lastSlashPos = filePath.find_last_of("/\\");
+    
+    if (lastSlashPos == std::string::npos) {
+        return filePath; 
+    }
+    
+    return filePath.substr(lastSlashPos + 1);
 }
 
 int main(int argc, char*argv[])
@@ -129,6 +152,10 @@ int main(int argc, char*argv[])
     std::string engine = config["engine"].as<std::string>();
     std::string videopath = config["videopath"].as<std::string>();
     std::string irEngine = config["irengine"].as<std::string>();
+
+    m_gateSm = config["gateSizeMode"].as<int>();
+    m_gateW = config["gateW"].as<int>();
+    m_gateH = config["gateH"].as<int>();
 
     rtracker = new realtracker("/home/rpdzkj/robusttracker-algodev/v0/tracker.yaml");
     // rtracker->setGateSize(gateS);
@@ -162,7 +189,12 @@ int main(int argc, char*argv[])
         cap >> frame;
         // frame = cv::imread("/home/rpdzkj/3/model/1.jpg");
         if(frame.empty())
-            break;
+        {
+            printf("empty\n");
+            video.release();
+            printf("return\n");
+            return 0;
+        }
 
         // frame = cv::imread("/space/data/123.PNG");
         cv::resize(frame, frame, cv::Size(1280,720));
@@ -197,10 +229,14 @@ int main(int argc, char*argv[])
             cv::putText(trackFrame, std::to_string(nFrames), cv::Point(150, 100), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,0,255), 2, cv::LINE_AA);
 
             
-            cv::imshow("trackRet", trackFrame);
+            
             if(recvid)
             {
-                video.write(frame);
+                video.write(trackFrame);
+            }
+            else
+            {
+                cv::imshow("trackRet", trackFrame);
             }
         }
         
@@ -227,8 +263,9 @@ int main(int argc, char*argv[])
         else if(c == 'r')
         {
             recvid = true;
-            video.open(std::to_string(userPt.x) + "-" + std::to_string(userPt.y) + "_.avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0, cv::Size(1280,720));
+            video.open(extractFileName(videopath) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0, cv::Size(1280,720));
             spdlog::debug("video record start");
+            waitVAL = 1;
         }
         else if(c == 't')
         {

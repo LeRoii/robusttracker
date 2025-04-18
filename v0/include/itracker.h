@@ -7,10 +7,10 @@
 class itracker
 {
 public:
-    itracker(int sensitivity);
+    itracker(std::string cfg);
     ~itracker();
 
-    void init(cv::Rect &roi, cv::Mat image);
+    void init(const cv::Rect &roi, cv::Mat image);
     void init(const cv::Point &pt, cv::Mat image);
     cv::Rect update(cv::Mat image, bool alone = true);
     void reset();
