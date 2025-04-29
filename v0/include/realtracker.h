@@ -6,6 +6,9 @@
 #include "multitracker.h"
 
 #include <opencv2/opencv.hpp>
+#include "BoTSORT.h"
+#include "DataType.h"
+#include "track.h"
 
 
 enum class EN_TRACKER_FSM
@@ -54,6 +57,7 @@ struct stTrackerCfg
     double detectorIrConf;           // 0.4
     int trackFinalLostCntThres;      // 30
     int withServo;
+    double veloFactor;
 };
 
 class trackObj
@@ -107,6 +111,7 @@ private:
 class realtracker
 {
 public:
+    realtracker(std::string rgbEnginepath, std::string irEnginepath, int rgbClassNum, int irClassNum);
     realtracker(std::string cfg);
     ~realtracker();
 
@@ -133,10 +138,9 @@ public:
 
     void gateAdjust(int dir);//0:up, 1:down, 2:left, 3:right
     
-    // FrameInfo m_frameInfo;
-    // void plot_tracks(cv::Mat &frame, std::vector<std::shared_ptr<Track>> &tracks);
-    // std::vector<std::shared_ptr<Track>> tracks;
-    int osdw;
+    FrameInfo m_frameInfo;
+    void plot_tracks(cv::Mat &frame, std::vector<std::shared_ptr<Track>> &tracks);
+    std::vector<std::shared_ptr<Track>> tracks;
 
 private:
     void fsmUpdate(cv::Mat &frame, cv::Mat &, cv::Rect &);
@@ -151,7 +155,7 @@ private:
     CDetector *m_irDetector;
     // FrameInfo m_frameInfo;
     // std::unique_ptr<BaseTracker> m_mtracker;
-        // std::unique_ptr<BoTSORT> tracker;
+        std::unique_ptr<BoTSORT> tracker;
 
 
     regions_t m_regions;
@@ -180,7 +184,7 @@ private:
     double minDistThres;
     double areaDifThres;
     int m_dtrackerLostCnt;
-
+    int osdw;
     bool sevorKeepFlag;
     int16_t x;
     int16_t y;

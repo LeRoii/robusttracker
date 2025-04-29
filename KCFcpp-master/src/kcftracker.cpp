@@ -312,7 +312,15 @@ cv::Rect KCFTracker::update(cv::Mat image, double &apcVal, double &peakVal)
 
     float peak_value;
     double apc;
+
+    // auto start = std::chrono::high_resolution_clock::now();
+
     cv::Point2f res = detect(_tmpl, getFeatures(image, 0, 1.0f), peak_value, apc);
+
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> elapsed = end - start;
+    // std::cout<<"detect Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
+
 
     if (scale_step != 1) {
         // Test at a smaller _scale
@@ -437,9 +445,16 @@ cv::Point2f KCFTracker::detect(cv::Mat z, cv::Mat x, float &peak_value, double &
 {
     using namespace FFTTools;
 
+    // auto start = std::chrono::high_resolution_clock::now();
+
     cv::Mat k = gaussianCorrelation(x, z);
     cv::Mat res = (real(fftd(complexMultiplication(_alphaf, fftd(k)), true)));
 
+    // auto end = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> elapsed = end - start;
+    // std::cout<<"gaussianCorrelation Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
+
+    // start = std::chrono::high_resolution_clock::now();
     //minMaxLoc only accepts doubles for the peak, and integer points for the coordinates
     cv::Point2i pi;
     cv::Point2i minPoint;
@@ -452,6 +467,7 @@ cv::Point2f KCFTracker::detect(cv::Mat z, cv::Mat x, float &peak_value, double &
     double ave_res = 0;
     double value_diff = 0;
     double sum_diff = 0;
+
     for(int i=0; i<res.cols; i++){
     	for(int j=0; j<res.rows; j++){
 				
@@ -484,6 +500,10 @@ cv::Point2f KCFTracker::detect(cv::Mat z, cv::Mat x, float &peak_value, double &
 
     p.x -= (res.cols) / 2;
     p.y -= (res.rows) / 2;
+
+    // end = std::chrono::high_resolution_clock::now();
+    // elapsed = end - start;
+    // std::cout<<"detect rest Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
 
     return p;
 }
@@ -640,7 +660,14 @@ cv::Mat KCFTracker::getFeatures(const cv::Mat & image, bool inithann, float scal
     if (_hogfeatures) {
         IplImage z_ipl = cvIplImage(z);
         CvLSVMFeatureMapCaskade *map;
+        // auto start = std::chrono::high_resolution_clock::now();
+
         getFeatureMaps(&z_ipl, cell_size, &map);
+
+        // auto end = std::chrono::high_resolution_clock::now();
+        // std::chrono::duration<double> elapsed = end - start;
+        // std::cout<<"getFeatureMaps Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
+
         normalizeAndTruncate(map,0.2f);
         PCAFeatureMaps(map);
         size_patch[0] = map->sizeY;

@@ -16,6 +16,11 @@ static std::vector<double> preApce;
 static std::vector<double> preResMax;
 static stTrackerParams m_cfg;
 
+static double m_ssimUpThres = 0.7;
+static double m_ssimLowThres = 0.2;
+static double m_pvUpThres = 0.8;
+static double m_pvLowThres = 0.5;
+
 
 static double calculateSSIM(const cv::Mat& imgg1, const cv::Mat& imgg2)
 {
@@ -129,6 +134,28 @@ itracker::itracker(std::string cfg):m_isLost(true),m_init(false)
     m_cfg.mode = config["trackerMode"].as<int>();
     m_sen = config["sensitivity"].as<int>();
 
+    m_ssimUpThres = config["ssimUpThres"].as<double>();
+    m_ssimLowThres = config["ssimLowThres"].as<double>();
+    m_pvUpThres = config["pvUpThres"].as<double>();
+    m_pvLowThres = config["pvLowThres"].as<double>();
+
+    if(m_ssimUpThres > 1 || m_ssimUpThres < 0 || m_ssimLowThres > 1 || m_ssimLowThres < 0 || m_ssimUpThres < m_ssimUpThres)
+    {
+        m_ssimUpThres = 0.6;
+        m_ssimLowThres = 0.2;
+    }
+    if(m_pvUpThres > 1 || m_pvUpThres < 0 || m_pvLowThres > 1 || m_pvLowThres < 0 || m_pvUpThres < m_pvLowThres)
+    {
+        m_pvUpThres = 0.8;
+        m_pvLowThres = 0.3;
+    }
+
+    if(m_ssimLowThres > 0.2 || m_pvLowThres > 0.3)
+        m_failCntThres = --m_failCntThres > 0 ? m_failCntThres : 1;
+
+    if(m_ssimLowThres < 0.2 || m_pvLowThres < 0.3)
+        m_failCntThres++;
+
 
     if(m_cfg.mode == 0)
     {
@@ -212,6 +239,8 @@ itracker::itracker(std::string cfg):m_isLost(true),m_init(false)
         case 1: m_failCntThres = 10;break;
         case 2: m_failCntThres = 5;break;
         case 3: m_failCntThres = 3;break;
+        case 4: m_failCntThres = 2;break;
+        case 5: m_failCntThres = 1;break;
         default:m_failCntThres = 100;break;
     }
     
@@ -407,7 +436,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
 #if TRACKER_DEBUG
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
-    std::cout<<"Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
+    std::cout<<"trackerPtr update Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
 #endif
 
 
@@ -416,6 +445,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
         return result;
     }
 
+    
     preApce.push_back(apc);
     preResMax.push_back(peakVal);
 
@@ -479,6 +509,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     }
 
     return result;
+
 
     // std::cout<<"bf itracker:"<<result<<std::endl;
 
@@ -549,7 +580,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
 
 
     // if(sim > 0.99 || peakVal > 1.0f)
-    if((sim > 0.7 || peakVal > 30.f) || m_setupf++ < 5)
+    if((sim > m_ssimUpThres || peakVal > m_pvUpThres) || m_setupf++ < 5)
     // if(hsim < 0.2)
     {
         m_oriPatch = retPatch.clone();
@@ -558,7 +589,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     }
     else
     {
-        if(m_stpUpdt++ > 30 && sim > 0.5 && peakVal > 30.f)
+        if(m_stpUpdt++ > 30 && sim > 0.5 && peakVal > 0.8f)
         {
 #if TRACKER_DEBUG
             printf("m_stpUpdt met, updt patch\n");
@@ -567,7 +598,7 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
             m_stpUpdt = 0;
         }
     }
-    if(peakVal > 60.f)
+    if(peakVal > 0.8f)
         trackerPtr->updateRoi(image);
     // if(sim > 0.8f)
     // if(sim < 0.8f && peakVal < 1.0f)
@@ -578,11 +609,11 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     // else
     //     simFailCnt = 0;
 
-    if(sim < 0.2 || peakVal < 20.f)
+    if(sim < m_ssimLowThres || peakVal < m_pvLowThres)
     {
         // m_isLost = true;
         simFailCnt++;
-        if(sim < 0.1)
+        if(sim < m_ssimLowThres*0.5)
         {
             simFailCnt ++;
         }
@@ -591,13 +622,13 @@ cv::Rect itracker::update(cv::Mat image, bool alone)
     {
         simFailCnt = 0;
     }
-    
+    printf("SSSSSSSSSsimilarity:%f, peakVal:%f, simFailCnt:%d\n", sim, peakVal, simFailCnt);
 #if TRACKER_DEBUG
     // printf("simDif:%f\n", simDif);
     // printf("sim:%f\n", sim);
     printf("SSSSSSSSSsimilarity:%f, peakVal:%f, simFailCnt:%d\n", sim, peakVal, simFailCnt);
 #endif
-    if(simFailCnt > simFailedCntThres)
+    if(simFailCnt > m_failCntThres)
     {
         m_isLost = true;
         simFailCnt = 0;
