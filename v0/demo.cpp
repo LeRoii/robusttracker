@@ -223,7 +223,7 @@ int main(int argc, char*argv[])
 
                 spdlog::debug("tracker status:{}", trackerStatus[4]);
 
-                // cv::resize(trackFrame, trackFrame, cv::Size(640,360));
+                cv::resize(trackFrame, trackFrame, cv::Size(640,360));
             }
 
             cv::putText(trackFrame, std::to_string(nFrames), cv::Point(150, 100), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0,0,255), 2, cv::LINE_AA);
@@ -263,7 +263,7 @@ int main(int argc, char*argv[])
         else if(c == 'r')
         {
             recvid = true;
-            video.open(extractFileName(videopath) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0, cv::Size(1280,720));
+            video.open(extractFileName(videopath) + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),30.0, cv::Size(640,360));
             spdlog::debug("video record start");
             waitVAL = 1;
         }

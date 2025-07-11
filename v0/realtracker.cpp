@@ -5,12 +5,18 @@
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
+#include <tracker.hpp>
+#include "samples_utility.hpp"
+
 #define TRACKER_DEBUG 1
 #define TRACKER_DEBUG_DRAW 0
 static spdlog::stopwatch sw;
 static stTrackerCfg trackerCfg;
 
 #define CAL_VELO_MODE 0
+
+static cv::Ptr<cv::TrackerCSRT> csrttracker = cv::TrackerCSRT::create();
+
 
 void DrawFilledRect(cv::Mat &frame, const cv::Rect &rect, cv::Scalar cl, int alpha)
 {
@@ -596,8 +602,8 @@ void trackObj::updateWithoutDet()
     printf("vx:%f, vy:%f\n", m_velo[0], m_velo[1]);
     // printf("m_rect.x + m_velo[0]:%f, m_rect.x + m_velo[0]:%f\n", float(m_rect.x + m_velo[0]), float(m_rect.y + m_velo[1]));
 
-    rx  += m_velo[0];
-    ry  += m_velo[1];
+    rx  += m_velo[0]*trackerCfg.veloFactor;
+    ry  += m_velo[1]*trackerCfg.veloFactor;
     m_rect.x  = rx;
     m_rect.y  = ry;
 
@@ -679,6 +685,9 @@ realtracker::realtracker(std::string cfg)
     trackerCfg.detectorIrConf = config["detectorIrConf"].as<double>();
     trackerCfg.trackFinalLostCntThres = config["trackFinalLostCntThres"].as<int>();
     trackerCfg.withServo = config["withServo"].as<int>();
+    trackerCfg.veloFactor = config["veloFactor"].as<double>();
+
+    trackerCfg.useCSRT = config["useCSRT"].as<int>();
 
     int sensitivity = config["sensitivity"].as<int>();
 
@@ -768,6 +777,22 @@ void realtracker::init(const cv::Point &pt, cv::Mat &trackImage, cv::Mat &detIma
     m_stracker->init(pt, trackImage);
     m_strackerfailedCnt = 0;
     m_ssearchCnt = 0;
+
+    if(trackerCfg.useCSRT == 1)
+    {
+        // delete m_csrtTracker;
+        csrttracker = cv::TrackerCSRT::create();
+        cv::Rect roi= cv::Rect{pt.x - m_stracker->m_GateSize/2, pt.y - m_stracker->m_GateSize/2, m_stracker->m_GateSize, m_stracker->m_GateSize};
+        if(roi.x < 0)
+            roi.x = 0;
+        if(roi.x + roi.width > trackImage.cols)
+            roi.x = trackImage.cols - roi.width - 2;
+        if(roi.y < 0)
+            roi.y = 0;
+        if(roi.y + roi.height > trackImage.rows)
+            roi.y = trackImage.rows - roi.height - 2;
+        csrttracker->init(trackImage, roi);
+    }
 
     // if (m_irFrame)
     // {
@@ -871,10 +896,10 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frameDetect, cv::Mat &frameTracker, c
         trackRect = m_trackObj.m_rect;
         m_strackerfailedCnt++;
         printf("STRACK lost m_strackerfailedCnt:%d\n", m_strackerfailedCnt);
-        if (m_strackerfailedCnt < trackerCfg.strackerFailCntThres)
-            m_state = EN_TRACKER_FSM::SSEARCH;
-        else
-            m_state = EN_TRACKER_FSM::SEARCH;
+        // if (m_strackerfailedCnt < trackerCfg.strackerFailCntThres)
+        m_state = EN_TRACKER_FSM::SSEARCH;
+        // else
+        //     m_state = EN_TRACKER_FSM::SEARCH;
     }
     else
     {
@@ -882,7 +907,7 @@ void realtracker::FSM_PROC_STRACK(cv::Mat &frameDetect, cv::Mat &frameTracker, c
         // rectangle(frame, m_strackerRet, cv::Scalar(255, 255, 255), 3, 8);
         trackRect = m_strackerRet;
         m_state = EN_TRACKER_FSM::STRACK;
-        m_trackObj.update(frame, m_strackerRet, m_stracker->getConf());
+        m_trackObj.update(frame, m_strackerRet, trackerCfg.useCSRT == 1 ? csrttracker->getConf() : m_stracker->getConf());
     }
 
     printf("m_trackObj age:%d, lostcnt:%d, trace size:%d, velo x:%f, velo y:%f\n",
@@ -930,7 +955,12 @@ void realtracker::FSM_PROC_SSEARCH(cv::Mat &frame, cv::Rect &trackRect)
         m_trackObj.updateWithoutDet();
         std::cout << m_trackObj.m_rect << std::endl;
         usleep(8000);
-        m_stracker->setRoi(m_trackObj.m_rect);
+        if(trackerCfg.useCSRT == 1)
+        {
+            csrttracker->setObjPt(m_trackObj.center());
+        }
+        else
+            m_stracker->setRoi(m_trackObj.m_rect);
         trackRect = m_trackObj.m_rect;
     }
     else
@@ -944,20 +974,47 @@ void realtracker::FSM_PROC_SSEARCH(cv::Mat &frame, cv::Rect &trackRect)
     if(m_ssearchCnt % 12 == 0)
     {
         double sim = 0.f;
-        auto rect = m_stracker->find(frame, sim);
+        cv::Rect rect;
+        if(trackerCfg.useCSRT == 1)
+        {
+            printf("ssearch find\n");
+            // bool isfound = csrttracker->update(frame, roi);
+            float f;
+            rect = csrttracker->find(frame, f);
+            sim = f;
+            printf("csrt find res:%f\n", sim);
+            // cv::rectangle(frame, roi, cv::Scalar(123,30,56), 2);
+        }
+        else
+        {
+            rect = m_stracker->find(frame, sim);
+        }
+
 
         // if(sim > 0.6)
         if(sseFind(sim))
         {
             //find, to strack
-            m_state = EN_TRACKER_FSM::STRACK;
-            trackRect = rect;
-            m_stracker->isLost() = false;
-            m_stracker->reset();
-            m_stracker->init(rect, frame);
-            m_ssearchCnt = 1;
-            m_strackerfailedCnt--;
-            return;
+            if(trackerCfg.useCSRT == 1)
+            {
+                m_state = EN_TRACKER_FSM::STRACK;
+                trackRect = rect;
+                m_stracker->isLost() = false;
+                m_ssearchCnt = 1;
+                return;
+            }
+            else
+            {
+                m_state = EN_TRACKER_FSM::STRACK;
+                trackRect = rect;
+                m_stracker->isLost() = false;
+                m_stracker->reset();
+                m_stracker->init(rect, frame);
+                m_ssearchCnt = 1;
+                m_strackerfailedCnt--;
+                return;
+            }
+           
         }
 
 #if 1
@@ -1469,6 +1526,19 @@ EN_TRACKER_FSM realtracker::update(cv::Mat &frameDetect, cv::Mat &frameTracker, 
 
 void realtracker::runTracker(cv::Mat &frame, bool alone)
 {
+    if(trackerCfg.useCSRT == 1)
+    {
+        cv::Rect2d roi;
+        // auto start = std::chrono::high_resolution_clock::now();
+        bool isfound = csrttracker->update(frame, roi);
+        printf("isfound:%d\n", isfound);
+        m_stracker->isLost() = !isfound;
+        // auto end = std::chrono::high_resolution_clock::now();
+        // std::chrono::duration<double> elapsed = end - start;
+        // std::cout<<"Time:"<<elapsed.count()*1000 <<"ms"<<std::endl;
+        m_strackerRet = roi;
+        return;
+    }
     sw.reset();
     // printf("realtracker::runTracker\n");
     cv::Rect kcfResult, templateRet;
@@ -1668,6 +1738,12 @@ bool realtracker::trackerLost()
 
 bool realtracker::sseFind(float sim)
 {
+    if(trackerCfg.useCSRT == 1)
+    {
+        // printf("sseFind sim:%f\n", sim);
+        return sim > 15;
+    }
+
     if(m_trackObj.m_velo[0] == 0 && m_trackObj.m_velo[1] == 0 || m_ssearchCnt > trackerCfg.ssearchCntThres * 0.5)
         return sim > 0.1;
     else if( m_ssearchCnt > trackerCfg.ssearchCntThres * 0.4)
@@ -1676,6 +1752,7 @@ bool realtracker::sseFind(float sim)
         return sim > 0.3;
     else
         return sim > 0.45;
+
 }
 
 void realtracker::gateAdjust(int dir)

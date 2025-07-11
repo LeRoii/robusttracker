@@ -4,7 +4,7 @@ engine: /home/rpdzkj/1/h265encode_test/model/rgb_yolov8_s.rknn
 # irengine: /home/rpdzkj/code/robusttracker-0229/self_v0/model/yolox_RK3588_i8-ir.rknn
 irengine: /home/rpdzkj/1/h265encode_test/model/ir_yolov8.rknn
 # 波门大小
-gateSize: 32
+gateSize: 22
 # 可见光模型类别
 visClsNum: 10
 # 红外模型类别
@@ -16,7 +16,7 @@ offsetLimitCeil: 150
 # 跟踪器失败次数阈值
 strackerFailCntThres: 2
 # 跟踪器搜索帧数阈值
-ssearchCntThres: 100
+ssearchCntThres: 180
 # 脱靶量递增量
 offsetLimitIncCntThres: 10
 # 跟踪目标轨迹长度
@@ -35,6 +35,7 @@ detectorIrNmsConf: 0.45
 detectorIrConf: 0.2
 # 识别结果二次nms阈值
 detectorBoxDifThres: 5
+veloFactor: 0.3
 
 # 0：不抗遮挡，1-5：抗遮挡，从1-5遮挡判定依次变严格，5：目标被遮挡10%，进入惯性， 1：目标被遮挡90%以上，进入惯性
 sensitivity: 3
@@ -47,7 +48,7 @@ withServo: 0
 # 3：正常，hog 关，padding=3 14ms
 # 4：低分辨率目标, lambda=0.001
 # 5：结合识别做跟踪
-trackerMode: 3
+trackerMode: 0
 
 # 跟踪模式0 自定义参数
 hog: true
@@ -55,7 +56,7 @@ fixedWin: false
 multiscale: true
 lab: false
 lambda: 0.0001
-padding: 3
+padding: 1
 output_sigma_factor: 0.125
 sigma: 0.6
 cellSz: 4
@@ -95,3 +96,4 @@ strackerWaitThres: 5
 containRectCntThres: 3
 # 识别结果匹配失败阈值
 dtrackerLostCntThres: 2
+useCSRT: 1

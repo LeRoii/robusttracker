@@ -23,7 +23,10 @@ endif()
 include_directories( ${CMAKE_SOURCE_DIR}/include)
 #rga
 include_directories(/usr/include/rga
-                    /usr/local/include/)
+                    /usr/local/include/
+                    csrt/
+                    /usr/include/opencv4/
+                    )
 
 
 find_package(OpenCV)
@@ -42,7 +45,9 @@ set(APP_SRC
   ${PROJECT_SOURCE_DIR}/realtracker.cpp
   )
 
-add_executable(demo ${APP_SRC})
+FILE(GLOB_RECURSE csrt_src "csrt/*.cpp")
+
+add_executable(demo ${APP_SRC} ${csrt_src})
 
 # target_link_libraries(demo sdireader  -lidetector  -ltracker ${OpenCV_LIBS})
 target_link_libraries(demo ${OpenCV_LIBS} -ltracker ${RKNN_RT_LIB} ${RGA_LIB})
@@ -50,3 +55,20 @@ target_link_libraries(demo -lidetector_yolov8 -lGuideSCUSB2 -lusb-1.0 -lm)
 target_link_libraries(demo yaml-cpp)
 target_link_libraries(demo -pthread)
 target_link_libraries(demo spdlog::spdlog)
+target_link_libraries( demo -lopencv_core 
+-lopencv_objdetect 
+-lopencv_tracking
+-lopencv_videoio 
+-lopencv_imgproc 
+-lopencv_calib3d 
+-lopencv_features2d 
+-lopencv_flann 
+-lopencv_highgui 
+-lopencv_ml 
+-lopencv_photo 
+-lopencv_stitching 
+-lopencv_superres 
+-lopencv_video 
+-lopencv_videostab 
+)
+
